@@ -1,8 +1,12 @@
-cbuffer VS_Constants : register(b0)
+cbuffer CameraConstants : register(b0)
 {
-	matrix World;
 	matrix View;
 	matrix Projection;
+};
+
+cbuffer VS_Constants : register(b1)
+{
+	matrix World;
 };
 
 struct VS_Input

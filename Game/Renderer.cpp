@@ -38,12 +38,6 @@ public:
 
 using namespace DirectX;
 
-static constexpr std::array g_verts{
-    Vertex{.Position{ 0.0f, 0.5f, 0.5f }, .Color{ 1.0f, 0.0f, 0.0f, 1.0f }},
-    Vertex{.Position{ 0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 1.0f, 0.0f, 1.0f }},
-    Vertex{.Position{ -0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 0.0f, 1.0f, 1.0f }},
-};
-
 Renderer::Renderer(SDL_Window* window)
 {
     UINT devFlags = 0;
@@ -117,28 +111,13 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        CD3D11_BUFFER_DESC bd(sizeof(g_verts), D3D11_BIND_VERTEX_BUFFER);
-        D3D11_SUBRESOURCE_DATA data = {};
-        data.pSysMem = &g_verts;
+        CD3D11_BUFFER_DESC bd(sizeof(CameraConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
 
-        hr = m_device->CreateBuffer(&bd, &data, &m_vertexBuffer);
-    }
-    {
-        ConstantBuffer cb{
-            .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
-            .ViewMatrix = XMMatrixIdentity(),
-            .ProjectionMatrix = XMMatrixIdentity()
-        };
-
-        CD3D11_BUFFER_DESC bd(sizeof(cb), D3D11_BIND_CONSTANT_BUFFER);
-        D3D11_SUBRESOURCE_DATA data = {};
-        data.pSysMem = &cb;
-
-        hr = m_device->CreateBuffer(&bd, &data, &m_constantBuffer);
+        hr = m_device->CreateBuffer(&bd, nullptr, &m_cameraConstantBuffer);
     }
 }
 
-Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices)
+Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
@@ -150,12 +129,21 @@ Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices)
         data.pSysMem = vertices.data();
 
         hr = m_device->CreateBuffer(&bd, &data, &renderable->m_vertexBuffer);
+        renderable->m_vertexCount = static_cast<UINT>(vertices.size());
     }
+
     {
-        ConstantBuffer cb{
+        CD3D11_BUFFER_DESC bd(sizeof(u16) * indices.size(), D3D11_BIND_INDEX_BUFFER);
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = indices.data();
+
+        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_indexBuffer);
+        renderable->m_indexCount = static_cast<UINT>(indices.size());
+    }
+
+    {
+        RenderableConstantBuffer cb{
             .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
-            .ViewMatrix = XMMatrixIdentity(),
-            .ProjectionMatrix = XMMatrixIdentity()
         };
 
         CD3D11_BUFFER_DESC bd(sizeof(cb), D3D11_BIND_CONSTANT_BUFFER);
@@ -165,19 +153,30 @@ Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices)
         hr = m_device->CreateBuffer(&bd, &data, &renderable->m_constantBuffer);
     }
 
-    renderable->m_vertexCount = static_cast<UINT>(vertices.size());
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
-void Renderer::draw(Renderable* renderable)
+void Renderer::draw(Renderable* renderable, const Camera& camera)
 {
-    std::array constantBuffers{ renderable->m_constantBuffer.Get() };
+    {
+        CameraConstantBuffer cb{
+            .ViewMatrix = XMMatrixTranspose(camera.getViewMatrix()),
+            .ProjectionMatrix = XMMatrixTranspose(camera.getProjectionMatrix()),
+            //.ViewMatrix = XMMatrixIdentity(),
+            //.ProjectionMatrix = XMMatrixIdentity(),
+        };
+
+        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+    }
+
+    std::array constantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
     std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
@@ -185,8 +184,9 @@ void Renderer::draw(Renderable* renderable)
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(constantBuffers.size()), constantBuffers.data());
 
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
+    m_context->PSSetConstantBuffers(0, static_cast<UINT>(constantBuffers.size()), constantBuffers.data());
 
-    m_context->Draw(renderable->m_vertexCount, 0);
+    m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }
 
 void Renderer::clear(float r, float g, float b)
@@ -198,4 +198,24 @@ void Renderer::clear(float r, float g, float b)
 void Renderer::endFrame()
 {
     m_swapChain->Present(0, 0);
+}
+
+XMMATRIX Camera::getViewMatrix() const
+{
+    return XMMatrixLookToLH(m_position, m_direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+}
+
+XMMATRIX Camera::getProjectionMatrix() const
+{
+    return m_projectionMatrix;
+}
+
+void Camera::move(float xOff, float yOff, float zOff)
+{
+    m_position += XMVectorSet(xOff, yOff, zOff, 0.0f);
+}
+
+void Camera::setPosition(float x, float y, float z)
+{
+    m_position = XMVectorSet(x, y, z, 0.0f);
 }

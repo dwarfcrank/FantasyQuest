@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "Game.h"
+#include "Common.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -38,23 +39,34 @@ int main(int argc, char* argv[])
     {
         Renderer r(window);
 
-        auto triangle = r.createRenderable(std::vector{
-            Vertex{.Position{ 0.0f, 0.5f, 0.5f }, .Color{ 1.0f, 0.0f, 0.0f, 1.0f }},
-            Vertex{.Position{ 0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 1.0f, 0.0f, 1.0f }},
-            Vertex{.Position{ -0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 0.0f, 1.0f, 1.0f }},
-        });
+        auto cube = r.createRenderable(
+            std::vector<Vertex>{
+                { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
+            },
+            std::vector<u16>{
+                3, 1, 0, 2, 1, 3,
+                0, 5, 4, 1, 5, 0,
+                3, 4, 7, 0, 4, 3,
+                1, 6, 5, 2, 6, 1,
+                2, 7, 6, 3, 7, 2,
+                6, 4, 5, 7, 4, 6,
+            }
+        );
 
-        auto triangle2 = r.createRenderable(std::vector{
-            Vertex{.Position{ 0.0f, 0.3f, 0.5f }, .Color{ 0.0f, 0.0f, 0.0f, 1.0f }},
-            Vertex{.Position{ 0.3f, -0.3f, 0.5f }, .Color{ 0.5f, 0.5f, 0.5f, 1.0f }},
-            Vertex{.Position{ -0.3f, -0.3f, 0.5f }, .Color{ 1.0f, 1.0f, 1.0f, 1.0f }},
-        });
+        Camera cam;
 
         for (int i = 0; i < 100; i++) {
             auto fi = static_cast<float>(i) / 100.0f;
+            cam.move(fi * 0.03f, 0.005f, 0.0f);
             r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
-            r.draw(triangle);
-            r.draw(triangle2);
+            r.draw(cube, cam);
             r.endFrame();
             SDL_Delay(20);
         }

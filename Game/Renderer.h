@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common.h"
+
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>
@@ -11,18 +13,23 @@
 #include <memory>
 
 using Microsoft::WRL::ComPtr;
+using namespace DirectX;
 
 struct Vertex
 {
-    DirectX::XMFLOAT3 Position;
-    DirectX::XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
+    XMFLOAT3 Position;
+    XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
-struct ConstantBuffer
+struct CameraConstantBuffer
 {
-    DirectX::XMMATRIX WorldMatrix;
-    DirectX::XMMATRIX ViewMatrix;
-    DirectX::XMMATRIX ProjectionMatrix;
+    XMMATRIX ViewMatrix;
+    XMMATRIX ProjectionMatrix;
+};
+
+struct RenderableConstantBuffer
+{
+    XMMATRIX WorldMatrix;
 };
 
 class Renderable
@@ -36,8 +43,27 @@ private:
     friend class Renderer;
 
     UINT m_vertexCount;
+    UINT m_indexCount;
+
     ComPtr<ID3D11Buffer> m_vertexBuffer;
+    ComPtr<ID3D11Buffer> m_indexBuffer;
     ComPtr<ID3D11Buffer> m_constantBuffer;
+};
+
+class Camera
+{
+public:
+    XMMATRIX getViewMatrix() const;
+    XMMATRIX getProjectionMatrix() const;
+
+    void move(float xOff, float yOff, float zOff);
+    void setPosition(float x, float y, float z);
+
+private:
+    XMVECTOR m_position = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
+    XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+    
+    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 0.01f, 100.0f);
 };
 
 class Renderer
@@ -45,9 +71,9 @@ class Renderer
 public:
     Renderer(SDL_Window* window);
 
-    Renderable* createRenderable(const std::vector<Vertex>& vertices);
+    Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
 
-    void draw(Renderable*);
+    void draw(Renderable*, const Camera&);
     void clear(float r, float g, float b);
     void endFrame();
 
@@ -61,7 +87,6 @@ private:
     ComPtr<ID3D11InputLayout> m_inputLayout;
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
-    ComPtr<ID3D11Buffer> m_vertexBuffer;
-    ComPtr<ID3D11Buffer> m_constantBuffer;
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
+    ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
 };
