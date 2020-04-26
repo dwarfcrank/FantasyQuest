@@ -2,6 +2,7 @@
 #include "framework.h"
 #include "Game.h"
 #include "Common.h"
+#include "InputMap.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -62,18 +63,66 @@ int main(int argc, char* argv[])
         );
 
         Camera cam;
-        Transform t;
+        Transform t, t2;
 
+        bool running = true;
+
+        InputMap inputs;
+        inputs.bind(SDLK_w, [&](bool pressed) {
+            if (!pressed) {
+                t.move(0.0f, 0.1f, 0.0f);
+            }
+        });
+
+        inputs.bind(SDLK_s, [&](bool pressed) {
+            if (!pressed) {
+                t.move(0.0f, -0.1f, 0.0f);
+            }
+        });
+
+        inputs.bind(SDLK_ESCAPE, [&](bool) { running = false; });
+
+        while (running) {
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_KEYUP:
+                case SDL_KEYDOWN:
+                    inputs.handleEvent(event);
+                    break;
+
+                default:
+                    break;
+                }
+            }
+
+            /*
+            t.rotate(0.0f, 0.01f, 0.0f);
+            t2.move(0.0f, 0.005f, 0.0f);
+            t2.rotate(0.0f, -0.005f, 0.0f);
+            */
+            r.clear(0.1f, 0.2f, 0.3f);
+            //r.draw(cube, cam, t2);
+            r.draw(cube, cam, t);
+            r.endFrame();
+        }
+
+        /*
         for (int i = 0; i < 100; i++) {
             auto fi = static_cast<float>(i) / 100.0f;
             t.rotate(0.0f, 0.05f, 0.0f);
+            t2.move(0.0f, 0.05f, 0.0f);
             r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
+            r.draw(cube, cam, t2);
             r.draw(cube, cam, t);
             r.endFrame();
             SDL_Delay(20);
         }
-
-        SDL_Delay(2000);
+        */
     }
 
     SDL_DestroyWindow(window);
