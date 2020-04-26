@@ -38,10 +38,23 @@ int main(int argc, char* argv[])
     {
         Renderer r(window);
 
+        auto triangle = r.createRenderable(std::vector{
+            Vertex{.Position{ 0.0f, 0.5f, 0.5f }, .Color{ 1.0f, 0.0f, 0.0f, 1.0f }},
+            Vertex{.Position{ 0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 1.0f, 0.0f, 1.0f }},
+            Vertex{.Position{ -0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 0.0f, 1.0f, 1.0f }},
+        });
+
+        auto triangle2 = r.createRenderable(std::vector{
+            Vertex{.Position{ 0.0f, 0.3f, 0.5f }, .Color{ 0.0f, 0.0f, 0.0f, 1.0f }},
+            Vertex{.Position{ 0.3f, -0.3f, 0.5f }, .Color{ 0.5f, 0.5f, 0.5f, 1.0f }},
+            Vertex{.Position{ -0.3f, -0.3f, 0.5f }, .Color{ 1.0f, 1.0f, 1.0f, 1.0f }},
+        });
+
         for (int i = 0; i < 100; i++) {
             auto fi = static_cast<float>(i) / 100.0f;
             r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
-            r.draw();
+            r.draw(triangle);
+            r.draw(triangle2);
             r.endFrame();
             SDL_Delay(20);
         }

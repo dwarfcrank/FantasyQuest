@@ -44,13 +44,6 @@ static constexpr std::array g_verts{
     Vertex{.Position{ -0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 0.0f, 1.0f, 1.0f }},
 };
 
-struct ConstantBuffer
-{
-    XMMATRIX WorldMatrix;
-    XMMATRIX ViewMatrix;
-    XMMATRIX ProjectionMatrix;
-};
-
 Renderer::Renderer(SDL_Window* window)
 {
     UINT devFlags = 0;
@@ -145,11 +138,43 @@ Renderer::Renderer(SDL_Window* window)
     }
 }
 
-void Renderer::draw()
+Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices)
 {
-    std::array constantBuffers{ m_constantBuffer.Get() };
-    std::array vertexBuffers{ m_vertexBuffer.Get() };
-    std::array strides{ static_cast<UINT>(sizeof(g_verts[0])) };
+    std::unique_ptr<Renderable> renderable(new Renderable());
+
+    Hresult hr;
+
+    {
+        CD3D11_BUFFER_DESC bd(sizeof(Vertex) * vertices.size(), D3D11_BIND_VERTEX_BUFFER);
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = vertices.data();
+
+        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_vertexBuffer);
+    }
+    {
+        ConstantBuffer cb{
+            .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
+            .ViewMatrix = XMMatrixIdentity(),
+            .ProjectionMatrix = XMMatrixIdentity()
+        };
+
+        CD3D11_BUFFER_DESC bd(sizeof(cb), D3D11_BIND_CONSTANT_BUFFER);
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = &cb;
+
+        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_constantBuffer);
+    }
+
+    renderable->m_vertexCount = static_cast<UINT>(vertices.size());
+
+    return m_renderables.emplace_back(std::move(renderable)).get();
+}
+
+void Renderer::draw(Renderable* renderable)
+{
+    std::array constantBuffers{ renderable->m_constantBuffer.Get() };
+    std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
+    std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
@@ -161,7 +186,7 @@ void Renderer::draw()
 
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
 
-    m_context->Draw(static_cast<UINT>(g_verts.size()), 0);
+    m_context->Draw(renderable->m_vertexCount, 0);
 }
 
 void Renderer::clear(float r, float g, float b)
