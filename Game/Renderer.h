@@ -7,14 +7,21 @@
 #include <DirectXMath.h>
 #include <d3dcompiler.h>
 #include <wrl.h>
+#include <vector>
 
 using Microsoft::WRL::ComPtr;
+
+struct Vertex
+{
+    DirectX::XMFLOAT3 Position;
+};
 
 class Renderer
 {
 public:
     Renderer(SDL_Window* window);
 
+    void draw();
     void clear(float r, float g, float b);
     void endFrame();
 

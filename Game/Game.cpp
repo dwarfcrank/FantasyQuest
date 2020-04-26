@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "framework.h"
 #include "Game.h"
 
@@ -40,6 +41,7 @@ int main(int argc, char* argv[])
         for (int i = 0; i < 100; i++) {
             auto fi = static_cast<float>(i) / 100.0f;
             r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
+            r.draw();
             r.endFrame();
             SDL_Delay(20);
         }

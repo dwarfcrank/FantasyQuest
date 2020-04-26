@@ -1,5 +1,8 @@
+#include "pch.h"
+
 #include "Renderer.h"
 #include "Common.h"
+#include "File.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -31,6 +34,14 @@ public:
             throw std::runtime_error(fmt::format("hr={:x}", hr));
         }
     }
+};
+
+using namespace DirectX;
+
+static constexpr std::array g_verts{
+    Vertex{.Position{ 0.0f, 0.5f, 0.5f }},
+    Vertex{.Position{ 0.5f, -0.5f, 0.5f }},
+    Vertex{.Position{ -0.5f, -0.5f, 0.5f }},
 };
 
 Renderer::Renderer(SDL_Window* window)
@@ -89,6 +100,42 @@ Renderer::Renderer(SDL_Window* window)
 
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h));
     m_context->RSSetViewports(1, &vp);
+
+    {
+        auto vs = loadFile("../x64/Debug/VertexShader.cso");
+        auto ps = loadFile("../x64/Debug/PixelShader.cso");
+
+        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_vs);
+        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_ps);
+
+        std::array layout{
+            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        };
+
+        hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
+    }
+
+    CD3D11_BUFFER_DESC bd(sizeof(g_verts), D3D11_BIND_VERTEX_BUFFER);
+    D3D11_SUBRESOURCE_DATA data = {};
+    data.pSysMem = &g_verts;
+
+    hr = m_device->CreateBuffer(&bd, &data, &m_vertexBuffer);
+}
+
+void Renderer::draw()
+{
+    std::array buffers{ m_vertexBuffer.Get() };
+    std::array strides{ static_cast<UINT>(sizeof(g_verts[0])) };
+    std::array offsets{ UINT(0) };
+
+    m_context->IASetVertexBuffers(0, static_cast<UINT>(buffers.size()), buffers.data(), strides.data(), offsets.data());
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->IASetInputLayout(m_inputLayout.Get());
+
+    m_context->VSSetShader(m_vs.Get(), nullptr, 0);
+    m_context->PSSetShader(m_ps.Get(), nullptr, 0);
+
+    m_context->Draw(static_cast<UINT>(g_verts.size()), 0);
 }
 
 void Renderer::clear(float r, float g, float b)
