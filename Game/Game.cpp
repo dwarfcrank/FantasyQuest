@@ -4,6 +4,12 @@
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>
+#include <d3d11.h>
+#include <DirectXMath.h>
+#include <d3dcompiler.h>
+#include <wrl.h>
+
+#include "Renderer.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -11,6 +17,8 @@ void reportError(const char* message, TArgs&&... args)
     auto msg = fmt::format(message, std::forward<TArgs>(args)...);
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
+
+using Microsoft::WRL::ComPtr;
 
 int main(int argc, char* argv[])
 {
@@ -26,15 +34,19 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    auto surface = SDL_GetWindowSurface(window);
+    {
+        Renderer r(window);
 
-    for (int i = 0; i < 0x18; i++) {
-        SDL_FillRect(surface, nullptr, SDL_MapRGB(surface->format, i, i * 2, i * 3));
-        SDL_UpdateWindowSurface(window);
-        SDL_Delay(20);
+        for (int i = 0; i < 100; i++) {
+            auto fi = static_cast<float>(i) / 100.0f;
+            r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
+            r.endFrame();
+            SDL_Delay(20);
+        }
+
+        SDL_Delay(2000);
     }
 
-    SDL_Delay(2000);
     SDL_DestroyWindow(window);
     SDL_Quit();
     return 0;
