@@ -12,6 +12,7 @@
 #include <wrl.h>
 
 #include "Renderer.h"
+#include "Transform.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -61,12 +62,13 @@ int main(int argc, char* argv[])
         );
 
         Camera cam;
+        Transform t;
 
         for (int i = 0; i < 100; i++) {
             auto fi = static_cast<float>(i) / 100.0f;
-            cam.move(fi * 0.03f, 0.005f, 0.0f);
+            t.rotate(0.0f, 0.05f, 0.0f);
             r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
-            r.draw(cube, cam);
+            r.draw(cube, cam, t);
             r.endFrame();
             SDL_Delay(20);
         }

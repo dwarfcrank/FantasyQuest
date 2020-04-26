@@ -3,6 +3,7 @@
 #include "Renderer.h"
 #include "Common.h"
 #include "File.h"
+#include "Transform.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -157,17 +158,23 @@ Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, cons
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
-void Renderer::draw(Renderable* renderable, const Camera& camera)
+void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
         CameraConstantBuffer cb{
             .ViewMatrix = XMMatrixTranspose(camera.getViewMatrix()),
             .ProjectionMatrix = XMMatrixTranspose(camera.getProjectionMatrix()),
-            //.ViewMatrix = XMMatrixIdentity(),
-            //.ProjectionMatrix = XMMatrixIdentity(),
         };
 
         m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+    }
+
+    {
+        RenderableConstantBuffer cb{
+            .WorldMatrix = XMMatrixTranspose(transform.getMatrix())
+        };
+
+        m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
     }
 
     std::array constantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };

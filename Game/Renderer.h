@@ -73,7 +73,7 @@ public:
 
     Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
 
-    void draw(Renderable*, const Camera&);
+    void draw(Renderable*, const Camera&, const struct Transform&);
     void clear(float r, float g, float b);
     void endFrame();
 
