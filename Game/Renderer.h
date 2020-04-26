@@ -14,6 +14,7 @@ using Microsoft::WRL::ComPtr;
 struct Vertex
 {
     DirectX::XMFLOAT3 Position;
+    DirectX::XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
 class Renderer
@@ -34,5 +35,6 @@ private:
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
     ComPtr<ID3D11Buffer> m_vertexBuffer;
+    ComPtr<ID3D11Buffer> m_constantBuffer;
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
 };

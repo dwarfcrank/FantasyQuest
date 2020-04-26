@@ -39,9 +39,16 @@ public:
 using namespace DirectX;
 
 static constexpr std::array g_verts{
-    Vertex{.Position{ 0.0f, 0.5f, 0.5f }},
-    Vertex{.Position{ 0.5f, -0.5f, 0.5f }},
-    Vertex{.Position{ -0.5f, -0.5f, 0.5f }},
+    Vertex{.Position{ 0.0f, 0.5f, 0.5f }, .Color{ 1.0f, 0.0f, 0.0f, 1.0f }},
+    Vertex{.Position{ 0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 1.0f, 0.0f, 1.0f }},
+    Vertex{.Position{ -0.5f, -0.5f, 0.5f }, .Color{ 0.0f, 0.0f, 1.0f, 1.0f }},
+};
+
+struct ConstantBuffer
+{
+    XMMATRIX WorldMatrix;
+    XMMATRIX ViewMatrix;
+    XMMATRIX ProjectionMatrix;
 };
 
 Renderer::Renderer(SDL_Window* window)
@@ -109,30 +116,49 @@ Renderer::Renderer(SDL_Window* window)
         hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_ps);
 
         std::array layout{
-            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
         };
 
         hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
     }
 
-    CD3D11_BUFFER_DESC bd(sizeof(g_verts), D3D11_BIND_VERTEX_BUFFER);
-    D3D11_SUBRESOURCE_DATA data = {};
-    data.pSysMem = &g_verts;
+    {
+        CD3D11_BUFFER_DESC bd(sizeof(g_verts), D3D11_BIND_VERTEX_BUFFER);
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = &g_verts;
 
-    hr = m_device->CreateBuffer(&bd, &data, &m_vertexBuffer);
+        hr = m_device->CreateBuffer(&bd, &data, &m_vertexBuffer);
+    }
+    {
+        ConstantBuffer cb{
+            .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
+            .ViewMatrix = XMMatrixIdentity(),
+            .ProjectionMatrix = XMMatrixIdentity()
+        };
+
+        CD3D11_BUFFER_DESC bd(sizeof(cb), D3D11_BIND_CONSTANT_BUFFER);
+        D3D11_SUBRESOURCE_DATA data = {};
+        data.pSysMem = &cb;
+
+        hr = m_device->CreateBuffer(&bd, &data, &m_constantBuffer);
+    }
 }
 
 void Renderer::draw()
 {
-    std::array buffers{ m_vertexBuffer.Get() };
+    std::array constantBuffers{ m_constantBuffer.Get() };
+    std::array vertexBuffers{ m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(g_verts[0])) };
     std::array offsets{ UINT(0) };
 
-    m_context->IASetVertexBuffers(0, static_cast<UINT>(buffers.size()), buffers.data(), strides.data(), offsets.data());
+    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
     m_context->VSSetShader(m_vs.Get(), nullptr, 0);
+    m_context->VSSetConstantBuffers(0, static_cast<UINT>(constantBuffers.size()), constantBuffers.data());
+
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
 
     m_context->Draw(static_cast<UINT>(g_verts.size()), 0);
