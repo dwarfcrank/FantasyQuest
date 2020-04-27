@@ -21,7 +21,13 @@ struct Transform
 
     void move(float xOff, float yOff, float zOff)
     {
-        Position += XMVectorSet(xOff, yOff, zOff, 0.0f);
+        //Position += XMVectorSet(xOff, yOff, zOff, 0.0f);
+        move(XMVectorSet(xOff, yOff, zOff, 0.0f));
+    }
+
+    void move(XMVECTOR direction)
+    {
+        Position += direction;
     }
 
     void rotate(float xOff, float yOff, float zOff)

@@ -69,16 +69,69 @@ int main(int argc, char* argv[])
         bool running = true;
 
         float moveSpeed = 10.0f;
+        float turnSpeed = 1.0f;
+        float angle = 0.0f;
+        float velocity = 0.0f;
+
         float dt = 0.0f;
         auto t0 = std::chrono::high_resolution_clock::now();
 
         InputMap inputs;
 
+        /*
         inputs.bind(SDLK_a, [&](bool p) { if (p) { t.move(-moveSpeed * dt, 0.0f, 0.0f); } });
         inputs.bind(SDLK_d, [&](bool p) { if (p) { t.move(moveSpeed * dt, 0.0f, 0.0f); } });
+        */
+        inputs.bind(SDLK_a, [&](bool p) {
+            if (p) {
+                //t2.rotate(0.0f, -moveSpeed * dt, 0.0f);
+                angle = -turnSpeed * dt;
+            } else {
+                angle = 0.0f;
+            }
+        });
 
+        inputs.bind(SDLK_d, [&](bool p) {
+            if (p) {
+                //t2.rotate(0.0f, moveSpeed * dt, 0.0f);
+                angle = turnSpeed * dt;
+            } else {
+                angle = 0.0f;
+            }
+        });
+
+        /*
         inputs.bind(SDLK_w, [&](bool p) { if (p) { t.move(0.0f, 0.0f, moveSpeed * dt); } });
         inputs.bind(SDLK_s, [&](bool p) { if (p) { t.move(0.0f, 0.0f, -moveSpeed * dt); } });
+        */
+
+        const auto forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+        inputs.bind(SDLK_w, [&](bool p) {
+            if (p) {
+                /*
+                auto m = t2.getMatrix();
+                auto d = XMVector3TransformNormal(forward, m);
+                t.move(d * moveSpeed * dt);
+                */
+                velocity = moveSpeed * dt;
+            } else {
+                velocity = 0.0f;
+            }
+        });
+
+        inputs.bind(SDLK_s, [&](bool p) {
+            if (p) {
+                /*
+                auto m = t2.getMatrix();
+                auto d = XMVector3TransformNormal(forward, m);
+                t.move(-d * moveSpeed * dt);
+                */
+                velocity = -moveSpeed * dt;
+            } else {
+                velocity = 0.0f;
+            }
+        });
 
         inputs.bind(SDLK_ESCAPE, [&](bool) { running = false; });
 
@@ -101,6 +154,11 @@ int main(int argc, char* argv[])
             }
 
             r.clear(0.1f, 0.2f, 0.3f);
+            t2.rotate(0.0f, angle, 0.0f);
+            auto m = t2.getMatrix();
+            auto d = XMVector3TransformNormal(forward, m);
+            t.move(d * velocity);
+            t.Rotation = t2.Rotation;
             r.draw(cube, cam, t);
             r.endFrame();
 
