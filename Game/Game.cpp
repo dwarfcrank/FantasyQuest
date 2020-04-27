@@ -11,6 +11,7 @@
 #include <DirectXMath.h>
 #include <d3dcompiler.h>
 #include <wrl.h>
+#include <chrono>
 
 #include "Renderer.h"
 #include "Transform.h"
@@ -67,18 +68,17 @@ int main(int argc, char* argv[])
 
         bool running = true;
 
-        InputMap inputs;
-        inputs.bind(SDLK_w, [&](bool pressed) {
-            if (!pressed) {
-                t.move(0.0f, 0.1f, 0.0f);
-            }
-        });
+        float moveSpeed = 10.0f;
+        float dt = 0.0f;
+        auto t0 = std::chrono::high_resolution_clock::now();
 
-        inputs.bind(SDLK_s, [&](bool pressed) {
-            if (!pressed) {
-                t.move(0.0f, -0.1f, 0.0f);
-            }
-        });
+        InputMap inputs;
+
+        inputs.bind(SDLK_a, [&](bool p) { if (p) { t.move(-moveSpeed * dt, 0.0f, 0.0f); } });
+        inputs.bind(SDLK_d, [&](bool p) { if (p) { t.move(moveSpeed * dt, 0.0f, 0.0f); } });
+
+        inputs.bind(SDLK_w, [&](bool p) { if (p) { t.move(0.0f, 0.0f, moveSpeed * dt); } });
+        inputs.bind(SDLK_s, [&](bool p) { if (p) { t.move(0.0f, 0.0f, -moveSpeed * dt); } });
 
         inputs.bind(SDLK_ESCAPE, [&](bool) { running = false; });
 
@@ -100,29 +100,15 @@ int main(int argc, char* argv[])
                 }
             }
 
-            /*
-            t.rotate(0.0f, 0.01f, 0.0f);
-            t2.move(0.0f, 0.005f, 0.0f);
-            t2.rotate(0.0f, -0.005f, 0.0f);
-            */
             r.clear(0.1f, 0.2f, 0.3f);
-            //r.draw(cube, cam, t2);
             r.draw(cube, cam, t);
             r.endFrame();
-        }
 
-        /*
-        for (int i = 0; i < 100; i++) {
-            auto fi = static_cast<float>(i) / 100.0f;
-            t.rotate(0.0f, 0.05f, 0.0f);
-            t2.move(0.0f, 0.05f, 0.0f);
-            r.clear(fi * 0.1f, fi * 0.2f, fi * 0.3f);
-            r.draw(cube, cam, t2);
-            r.draw(cube, cam, t);
-            r.endFrame();
-            SDL_Delay(20);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            auto dtMs = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+            dt = static_cast<float>(dtMs.count()) / 1000.0f;
+            t0 = t1;
         }
-        */
     }
 
     SDL_DestroyWindow(window);
