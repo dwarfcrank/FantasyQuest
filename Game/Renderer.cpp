@@ -37,6 +37,36 @@ public:
     }
 };
 
+template<typename T>
+ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, const std::vector<T>& contents)
+{
+    static_assert(std::is_standard_layout_v<T>);
+    CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T) * contents.size()), flags);
+
+    D3D11_SUBRESOURCE_DATA sd = {};
+    sd.pSysMem = contents.data();
+
+    ComPtr<ID3D11Buffer> buf;
+    Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
+
+    return buf;
+}
+
+template<typename T>
+ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, const T& contents)
+{
+    static_assert(std::is_standard_layout_v<T>);
+    CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T)), flags);
+
+    D3D11_SUBRESOURCE_DATA sd = {};
+    sd.pSysMem = &contents;
+
+    ComPtr<ID3D11Buffer> buf;
+    Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
+
+    return buf;
+}
+
 using namespace DirectX;
 
 Renderer::Renderer(SDL_Window* window)
@@ -111,49 +141,24 @@ Renderer::Renderer(SDL_Window* window)
         hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
     }
 
-    {
-        CD3D11_BUFFER_DESC bd(sizeof(CameraConstantBuffer), D3D11_BIND_CONSTANT_BUFFER);
-
-        hr = m_device->CreateBuffer(&bd, nullptr, &m_cameraConstantBuffer);
-    }
+    m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
 }
 
 Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
-    Hresult hr;
+    renderable->m_vertexBuffer = createBuffer(m_device.Get(), D3D11_BIND_VERTEX_BUFFER, vertices);
+    renderable->m_vertexCount = static_cast<UINT>(vertices.size());
 
-    {
-        CD3D11_BUFFER_DESC bd(sizeof(Vertex) * vertices.size(), D3D11_BIND_VERTEX_BUFFER);
-        D3D11_SUBRESOURCE_DATA data = {};
-        data.pSysMem = vertices.data();
+    renderable->m_indexBuffer = createBuffer(m_device.Get(), D3D11_BIND_INDEX_BUFFER, indices);
+    renderable->m_indexCount = static_cast<UINT>(indices.size());
 
-        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_vertexBuffer);
-        renderable->m_vertexCount = static_cast<UINT>(vertices.size());
-    }
+    RenderableConstantBuffer cb{
+        .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
+    };
 
-    {
-        CD3D11_BUFFER_DESC bd(sizeof(u16) * indices.size(), D3D11_BIND_INDEX_BUFFER);
-        D3D11_SUBRESOURCE_DATA data = {};
-        data.pSysMem = indices.data();
-
-        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_indexBuffer);
-        renderable->m_indexCount = static_cast<UINT>(indices.size());
-    }
-
-    {
-        RenderableConstantBuffer cb{
-            .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
-        };
-
-        CD3D11_BUFFER_DESC bd(sizeof(cb), D3D11_BIND_CONSTANT_BUFFER);
-        D3D11_SUBRESOURCE_DATA data = {};
-        data.pSysMem = &cb;
-
-        hr = m_device->CreateBuffer(&bd, &data, &renderable->m_constantBuffer);
-    }
-
+    renderable->m_constantBuffer = createBuffer(m_device.Get(), D3D11_BIND_CONSTANT_BUFFER, cb);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }

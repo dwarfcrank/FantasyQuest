@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
 
         bool running = true;
 
-        float moveSpeed = 5.0f;
+        float moveSpeed = 5.1f;
         float turnSpeed = 3.0f;
         float angle = 0.0f;
         float velocity = 0.0f;
