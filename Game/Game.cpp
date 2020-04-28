@@ -15,6 +15,9 @@
 
 #include "Renderer.h"
 #include "Transform.h"
+#include "imgui.h"
+#include "imgui_impl_dx11.h"
+#include "imgui_impl_sdl.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -41,6 +44,13 @@ int main(int argc, char* argv[])
 
     {
         Renderer r(window);
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        auto& io = ImGui::GetIO();
+        ImGui::StyleColorsDark();
+        ImGui_ImplSDL2_InitForD3D(window);
+        ImGui_ImplDX11_Init(r.getDevice(), r.getDeviceContext());
 
         auto cube = r.createRenderable(
             std::vector<Vertex>{
@@ -100,6 +110,8 @@ int main(int argc, char* argv[])
         while (running) {
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
+                ImGui_ImplSDL2_ProcessEvent(&event);
+
                 switch (event.type) {
                 case SDL_QUIT:
                     running = false;
@@ -115,6 +127,19 @@ int main(int argc, char* argv[])
                 }
             }
 
+            ImGui_ImplDX11_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
+            {
+                ImGui::Begin("hehebin");
+                ImGui::Text("heh");
+                ImGui::Text("ebin");
+                ImGui::End();
+            }
+
+            ImGui::Render();
+
             r.clear(0.1f, 0.2f, 0.3f);
             t2.rotate(0.0f, angle, 0.0f);
             auto m = t2.getMatrix();
@@ -122,6 +147,9 @@ int main(int argc, char* argv[])
             t.move(d * velocity);
             t.Rotation = t2.Rotation;
             r.draw(cube, cam, t);
+
+            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
             r.endFrame();
 
             auto t1 = std::chrono::high_resolution_clock::now();
@@ -129,6 +157,10 @@ int main(int argc, char* argv[])
             dt = static_cast<float>(dtMs.count()) / 1000.0f;
             t0 = t1;
         }
+
+        ImGui_ImplDX11_Shutdown();
+        ImGui_ImplSDL2_Shutdown();
+        ImGui::DestroyContext();
     }
 
     SDL_DestroyWindow(window);

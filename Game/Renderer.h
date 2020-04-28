@@ -69,6 +69,8 @@ private:
 class Renderer
 {
 public:
+    static HWND GetWindowHandle(SDL_Window* window);
+
     Renderer(SDL_Window* window);
 
     Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
@@ -76,6 +78,9 @@ public:
     void draw(Renderable*, const Camera&, const struct Transform&);
     void clear(float r, float g, float b);
     void endFrame();
+
+    ID3D11Device1* getDevice() { return m_device.Get(); }
+    ID3D11DeviceContext1* getDeviceContext() { return m_context.Get(); }
 
 private:
     std::vector<std::unique_ptr<Renderable>> m_renderables;
