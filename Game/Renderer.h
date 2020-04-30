@@ -69,8 +69,6 @@ private:
 class Renderer
 {
 public:
-    static HWND GetWindowHandle(SDL_Window* window);
-
     Renderer(SDL_Window* window);
 
     Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);

@@ -69,7 +69,7 @@ ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flag
 
 using namespace DirectX;
 
-HWND Renderer::GetWindowHandle(SDL_Window* window)
+static HWND getWindowHandle(SDL_Window* window)
 {
     SDL_SysWMinfo wmi;
     SDL_VERSION(&wmi.version);
@@ -119,7 +119,7 @@ Renderer::Renderer(SDL_Window* window)
     sd.BufferCount = 1;
     sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 
-    auto hwnd = GetWindowHandle(window);
+    auto hwnd = getWindowHandle(window);
     hr = dxgiFactory->CreateSwapChainForHwnd(m_device.Get(), hwnd, &sd, nullptr, nullptr, &m_swapChain);
 
     ComPtr<ID3D11Texture2D> backbuffer;
