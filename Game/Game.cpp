@@ -93,24 +93,24 @@ int main(int argc, char* argv[])
 
         auto cube = r.createRenderable(
             std::vector<Vertex>{
-                { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
-            },
+                { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
+                { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
+                { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
+                { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+                { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
+                { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+                { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+                { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+        },
             std::vector<u16>{
-                3, 1, 0, 2, 1, 3,
-                0, 5, 4, 1, 5, 0,
-                3, 4, 7, 0, 4, 3,
-                1, 6, 5, 2, 6, 1,
-                2, 7, 6, 3, 7, 2,
-                6, 4, 5, 7, 4, 6,
-            }
-        );
+                    3, 1, 0, 2, 1, 3,
+                        0, 5, 4, 1, 5, 0,
+                        3, 4, 7, 0, 4, 3,
+                        1, 6, 5, 2, 6, 1,
+                        2, 7, 6, 3, 7, 2,
+                        6, 4, 5, 7, 4, 6,
+                }
+                );
 
         Renderable* stone = nullptr;
         {
@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
                 if (!it->is_regular_file()) {
                     continue;
                 }
-                
+
                 const auto p = it->path();
                 if (p.extension() == ".fbx") {
                     Mesh mesh(p);
@@ -156,10 +156,11 @@ int main(int argc, char* argv[])
         bool running = true;
 
         float moveSpeed = 5.1f;
+        //float moveSpeed = 10.0f;
         float turnSpeed = 3.0f;
         float angle = 0.0f;
-        float velocity = 0.0f;
-        float upVelocity = 0.0f;
+
+        XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
 
         float dt = 0.0f;
         auto t0 = std::chrono::high_resolution_clock::now();
@@ -167,38 +168,41 @@ int main(int argc, char* argv[])
 
         InputMap inputs;
 
-        inputs.key(SDLK_a)
+        inputs.key(SDLK_e)
             .down([&] { angle = -turnSpeed * dt; })
             .up([&] { angle = 0.0f; });
 
-        inputs.key(SDLK_d)
+        inputs.key(SDLK_q)
             .down([&] { angle = turnSpeed * dt; })
             .up([&] { angle = 0.0f; });
 
+        inputs.key(SDLK_a)
+            .down([&] { velocity.x = -moveSpeed * dt; })
+            .up([&] { velocity.x = 0.0f; });
+
+        inputs.key(SDLK_d)
+            .down([&] { velocity.x = moveSpeed * dt; })
+            .up([&] { velocity.x = 0.0f; });
+
         inputs.key(SDLK_w)
-            .down([&] { velocity = moveSpeed * dt; })
-            .up([&] { velocity = 0.0f; });
+            .down([&] { velocity.z = moveSpeed * dt; })
+            .up([&] { velocity.z = 0.0f; });
 
         inputs.key(SDLK_s)
-            .down([&] { velocity = -moveSpeed * dt; })
-            .up([&] { velocity = 0.0f; });
+            .down([&] { velocity.z = -moveSpeed * dt; })
+            .up([&] { velocity.z = 0.0f; });
 
         inputs.key(SDLK_r)
-            .down([&] { upVelocity = moveSpeed * dt; })
-            .up([&] { upVelocity = 0.0f; });
+            .down([&] { velocity.y = moveSpeed * dt; })
+            .up([&] { velocity.y = 0.0f; });
 
         inputs.key(SDLK_f)
-            .down([&] { upVelocity = -moveSpeed * dt; })
-            .up([&] { upVelocity = 0.0f; });
+            .down([&] { velocity.y = -moveSpeed * dt; })
+            .up([&] { velocity.y = 0.0f; });
 
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
         int modelIdx = 0;
-
-        /*
-        std::size_t modelIdx = 0;
-        inputs.key(SDLK_c).up([&] { modelIdx = (modelIdx + 1) % models.size(); });
-        */
 
         inputs.key(SDLK_SPACE).up([&] {
             scene.emplace_back(models[modelIdx], t);
@@ -208,7 +212,15 @@ int main(int argc, char* argv[])
         bool showDemo = false;
         inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
 
+        XMFLOAT3 tPos(0.0f, 0.0f, 0.0f);
+        XMFLOAT3 tRot(0.0f, 0.0f, 0.0f);
+        XMFLOAT3 tScl(0.0f, 0.0f, 0.0f);
+
         while (running) {
+            XMStoreFloat3(&tPos, t.Position);
+            XMStoreFloat3(&tRot, t.Rotation);
+            XMStoreFloat3(&tScl, t.Scale);
+
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
                 ImGui_ImplSDL2_ProcessEvent(&event);
@@ -239,7 +251,6 @@ int main(int argc, char* argv[])
             if constexpr (true) {
                 ImGui::Begin("Scene");
 
-                ImGui::ListBox("Models", &modelIdx, modelNames.data(), static_cast<int>(modelNames.size()), 5);
                 ImGui::Separator();
 
                 for (int i = 0; i < scene.size(); i++) {
@@ -266,15 +277,49 @@ int main(int argc, char* argv[])
                 ImGui::End();
             }
 
+            if constexpr (true) {
+                ImGui::Begin("Stuff");
+
+                ImGui::ListBox("Models", &modelIdx,
+                    [](void* data, int idx, const char** output) -> bool {
+                        const auto items = reinterpret_cast<Model*>(data);
+                        *output = items[idx].name.c_str();
+                        return true;
+                    },
+                    models.data(), static_cast<int>(models.size()), 8
+                );
+
+                ImGui::Separator();
+
+                if (ImGui::InputFloat3("Position", &tPos.x)) {
+                    t.Position = XMLoadFloat3(&tPos);
+                }
+
+                if (ImGui::InputFloat3("Rotation", &tRot.x)) {
+                    t.Rotation = XMLoadFloat3(&tRot);
+                }
+
+                if (ImGui::InputFloat3("Scale", &tScl.x)) {
+                    t.Scale = XMLoadFloat3(&tScl);
+                }
+
+                ImGui::End();
+            }
+
             ImGui::Render();
 
             r.clear(0.1f, 0.2f, 0.3f);
+
+            /*
             t2.rotate(0.0f, angle, 0.0f);
             auto m = t2.getMatrix();
             auto d = XMVector3TransformNormal(forward, m);
             t.move(d * velocity);
             t.move(XMVectorSet(0.0f, upVelocity, 0.0f, 0.0f));
             t.Rotation = t2.Rotation;
+            */
+            t.move(velocity.x, velocity.y, velocity.z);
+            t.rotate(0.0f, angle, 0.0f);
             //r.draw(cube, cam, t);
             r.draw(models[modelIdx].renderable, cam, t);
 
