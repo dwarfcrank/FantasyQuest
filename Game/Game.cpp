@@ -55,14 +55,14 @@ int main(int argc, char* argv[])
 
         auto cube = r.createRenderable(
             std::vector<Vertex>{
-                { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
-                { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
-                { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 0.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 1.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 1.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 0.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 0.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 1.0f, 0.0f, 1.0f ) },
+                { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 1.0f, 1.0f, 1.0f, 1.0f ) },
+                { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4( 0.0f, 0.0f, 0.0f, 1.0f ) },
             },
             std::vector<u16>{
                 3, 1, 0, 2, 1, 3,

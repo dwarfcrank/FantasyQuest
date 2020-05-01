@@ -18,6 +18,7 @@ using namespace DirectX;
 struct Vertex
 {
     XMFLOAT3 Position;
+    XMFLOAT3 Normal;
     XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
@@ -30,6 +31,7 @@ struct CameraConstantBuffer
 struct RenderableConstantBuffer
 {
     XMMATRIX WorldMatrix;
+    XMMATRIX WorldInvTransposeMatrix;
 };
 
 class Renderable

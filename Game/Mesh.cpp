@@ -40,10 +40,12 @@ Mesh::Mesh(const std::filesystem::path& filename)
 
         for (auto i = 0; i < mesh->mNumVertices; i++) {
             const auto& v = mesh->mVertices[i];
+            const auto& n = mesh->mNormals[i];
             const auto& color = materialColors[mesh->mMaterialIndex];
 
             m_vertices.push_back(Vertex{
                 .Position{v.x, v.y, v.z},
+                .Normal{n.x, n.y, n.z},
                 .Color{color.r, color.g, color.b, 1.0f}
             });
         }

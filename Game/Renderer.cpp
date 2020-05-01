@@ -139,7 +139,8 @@ Renderer::Renderer(SDL_Window* window)
 
         std::array layout{
             D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+            D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         };
 
         hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
@@ -189,8 +190,10 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     }
 
     {
+        auto wm = transform.getMatrix();
         RenderableConstantBuffer cb{
-            .WorldMatrix = XMMatrixTranspose(transform.getMatrix())
+            .WorldMatrix = XMMatrixTranspose(wm),
+            .WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm),
         };
 
         m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
