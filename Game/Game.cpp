@@ -127,10 +127,27 @@ int main(int argc, char* argv[])
         std::vector<Object> scene;
         std::vector<Model> models;
 
-        for (auto name : { "stone_tallA", "tree_detailed" }) {
-            Mesh m(fmt::format("../Assets/{}.fbx", name));
-            auto renderable = r.createRenderable(m.getVertices(), m.getIndices());
-            models.emplace_back(name, renderable);
+        {
+            std::filesystem::directory_iterator end;
+            for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
+                if (!it->is_regular_file()) {
+                    continue;
+                }
+                
+                const auto p = it->path();
+                if (p.extension() == ".fbx") {
+                    Mesh mesh(p);
+                    auto name = p.filename().replace_extension().string();
+
+                    auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
+                    models.emplace_back(name, renderable);
+                }
+            }
+        }
+
+        std::vector<const char*> modelNames;
+        for (const auto& model : models) {
+            modelNames.push_back(model.name.c_str());
         }
 
         Camera cam;
@@ -176,8 +193,12 @@ int main(int argc, char* argv[])
 
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
+        int modelIdx = 0;
+
+        /*
         std::size_t modelIdx = 0;
         inputs.key(SDLK_c).up([&] { modelIdx = (modelIdx + 1) % models.size(); });
+        */
 
         inputs.key(SDLK_SPACE).up([&] {
             scene.emplace_back(models[modelIdx], t);
@@ -218,11 +239,13 @@ int main(int argc, char* argv[])
             if constexpr (true) {
                 ImGui::Begin("Scene");
 
+                ImGui::ListBox("Models", &modelIdx, modelNames.data(), static_cast<int>(modelNames.size()), 5);
+                ImGui::Separator();
+
                 for (int i = 0; i < scene.size(); i++) {
                     auto& obj = scene[i];
                     auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
-                    //if (ImGui::TreeNode(id, "Object %d", i)) {
                     if (ImGui::TreeNode(obj.name.c_str())) {
                         if (ImGui::InputFloat3("Position", &obj.position.x)) {
                             obj.update();
