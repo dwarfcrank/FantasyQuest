@@ -4,12 +4,6 @@ cbuffer CameraConstants : register(b0)
 	matrix Projection;
 };
 
-cbuffer VS_Constants : register(b1)
-{
-	matrix World;
-	matrix WorldInvTranspose;
-};
-
 struct VS_Input
 {
 	float3 Position : POSITION;

@@ -34,6 +34,11 @@ struct RenderableConstantBuffer
     XMMATRIX WorldInvTransposeMatrix;
 };
 
+struct alignas(16) PSConstantBuffer
+{
+    XMFLOAT3 LightPosition;
+};
+
 class Renderable
 {
 public:
@@ -75,6 +80,7 @@ public:
 
     Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
 
+    void setLight(const XMFLOAT3& pos);
     void draw(Renderable*, const Camera&, const struct Transform&);
     void clear(float r, float g, float b);
     void endFrame();
@@ -94,6 +100,7 @@ private:
     ComPtr<ID3D11PixelShader> m_ps;
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
     ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
+    ComPtr<ID3D11Buffer> m_psConstantBuffer;
 
     ComPtr<ID3D11Texture2D> m_depthStencilTexture;
     ComPtr<ID3D11DepthStencilView> m_depthStencilView;

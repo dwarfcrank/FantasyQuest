@@ -148,6 +148,15 @@ Renderer::Renderer(SDL_Window* window)
 
     m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
 
+    {
+        auto dir = XMVector3Normalize(XMVectorSet(1.0f, 1.0f, -1.0f, 0.0f));
+
+        PSConstantBuffer buf;
+        XMStoreFloat3(&buf.LightPosition, dir);
+
+        m_psConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, buf);
+    }
+
     CD3D11_TEXTURE2D_DESC dsd(
         DXGI_FORMAT_D24_UNORM_S8_UINT, static_cast<UINT>(w), static_cast<UINT>(h), 1, 1, D3D11_BIND_DEPTH_STENCIL);
     hr = m_device->CreateTexture2D(&dsd, nullptr, &m_depthStencilTexture);
@@ -178,6 +187,16 @@ Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, cons
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
+void Renderer::setLight(const XMFLOAT3& pos)
+{
+    PSConstantBuffer buf;
+
+    auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
+    XMStoreFloat3(&buf.LightPosition, dir);
+
+    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &buf, 0, 0);
+}
+
 void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
@@ -199,7 +218,9 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
         m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
     }
 
-    std::array constantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
+    std::array psConstantBuffers{ m_cameraConstantBuffer.Get(), m_psConstantBuffer.Get() };
+
     std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
@@ -210,10 +231,10 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->IASetInputLayout(m_inputLayout.Get());
 
     m_context->VSSetShader(m_vs.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, static_cast<UINT>(constantBuffers.size()), constantBuffers.data());
+    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
 
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
-    m_context->PSSetConstantBuffers(0, static_cast<UINT>(constantBuffers.size()), constantBuffers.data());
+    m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
 
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }

@@ -1,5 +1,11 @@
 #include "Common.hlsli"
 
+cbuffer VS_Constants : register(b1)
+{
+	matrix World;
+	matrix WorldInvTranspose;
+};
+
 VS_Output main(VS_Input v)
 {
 	VS_Output o = (VS_Output)0;

@@ -216,6 +216,8 @@ int main(int argc, char* argv[])
         XMFLOAT3 tRot(0.0f, 0.0f, 0.0f);
         XMFLOAT3 tScl(0.0f, 0.0f, 0.0f);
 
+        XMFLOAT3 light(1.0f, 1.0f, -1.0f);
+
         while (running) {
             XMStoreFloat3(&tPos, t.Position);
             XMStoreFloat3(&tRot, t.Rotation);
@@ -251,27 +253,41 @@ int main(int argc, char* argv[])
             if constexpr (true) {
                 ImGui::Begin("Scene");
 
+                if (ImGui::TreeNode("Lights")) {
+                    if (ImGui::InputFloat3("Directional", &light.x)) {
+                        r.setLight(light);
+                    }
+
+                    //ImGui::Separator();
+
+                    ImGui::TreePop();
+                }
+
                 ImGui::Separator();
 
-                for (int i = 0; i < scene.size(); i++) {
-                    auto& obj = scene[i];
-                    auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
+                if (ImGui::TreeNode("Objects")) {
+                    for (int i = 0; i < scene.size(); i++) {
+                        auto& obj = scene[i];
+                        auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
-                    if (ImGui::TreeNode(obj.name.c_str())) {
-                        if (ImGui::InputFloat3("Position", &obj.position.x)) {
-                            obj.update();
+                        if (ImGui::TreeNode(obj.name.c_str())) {
+                            if (ImGui::InputFloat3("Position", &obj.position.x)) {
+                                obj.update();
+                            }
+
+                            if (ImGui::InputFloat3("Rotation", &obj.rotation.x)) {
+                                obj.update();
+                            }
+
+                            if (ImGui::InputFloat3("Scale", &obj.scale.x)) {
+                                obj.update();
+                            }
+
+                            ImGui::TreePop();
                         }
-
-                        if (ImGui::InputFloat3("Rotation", &obj.rotation.x)) {
-                            obj.update();
-                        }
-
-                        if (ImGui::InputFloat3("Scale", &obj.scale.x)) {
-                            obj.update();
-                        }
-
-                        ImGui::TreePop();
                     }
+
+                    ImGui::TreePop();
                 }
 
                 ImGui::End();
