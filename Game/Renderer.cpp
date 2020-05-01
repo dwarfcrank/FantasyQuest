@@ -127,9 +127,6 @@ Renderer::Renderer(SDL_Window* window)
 
     hr = m_device->CreateRenderTargetView(backbuffer.Get(), nullptr, &m_backbufferRTV);
 
-    auto rtv = m_backbufferRTV.Get();
-    m_context->OMSetRenderTargets(1, &rtv, nullptr);
-
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h));
     m_context->RSSetViewports(1, &vp);
 
@@ -149,6 +146,16 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
+
+    CD3D11_TEXTURE2D_DESC dsd(
+        DXGI_FORMAT_D24_UNORM_S8_UINT, static_cast<UINT>(w), static_cast<UINT>(h), 1, 1, D3D11_BIND_DEPTH_STENCIL);
+    hr = m_device->CreateTexture2D(&dsd, nullptr, &m_depthStencilTexture);
+
+    CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, dsd.Format);
+    hr = m_device->CreateDepthStencilView(m_depthStencilTexture.Get(), &dsvd, &m_depthStencilView);
+
+    auto rtv = m_backbufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, m_depthStencilView.Get());
 }
 
 Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
@@ -212,6 +219,7 @@ void Renderer::clear(float r, float g, float b)
 {
     float color[4] = { r, g, b, 1.0f };
     m_context->ClearRenderTargetView(m_backbufferRTV.Get(), color);
+    m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
 void Renderer::endFrame()

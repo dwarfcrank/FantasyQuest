@@ -92,4 +92,7 @@ private:
     ComPtr<ID3D11PixelShader> m_ps;
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
     ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
+
+    ComPtr<ID3D11Texture2D> m_depthStencilTexture;
+    ComPtr<ID3D11DepthStencilView> m_depthStencilView;
 };
