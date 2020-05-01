@@ -1,3 +1,6 @@
+#define NOMINMAX
+#include <windows.h>
+
 #include <array>
 #include <chrono>
 #include <cstdint>
@@ -23,6 +26,5 @@
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
-#include <windows.h>
 #include <wrl.h>
 #include "imgui.h"

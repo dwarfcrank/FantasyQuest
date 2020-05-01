@@ -18,6 +18,7 @@
 #include "imgui.h"
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_sdl.h"
+#include "Mesh.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -73,6 +74,20 @@ int main(int argc, char* argv[])
             }
         );
 
+        Renderable* stone = nullptr;
+        {
+            Mesh m("../Assets/stone_tallA.fbx");
+            stone = r.createRenderable(m.getVertices(), m.getIndices());
+        }
+
+        Renderable* tree = nullptr;
+        {
+            Mesh m("../Assets/tree_detailed.fbx");
+            tree = r.createRenderable(m.getVertices(), m.getIndices());
+        }
+
+        std::vector models{ tree, stone, cube };
+
         Camera cam;
         Transform t, t2;
 
@@ -82,6 +97,7 @@ int main(int argc, char* argv[])
         float turnSpeed = 3.0f;
         float angle = 0.0f;
         float velocity = 0.0f;
+        float upVelocity = 0.0f;
 
         float dt = 0.0f;
         auto t0 = std::chrono::high_resolution_clock::now();
@@ -105,7 +121,18 @@ int main(int argc, char* argv[])
             .down([&] { velocity = -moveSpeed * dt; })
             .up([&] { velocity = 0.0f; });
 
+        inputs.key(SDLK_r)
+            .down([&] { upVelocity = moveSpeed * dt; })
+            .up([&] { upVelocity = 0.0f; });
+
+        inputs.key(SDLK_f)
+            .down([&] { upVelocity = -moveSpeed * dt; })
+            .up([&] { upVelocity = 0.0f; });
+
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
+
+        std::size_t modelIdx = 0;
+        inputs.key(SDLK_c).up([&] { modelIdx = (modelIdx + 1) % models.size(); });
 
         while (running) {
             SDL_Event event;
@@ -145,8 +172,10 @@ int main(int argc, char* argv[])
             auto m = t2.getMatrix();
             auto d = XMVector3TransformNormal(forward, m);
             t.move(d * velocity);
+            t.move(XMVectorSet(0.0f, upVelocity, 0.0f, 0.0f));
             t.Rotation = t2.Rotation;
-            r.draw(cube, cam, t);
+            //r.draw(cube, cam, t);
+            r.draw(models[modelIdx], cam, t);
 
             ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
