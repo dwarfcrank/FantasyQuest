@@ -27,7 +27,45 @@ void reportError(const char* message, TArgs&&... args)
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
 
-using Microsoft::WRL::ComPtr;
+struct Model
+{
+    Model(std::string name, Renderable* renderable) :
+        name{ std::move(name) }, renderable(renderable)
+    {
+    }
+
+    std::string name;
+    Renderable* renderable;
+    int count = 0;
+};
+
+struct Object
+{
+    Object(const Model& model, const Transform& t) :
+        renderable(model.renderable), transform(t)
+    {
+        name = fmt::format("{}:{}", model.name, model.count);
+        XMStoreFloat3(&position, t.Position);
+        XMStoreFloat3(&rotation, t.Rotation);
+        XMStoreFloat3(&scale, t.Scale);
+    }
+
+    void update()
+    {
+        transform.Position = XMLoadFloat3(&position);
+        transform.Rotation = XMLoadFloat3(&rotation);
+        transform.Scale = XMLoadFloat3(&scale);
+    }
+
+    Renderable* renderable;
+
+    std::string name;
+    Transform transform;
+
+    XMFLOAT3 position;
+    XMFLOAT3 rotation;
+    XMFLOAT3 scale;
+};
 
 int main(int argc, char* argv[])
 {
@@ -86,7 +124,14 @@ int main(int argc, char* argv[])
             tree = r.createRenderable(m.getVertices(), m.getIndices());
         }
 
-        std::vector models{ tree, stone, cube };
+        std::vector<Object> scene;
+        std::vector<Model> models;
+
+        for (auto name : { "stone_tallA", "tree_detailed" }) {
+            Mesh m(fmt::format("../Assets/{}.fbx", name));
+            auto renderable = r.createRenderable(m.getVertices(), m.getIndices());
+            models.emplace_back(name, renderable);
+        }
 
         Camera cam;
         Transform t, t2;
@@ -134,6 +179,14 @@ int main(int argc, char* argv[])
         std::size_t modelIdx = 0;
         inputs.key(SDLK_c).up([&] { modelIdx = (modelIdx + 1) % models.size(); });
 
+        inputs.key(SDLK_SPACE).up([&] {
+            scene.emplace_back(models[modelIdx], t);
+            models[modelIdx].count++;
+        });
+
+        bool showDemo = false;
+        inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
+
         while (running) {
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
@@ -158,10 +211,35 @@ int main(int argc, char* argv[])
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
-            {
-                ImGui::Begin("hehebin");
-                ImGui::Text("heh");
-                ImGui::Text("ebin");
+            if (showDemo) {
+                ImGui::ShowDemoWindow(&showDemo);
+            }
+
+            if constexpr (true) {
+                ImGui::Begin("Scene");
+
+                for (int i = 0; i < scene.size(); i++) {
+                    auto& obj = scene[i];
+                    auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
+
+                    //if (ImGui::TreeNode(id, "Object %d", i)) {
+                    if (ImGui::TreeNode(obj.name.c_str())) {
+                        if (ImGui::InputFloat3("Position", &obj.position.x)) {
+                            obj.update();
+                        }
+
+                        if (ImGui::InputFloat3("Rotation", &obj.rotation.x)) {
+                            obj.update();
+                        }
+
+                        if (ImGui::InputFloat3("Scale", &obj.scale.x)) {
+                            obj.update();
+                        }
+
+                        ImGui::TreePop();
+                    }
+                }
+
                 ImGui::End();
             }
 
@@ -175,7 +253,11 @@ int main(int argc, char* argv[])
             t.move(XMVectorSet(0.0f, upVelocity, 0.0f, 0.0f));
             t.Rotation = t2.Rotation;
             //r.draw(cube, cam, t);
-            r.draw(models[modelIdx], cam, t);
+            r.draw(models[modelIdx].renderable, cam, t);
+
+            for (const auto& o : scene) {
+                r.draw(o.renderable, cam, o.transform);
+            }
 
             ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
