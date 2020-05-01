@@ -218,6 +218,28 @@ int main(int argc, char* argv[])
 
         XMFLOAT3 light(1.0f, 1.0f, -1.0f);
 
+        std::vector<PointLight> lights;
+        {
+            lights.push_back(PointLight{
+                /*
+                .Position = XMVectorSet(0.0f, 3.0f, 1.0f, 1.0f),
+                .Color = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f),
+                */
+                .Position{0.0f, 3.0f, 1.0f, 1.0f},
+                .Color{1.0f, 0.0f, 0.0f, 0.0f},
+            });
+
+            lights.push_back(PointLight{
+                /*
+                .Position = XMVectorSet(0.0f, -3.0f, -1.0f, 1.0f),
+                .Color = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
+                */
+                .Position{0.0f, -3.0f, -1.0f, 1.0f},
+                .Color{0.0f, 0.0f, 1.0f, 0.0f},
+            });
+        }
+        r.setPointLights(lights);
+
         while (running) {
             XMStoreFloat3(&tPos, t.Position);
             XMStoreFloat3(&tRot, t.Rotation);
@@ -255,10 +277,34 @@ int main(int argc, char* argv[])
 
                 if (ImGui::TreeNode("Lights")) {
                     if (ImGui::InputFloat3("Directional", &light.x)) {
-                        r.setLight(light);
+                        r.setDirectionalLight(light);
                     }
 
-                    //ImGui::Separator();
+                    ImGui::Separator();
+
+                    for (int i = 0; i < lights.size(); i++) {
+                        auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
+
+                        if (ImGui::TreeNode(id, "Light %d", i)) {
+                            if (ImGui::InputFloat3("Position", &lights[i].Position.x)) {
+                                r.setPointLights(lights);
+                            }
+
+                            if (ImGui::InputFloat3("Color", &lights[i].Color.x)) {
+                                r.setPointLights(lights);
+                            }
+
+                            if (ImGui::InputFloat("Linear", &lights[i].Position.w)) {
+                                r.setPointLights(lights);
+                            }
+
+                            if (ImGui::InputFloat("Quadratic", &lights[i].Color.w)) {
+                                r.setPointLights(lights);
+                            }
+
+                            ImGui::TreePop();
+                        }
+                    }
 
                     ImGui::TreePop();
                 }

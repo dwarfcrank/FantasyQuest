@@ -151,10 +151,10 @@ Renderer::Renderer(SDL_Window* window)
     {
         auto dir = XMVector3Normalize(XMVectorSet(1.0f, 1.0f, -1.0f, 0.0f));
 
-        PSConstantBuffer buf;
-        XMStoreFloat3(&buf.LightPosition, dir);
+        XMStoreFloat3(&m_psConstants.LightPosition, dir);
+        m_psConstants.NumPointLights = 0;
 
-        m_psConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, buf);
+        m_psConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, m_psConstants);
     }
 
     CD3D11_TEXTURE2D_DESC dsd(
@@ -187,14 +187,46 @@ Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, cons
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
-void Renderer::setLight(const XMFLOAT3& pos)
+void Renderer::setDirectionalLight(const XMFLOAT3& pos)
 {
-    PSConstantBuffer buf;
-
     auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
-    XMStoreFloat3(&buf.LightPosition, dir);
+    XMStoreFloat3(&m_psConstants.LightPosition, dir);
 
-    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &buf, 0, 0);
+    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
+}
+
+void Renderer::setPointLights(const std::vector<PointLight>& lights)
+{
+    m_psConstants.NumPointLights = static_cast<UINT>(lights.size());
+
+    if (lights.size() > m_pointLightCapacity) {
+        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(PointLight) * lights.size()), D3D11_BIND_SHADER_RESOURCE);
+        bd.StructureByteStride = sizeof(PointLight);
+        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
+        
+        //m_pointLightBuffer = createBuffer(m_device, D3D11_BIND_SHADER_RESOURCE, lights);
+
+        /*
+        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T) * contents.size()), flags);
+
+        D3D11_SUBRESOURCE_DATA sd = {};
+        sd.pSysMem = contents.data();
+
+        ComPtr<ID3D11Buffer> buf;
+        Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
+        */
+        m_pointLightCapacity = static_cast<UINT>(lights.size());
+        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
+        hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
+    }
+
+    CD3D11_BOX box(0, 0, 0, sizeof(PointLight) * m_psConstants.NumPointLights, 1, 1);
+
+    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data(),
+        static_cast<UINT>(sizeof(PointLight) * m_psConstants.NumPointLights), 0);
+
+    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
 }
 
 void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
@@ -220,6 +252,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
     std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.Get(), m_psConstantBuffer.Get() };
+    std::array psResources{ m_pointLightBufferSRV.Get() };
 
     std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
@@ -235,6 +268,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
     m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
+    m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
 
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }

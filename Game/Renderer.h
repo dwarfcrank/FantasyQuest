@@ -37,6 +37,17 @@ struct RenderableConstantBuffer
 struct alignas(16) PSConstantBuffer
 {
     XMFLOAT3 LightPosition;
+    UINT NumPointLights;
+};
+
+struct PointLight
+{
+    /*
+    XMVECTOR Position;
+    XMVECTOR Color;
+    */
+    XMFLOAT4 Position;
+    XMFLOAT4 Color;
 };
 
 class Renderable
@@ -80,7 +91,8 @@ public:
 
     Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
 
-    void setLight(const XMFLOAT3& pos);
+    void setDirectionalLight(const XMFLOAT3& pos);
+    void setPointLights(const std::vector<PointLight>& lights);
     void draw(Renderable*, const Camera&, const struct Transform&);
     void clear(float r, float g, float b);
     void endFrame();
@@ -101,6 +113,10 @@ private:
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
     ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
     ComPtr<ID3D11Buffer> m_psConstantBuffer;
+    PSConstantBuffer m_psConstants;
+    ComPtr<ID3D11Buffer> m_pointLightBuffer;
+    ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
+    UINT m_pointLightCapacity = 0;
 
     ComPtr<ID3D11Texture2D> m_depthStencilTexture;
     ComPtr<ID3D11DepthStencilView> m_depthStencilView;
