@@ -113,10 +113,9 @@ int main(int argc, char* argv[])
                 const auto p = it->path();
                 if (p.extension() == ".fbx") {
                     Mesh mesh(p);
-                    auto name = p.filename().replace_extension().string();
 
                     auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
-                    models.emplace_back(name, renderable);
+                    models.emplace_back(mesh.getName(), renderable);
                 }
             }
         }

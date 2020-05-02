@@ -9,7 +9,7 @@
 
 static Assimp::Importer g_importer;
 
-Mesh::Mesh(const std::filesystem::path& filename)
+Mesh::Mesh(const std::filesystem::path& path)
 {
     constexpr auto flags =
         aiProcess_CalcTangentSpace
@@ -20,10 +20,10 @@ Mesh::Mesh(const std::filesystem::path& filename)
         | aiProcess_OptimizeMeshes
         | aiProcess_PreTransformVertices;
 
-    auto scene = g_importer.ReadFile(filename.generic_string(), flags);
+    auto scene = g_importer.ReadFile(path.generic_string(), flags);
 
     if (!scene) {
-        throw std::runtime_error(fmt::format("Loading mesh {} failed!", filename.generic_string()));
+        throw std::runtime_error(fmt::format("Loading mesh {} failed!", path.generic_string()));
     }
 
     std::vector<aiColor3D> materialColors(scene->mNumMaterials);
@@ -59,6 +59,12 @@ Mesh::Mesh(const std::filesystem::path& filename)
         }
 
         baseIdx = static_cast<u16>(m_indices.size());
+    }
+
+    if (const auto& meshName = scene->mMeshes[0]->mName; meshName.length > 0) {
+        m_name = scene->mMeshes[0]->mName.C_Str();
+    } else {
+        m_name = path.filename().generic_string();
     }
 
     g_importer.FreeScene();

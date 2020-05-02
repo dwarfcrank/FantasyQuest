@@ -5,6 +5,7 @@
 
 #include <filesystem>
 #include <vector>
+#include <string>
 
 class Mesh
 {
@@ -21,8 +22,14 @@ public:
         return m_indices;
     }
 
+    const std::string& getName() const
+    {
+        return m_name;
+    }
+
 private:
     std::vector<Vertex> m_vertices;
     std::vector<u16> m_indices;
+    std::string m_name;
 };
 
