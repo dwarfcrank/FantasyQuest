@@ -37,6 +37,13 @@ float3 ComputeDirectionalLight(float3 light, float3 normal)
 	return ndotl * float3(1.0f, 1.0f, 1.0f);
 }
 
+static const float2 PoissonDisk[4] = {
+    float2(-0.94201624f, -0.39906216f),
+    float2(0.94558609f, -0.76890725f),
+    float2(-0.094184101f, -0.92938870f),
+    float2(0.34495938f, 0.29387760f)
+};
+
 float4 main(VS_Output v) : SV_TARGET
 {
     float3 total = ComputeDirectionalLight(LightDir, v.Normal);
@@ -51,10 +58,18 @@ float4 main(VS_Output v) : SV_TARGET
     texcoord *= 0.5;
     texcoord.y = 1.0f - texcoord.y;
 
-    float depth = ShadowMap.Sample(ShadowMapSampler, texcoord).r;
-    if (v.ShadowPos.z > (depth - 0.0005f)) {
-        total *= 0.35f;
+    float m = 1.0f;
+
+    for (uint j = 0; j < 4; j++) {
+        float depth = ShadowMap.Sample(ShadowMapSampler, texcoord + PoissonDisk[j] / 700.0f).r;
+
+        //if (v.ShadowPos.z > (depth - 0.0015f)) {
+        if (v.ShadowPos.z > (depth - 0.00015f)) {
+            m -= 0.2f;
+        }
     }
+
+    total *= m;
 
     return v.Color * float4(total, 1.0f);
 }
