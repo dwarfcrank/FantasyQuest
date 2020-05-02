@@ -219,7 +219,13 @@ int main(int argc, char* argv[])
         XMFLOAT3 light(1.0f, 1.0f, -1.0f);
 
         std::vector<PointLight> lights;
-        {
+
+        PointLight lightTemplate{
+            .Position{-1.0f, 0.0f, 0.0f, 1.0f},
+            .Color{1.0f, 0.0f, 0.0f, 0.0f},
+        };
+
+        if constexpr (false) {
             lights.push_back(PointLight{
                 /*
                 .Position = XMVectorSet(0.0f, 3.0f, 1.0f, 1.0f),
@@ -238,7 +244,7 @@ int main(int argc, char* argv[])
                 .Color{0.0f, 0.0f, 1.0f, 0.0f},
             });
         }
-        r.setPointLights(lights);
+        //r.setPointLights(lights);
 
         while (running) {
             XMStoreFloat3(&tPos, t.Position);
@@ -304,6 +310,16 @@ int main(int argc, char* argv[])
 
                             ImGui::TreePop();
                         }
+                    }
+
+                    if (ImGui::Button("Add light")) {
+                        lights.push_back(
+                            PointLight{
+                                .Position{-1.0f, 0.0f, 0.0f, 1.0f},
+                                .Color{1.0f, 0.0f, 0.0f, 0.0f},
+                            });
+
+                        r.setPointLights(lights);
                     }
 
                     ImGui::TreePop();
