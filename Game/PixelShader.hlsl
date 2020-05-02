@@ -52,8 +52,8 @@ float4 main(VS_Output v) : SV_TARGET
     texcoord.y = 1.0f - texcoord.y;
 
     float depth = ShadowMap.Sample(ShadowMapSampler, texcoord).r;
-    if (v.ShadowPos.z < (depth - 0.005f)) {
-        total *= 0.5f;
+    if (v.ShadowPos.z > (depth - 0.0005f)) {
+        total *= 0.35f;
     }
 
     return v.Color * float4(total, 1.0f);

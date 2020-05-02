@@ -189,6 +189,10 @@ Renderer::Renderer(SDL_Window* window)
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
         hr = m_device->CreateSamplerState(&tsd, &m_shadowSampler);
+
+        CD3D11_RASTERIZER_DESC rd(D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
+            FALSE, FALSE, FALSE);
+        hr = m_device->CreateRasterizerState(&rd, &m_shadowRasterizerState);
     }
 }
 
@@ -325,6 +329,7 @@ void Renderer::beginShadowPass()
     m_context->OMSetRenderTargets(0, nullptr, m_shadowDSV.Get());
 
     m_context->PSSetShader(nullptr, nullptr, 0);
+    m_context->RSSetState(m_shadowRasterizerState.Get());
 }
 
 void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
@@ -375,6 +380,7 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
 void Renderer::endShadowPass()
 {
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
+    m_context->RSSetState(nullptr);
 }
 
 XMMATRIX Camera::getViewMatrix() const

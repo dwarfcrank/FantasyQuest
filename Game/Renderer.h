@@ -80,6 +80,7 @@ public:
     void setDirection(const XMFLOAT3& dir)
     {
         m_direction = XMLoadFloat3(&dir);
+        m_direction = XMVector3Normalize(m_direction);
     }
 
     void invertDirection()
@@ -154,6 +155,7 @@ private:
     ComPtr<ID3D11Texture2D> m_depthStencilTexture;
     ComPtr<ID3D11DepthStencilView> m_depthStencilView;
 
+    ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
     ComPtr<ID3D11SamplerState> m_shadowSampler;
     ComPtr<ID3D11VertexShader> m_shadowVS;
     ComPtr<ID3D11PixelShader> m_shadowPS;
