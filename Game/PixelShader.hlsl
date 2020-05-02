@@ -15,7 +15,8 @@ struct PointLight
 StructuredBuffer<PointLight> PointLights : register(t0);
 
 Texture2D ShadowMap : register(t1);
-SamplerState ShadowMapSampler : register(s0);
+//SamplerState ShadowMapSampler : register(s0);
+SamplerComparisonState ShadowMapSampler : register(s0);
 
 float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 {
@@ -31,7 +32,7 @@ float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 }
 
 // TODO: implement color for directional light
-static const float3 DirectionalColor = float3(0.2f, 0.2f, 0.2f);
+static const float3 DirectionalColor = float3(0.5f, 0.5f, 0.5f);
 
 float3 ComputeDirectionalLight(float3 light, float3 normal)
 {
@@ -64,8 +65,16 @@ float4 main(VS_Output v) : SV_TARGET
 
     float m = 1.0f;
 
+    /*
+    float depth = ShadowMap.SampleCmpLevelZero(ShadowMapSampler, texcoord, v.ShadowPos.z).r;
+
+    if (v.ShadowPos.z < (depth - DepthBias)) {
+        m -= 0.8f;
+    }
+    */
+
     for (uint j = 0; j < 4; j++) {
-        float depth = ShadowMap.Sample(ShadowMapSampler, texcoord + PoissonDisk[j] / 700.0f).r;
+        float depth = ShadowMap.SampleCmpLevelZero(ShadowMapSampler, texcoord + PoissonDisk[j] / 700.0f, v.ShadowPos.z).r;
 
         if (v.ShadowPos.z < (depth - DepthBias)) {
             m -= 0.2f;

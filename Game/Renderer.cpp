@@ -185,9 +185,16 @@ Renderer::Renderer(SDL_Window* window)
             DXGI_FORMAT_R32_FLOAT);
         hr = m_device->CreateShaderResourceView(m_shadowTexture.Get(), &dsrvd, &m_shadowSRV);
 
+        /*
         CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_MIN_MAG_MIP_LINEAR,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+        */
+
+        CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+            D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
+            0.0f, 0, D3D11_COMPARISON_LESS, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+
         hr = m_device->CreateSamplerState(&tsd, &m_shadowSampler);
 
         CD3D11_RASTERIZER_DESC rd(D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
