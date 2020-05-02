@@ -67,9 +67,15 @@ struct Object
     XMFLOAT3 scale;
 };
 
-std::vector<Object> scene;
+struct Scene
+{
+    XMFLOAT3 directionalLight{ 1.0f, 1.0f, -1.0f };
+
+    std::vector<Object> objects;
+    std::vector<PointLight> lights;
+};
+
 std::vector<Model> models;
-std::vector<PointLight> lights;
 
 int main(int argc, char* argv[])
 {
@@ -87,6 +93,8 @@ int main(int argc, char* argv[])
 
     {
         Renderer r(window);
+
+        Scene scene;
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
@@ -150,7 +158,7 @@ int main(int argc, char* argv[])
         int modelIdx = 0;
 
         inputs.key(SDLK_SPACE).up([&] {
-            scene.emplace_back(models[modelIdx], t);
+            scene.objects.emplace_back(models[modelIdx], t);
             models[modelIdx].count++;
         });
 
@@ -160,8 +168,6 @@ int main(int argc, char* argv[])
         XMFLOAT3 tPos(0.0f, 0.0f, 0.0f);
         XMFLOAT3 tRot(0.0f, 0.0f, 0.0f);
         XMFLOAT3 tScl(0.0f, 0.0f, 0.0f);
-
-        XMFLOAT3 light(1.0f, 1.0f, -1.0f);
 
         while (running) {
             XMStoreFloat3(&tPos, t.Position);
@@ -201,25 +207,25 @@ int main(int argc, char* argv[])
                 ImGui::Begin("Scene");
 
                 if (ImGui::TreeNode("Lights")) {
-                    if (ImGui::InputFloat3("Directional", &light.x)) {
-                        r.setDirectionalLight(light);
+                    if (ImGui::InputFloat3("Directional", &scene.directionalLight.x)) {
+                        r.setDirectionalLight(scene.directionalLight);
                     }
 
                     ImGui::Separator();
 
-                    for (int i = 0; i < lights.size(); i++) {
+                    for (int i = 0; i < scene.lights.size(); i++) {
                         auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
                         if (ImGui::TreeNode(id, "Light %d", i)) {
                             bool changed = false;
 
-                            changed |= ImGui::InputFloat3("Position", &lights[i].Position.x);
-                            changed |= ImGui::ColorEdit3("Color", &lights[i].Color.x);
-                            changed |= ImGui::SliderFloat("Linear", &lights[i].Position.w, 0.0f, 5.0f, "%f");
-                            changed |= ImGui::SliderFloat("Quadratic", &lights[i].Color.w, 0.0f, 5.0f, "%f");
+                            changed |= ImGui::InputFloat3("Position", &scene.lights[i].Position.x);
+                            changed |= ImGui::ColorEdit3("Color", &scene.lights[i].Color.x);
+                            changed |= ImGui::SliderFloat("Linear", &scene.lights[i].Position.w, 0.0f, 5.0f, "%f");
+                            changed |= ImGui::SliderFloat("Quadratic", &scene.lights[i].Color.w, 0.0f, 5.0f, "%f");
 
                             if (changed) {
-                                r.setPointLights(lights);
+                                r.setPointLights(scene.lights);
                             }
 
                             ImGui::TreePop();
@@ -227,13 +233,13 @@ int main(int argc, char* argv[])
                     }
 
                     if (ImGui::Button("Add light")) {
-                        lights.push_back(
+                        scene.lights.push_back(
                             PointLight{
                                 .Position{-1.0f, 0.0f, 0.0f, 1.0f},
                                 .Color{1.0f, 0.0f, 0.0f, 0.0f},
                             });
 
-                        r.setPointLights(lights);
+                        r.setPointLights(scene.lights);
                     }
 
                     ImGui::TreePop();
@@ -242,8 +248,8 @@ int main(int argc, char* argv[])
                 ImGui::Separator();
 
                 if (ImGui::TreeNode("Objects")) {
-                    for (int i = 0; i < scene.size(); i++) {
-                        auto& obj = scene[i];
+                    for (int i = 0; i < scene.objects.size(); i++) {
+                        auto& obj = scene.objects[i];
                         auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
                         if (ImGui::TreeNode(obj.name.c_str())) {
@@ -303,7 +309,7 @@ int main(int argc, char* argv[])
             t.rotate(0.0f, angle, 0.0f);
             r.draw(models[modelIdx].renderable, cam, t);
 
-            for (const auto& o : scene) {
+            for (const auto& o : scene.objects) {
                 r.draw(o.renderable, cam, o.transform);
             }
 
