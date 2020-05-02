@@ -10,8 +10,9 @@ VS_Output main(VS_Input v)
 {
 	VS_Output o = (VS_Output)0;
 
-	o.Position = float4(v.Position, 1.0f);
-	o.Position = mul(o.Position, World);
+	float4 pos = float4(v.Position, 1.0f);
+	o.PositionWS = mul(pos, World);
+	o.Position = mul(pos, World);
 	o.Position = mul(o.Position, View);
 	o.Position = mul(o.Position, Projection);
 

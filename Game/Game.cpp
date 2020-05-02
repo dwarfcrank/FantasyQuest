@@ -225,7 +225,7 @@ int main(int argc, char* argv[])
                 .Position = XMVectorSet(0.0f, 3.0f, 1.0f, 1.0f),
                 .Color = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f),
                 */
-                .Position{0.0f, 3.0f, 1.0f, 1.0f},
+                .Position{-1.0f, 0.0f, 0.0f, 1.0f},
                 .Color{1.0f, 0.0f, 0.0f, 0.0f},
             });
 
@@ -234,7 +234,7 @@ int main(int argc, char* argv[])
                 .Position = XMVectorSet(0.0f, -3.0f, -1.0f, 1.0f),
                 .Color = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
                 */
-                .Position{0.0f, -3.0f, -1.0f, 1.0f},
+                .Position{1.0f, 0.0f, 0.0f, 1.0f},
                 .Color{0.0f, 0.0f, 1.0f, 0.0f},
             });
         }
@@ -290,15 +290,15 @@ int main(int argc, char* argv[])
                                 r.setPointLights(lights);
                             }
 
-                            if (ImGui::InputFloat3("Color", &lights[i].Color.x)) {
+                            if (ImGui::ColorEdit3("Color", &lights[i].Color.x)) {
                                 r.setPointLights(lights);
                             }
 
-                            if (ImGui::InputFloat("Linear", &lights[i].Position.w)) {
+                            if (ImGui::SliderFloat("Linear", &lights[i].Position.w, 0.0f, 5.0f, "%f")) {
                                 r.setPointLights(lights);
                             }
 
-                            if (ImGui::InputFloat("Quadratic", &lights[i].Color.w)) {
+                            if (ImGui::SliderFloat("Quadratic", &lights[i].Color.w, 0.0f, 5.0f, "%f")) {
                                 r.setPointLights(lights);
                             }
 

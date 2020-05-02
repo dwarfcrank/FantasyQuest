@@ -40,7 +40,7 @@ float4 main(VS_Output v) : SV_TARGET
     color.rgb = v.Color.rgb * ndotl;
 
     for (uint i = 0; i < NumPointLights; i++) {
-        color.rgb += ComputeLight(PointLights[i], v.Position.xyz, v.Normal);
+        color.rgb += ComputeLight(PointLights[i], v.PositionWS.xyz, v.Normal);
     }
 
     return color;
