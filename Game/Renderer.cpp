@@ -368,12 +368,6 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
     m_context->VSSetShader(m_shadowVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
 
-    //m_context->PSSetShader(m_shadowPS.Get(), nullptr, 0);
-    /*
-    m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
-    m_context->PSSetShaderResources(0, 0, nullptr);
-    */
-
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }
 
