@@ -12,6 +12,7 @@
 #include <d3dcompiler.h>
 #include <wrl.h>
 #include <chrono>
+#include <nlohmann/json.hpp>
 
 #include "Renderer.h"
 #include "Transform.h"
@@ -19,6 +20,7 @@
 #include "imgui_impl_dx11.h"
 #include "imgui_impl_sdl.h"
 #include "Mesh.h"
+#include "File.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -26,6 +28,48 @@ void reportError(const char* message, TArgs&&... args)
     auto msg = fmt::format(message, std::forward<TArgs>(args)...);
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
+
+namespace nlohmann
+{
+    template<>
+    struct adl_serializer<DirectX::XMFLOAT3>
+    {
+        static void to_json(json& j, const DirectX::XMFLOAT3& v)
+        {
+            j.push_back(v.x);
+            j.push_back(v.y);
+            j.push_back(v.z);
+        }
+
+        static void from_json(const json& j, DirectX::XMFLOAT3& v)
+        {
+            v.x = j[0].get<float>();
+            v.y = j[1].get<float>();
+            v.z = j[2].get<float>();
+        }
+    };
+
+    template<>
+    struct adl_serializer<DirectX::XMFLOAT4>
+    {
+        static void to_json(json& j, const DirectX::XMFLOAT4& v)
+        {
+            j.push_back(v.x);
+            j.push_back(v.y);
+            j.push_back(v.z);
+            j.push_back(v.w);
+        }
+
+        static void from_json(const json& j, DirectX::XMFLOAT4& v)
+        {
+            v.x = j[0].get<float>();
+            v.y = j[1].get<float>();
+            v.z = j[2].get<float>();
+            v.w = j[3].get<float>();
+        }
+    };
+}
+
 
 struct Model
 {
@@ -41,8 +85,10 @@ struct Model
 
 struct Object
 {
+    Object() = default;
+
     Object(const Model& model, const Transform& t) :
-        renderable(model.renderable), transform(t)
+        renderable(model.renderable), transform(t), modelName(model.name)
     {
         name = fmt::format("{}:{}", model.name, model.count);
         XMStoreFloat3(&position, t.Position);
@@ -57,15 +103,48 @@ struct Object
         transform.Scale = XMLoadFloat3(&scale);
     }
 
-    Renderable* renderable;
+    Renderable* renderable = nullptr;
 
     std::string name;
+    std::string modelName;
     Transform transform;
 
     XMFLOAT3 position;
     XMFLOAT3 rotation;
     XMFLOAT3 scale;
 };
+
+static void to_json(nlohmann::json& j, const Object& obj)
+{
+    j["name"] = obj.name;
+    j["model"] = obj.modelName;
+    j["position"] = obj.position;
+    j["rotation"] = obj.rotation;
+    j["scale"] = obj.scale;
+}
+
+static void from_json(const nlohmann::json& j, Object& obj)
+{
+    j["name"].get_to(obj.name);
+    j["model"].get_to(obj.modelName);
+    j["position"].get_to(obj.position);
+    j["rotation"].get_to(obj.rotation);
+    j["scale"].get_to(obj.scale);
+
+    obj.update();
+}
+
+static void to_json(nlohmann::json& j, const PointLight& p)
+{
+    j["position"] = p.Position;
+    j["color"] = p.Color;
+}
+
+static void from_json(const nlohmann::json& j, PointLight& p)
+{
+    j["position"].get_to(p.Position);
+    j["color"].get_to(p.Color);
+}
 
 struct Scene
 {
@@ -75,7 +154,22 @@ struct Scene
     std::vector<PointLight> lights;
 };
 
+static void to_json(nlohmann::json& j, const Scene& s)
+{
+    j["directionalLight"] = s.directionalLight;
+    j["lights"] = s.lights;
+    j["objects"] = s.objects;
+}
+
+static void from_json(const nlohmann::json& j, Scene& s)
+{
+    j["directionalLight"].get_to(s.directionalLight);
+    j["lights"].get_to(s.lights);
+    j["objects"].get_to(s.objects);
+}
+
 std::vector<Model> models;
+std::unordered_map<std::string, Renderable*> renderables;
 
 int main(int argc, char* argv[])
 {
@@ -116,6 +210,7 @@ int main(int argc, char* argv[])
 
                     auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
                     models.emplace_back(mesh.getName(), renderable);
+                    renderables.emplace(mesh.getName(), renderable);
                 }
             }
         }
@@ -204,6 +299,29 @@ int main(int argc, char* argv[])
 
             if constexpr (true) {
                 ImGui::Begin("Scene");
+                {
+                    static char scenePath[128] = "../scene.json";
+                    ImGui::InputText("Filename", scenePath, sizeof(scenePath));
+
+                    if (ImGui::Button("Save")) {
+                        nlohmann::json j;
+                        j = scene;
+                        std::ofstream os(scenePath);
+                        os << j;
+                    }
+
+                    if (ImGui::Button("Load")) {
+                        auto d = loadFile(scenePath);
+                        nlohmann::json::parse(d).get_to(scene);
+
+                        for (auto& o : scene.objects) {
+                            o.renderable = renderables[o.modelName];
+                        }
+
+                        r.setDirectionalLight(scene.directionalLight);
+                        r.setPointLights(scene.lights);
+                    }
+                }
 
                 if (ImGui::TreeNode("Lights")) {
                     if (ImGui::InputFloat3("Directional", &scene.directionalLight.x)) {
