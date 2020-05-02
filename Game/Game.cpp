@@ -67,6 +67,10 @@ struct Object
     XMFLOAT3 scale;
 };
 
+std::vector<Object> scene;
+std::vector<Model> models;
+std::vector<PointLight> lights;
+
 int main(int argc, char* argv[])
 {
     if (auto ret = SDL_Init(SDL_INIT_VIDEO); ret < 0) {
@@ -91,42 +95,6 @@ int main(int argc, char* argv[])
         ImGui_ImplSDL2_InitForD3D(window);
         ImGui_ImplDX11_Init(r.getDevice(), r.getDeviceContext());
 
-        auto cube = r.createRenderable(
-            std::vector<Vertex>{
-                { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-                { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-                { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-                { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-                { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-                { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-                { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-                { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-        },
-            std::vector<u16>{
-                    3, 1, 0, 2, 1, 3,
-                        0, 5, 4, 1, 5, 0,
-                        3, 4, 7, 0, 4, 3,
-                        1, 6, 5, 2, 6, 1,
-                        2, 7, 6, 3, 7, 2,
-                        6, 4, 5, 7, 4, 6,
-                }
-                );
-
-        Renderable* stone = nullptr;
-        {
-            Mesh m("../Assets/stone_tallA.fbx");
-            stone = r.createRenderable(m.getVertices(), m.getIndices());
-        }
-
-        Renderable* tree = nullptr;
-        {
-            Mesh m("../Assets/tree_detailed.fbx");
-            tree = r.createRenderable(m.getVertices(), m.getIndices());
-        }
-
-        std::vector<Object> scene;
-        std::vector<Model> models;
-
         {
             std::filesystem::directory_iterator end;
             for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
@@ -145,18 +113,12 @@ int main(int argc, char* argv[])
             }
         }
 
-        std::vector<const char*> modelNames;
-        for (const auto& model : models) {
-            modelNames.push_back(model.name.c_str());
-        }
-
         Camera cam;
         Transform t, t2;
 
         bool running = true;
 
         float moveSpeed = 5.1f;
-        //float moveSpeed = 10.0f;
         float turnSpeed = 3.0f;
         float angle = 0.0f;
 
@@ -168,37 +130,20 @@ int main(int argc, char* argv[])
 
         InputMap inputs;
 
-        inputs.key(SDLK_e)
-            .down([&] { angle = -turnSpeed * dt; })
-            .up([&] { angle = 0.0f; });
+        auto doBind = [&inputs, &dt](SDL_Keycode k, float& target, float value) {
+            inputs.key(k)
+                .down([&target, &dt, value] { target = value * dt; })
+                .up([&target] { target = 0.0f; });
+        };
 
-        inputs.key(SDLK_q)
-            .down([&] { angle = turnSpeed * dt; })
-            .up([&] { angle = 0.0f; });
-
-        inputs.key(SDLK_a)
-            .down([&] { velocity.x = -moveSpeed * dt; })
-            .up([&] { velocity.x = 0.0f; });
-
-        inputs.key(SDLK_d)
-            .down([&] { velocity.x = moveSpeed * dt; })
-            .up([&] { velocity.x = 0.0f; });
-
-        inputs.key(SDLK_w)
-            .down([&] { velocity.z = moveSpeed * dt; })
-            .up([&] { velocity.z = 0.0f; });
-
-        inputs.key(SDLK_s)
-            .down([&] { velocity.z = -moveSpeed * dt; })
-            .up([&] { velocity.z = 0.0f; });
-
-        inputs.key(SDLK_r)
-            .down([&] { velocity.y = moveSpeed * dt; })
-            .up([&] { velocity.y = 0.0f; });
-
-        inputs.key(SDLK_f)
-            .down([&] { velocity.y = -moveSpeed * dt; })
-            .up([&] { velocity.y = 0.0f; });
+        doBind(SDLK_q, angle, turnSpeed);
+        doBind(SDLK_e, angle, -turnSpeed);
+        doBind(SDLK_d, velocity.x, moveSpeed);
+        doBind(SDLK_a, velocity.x, -moveSpeed);
+        doBind(SDLK_w, velocity.z, moveSpeed);
+        doBind(SDLK_s, velocity.z, -moveSpeed);
+        doBind(SDLK_r, velocity.y, moveSpeed);
+        doBind(SDLK_f, velocity.y, -moveSpeed);
 
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
@@ -217,34 +162,6 @@ int main(int argc, char* argv[])
         XMFLOAT3 tScl(0.0f, 0.0f, 0.0f);
 
         XMFLOAT3 light(1.0f, 1.0f, -1.0f);
-
-        std::vector<PointLight> lights;
-
-        PointLight lightTemplate{
-            .Position{-1.0f, 0.0f, 0.0f, 1.0f},
-            .Color{1.0f, 0.0f, 0.0f, 0.0f},
-        };
-
-        if constexpr (false) {
-            lights.push_back(PointLight{
-                /*
-                .Position = XMVectorSet(0.0f, 3.0f, 1.0f, 1.0f),
-                .Color = XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f),
-                */
-                .Position{-1.0f, 0.0f, 0.0f, 1.0f},
-                .Color{1.0f, 0.0f, 0.0f, 0.0f},
-            });
-
-            lights.push_back(PointLight{
-                /*
-                .Position = XMVectorSet(0.0f, -3.0f, -1.0f, 1.0f),
-                .Color = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
-                */
-                .Position{1.0f, 0.0f, 0.0f, 1.0f},
-                .Color{0.0f, 0.0f, 1.0f, 0.0f},
-            });
-        }
-        //r.setPointLights(lights);
 
         while (running) {
             XMStoreFloat3(&tPos, t.Position);
@@ -292,19 +209,14 @@ int main(int argc, char* argv[])
                         auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
                         if (ImGui::TreeNode(id, "Light %d", i)) {
-                            if (ImGui::InputFloat3("Position", &lights[i].Position.x)) {
-                                r.setPointLights(lights);
-                            }
+                            bool changed = false;
 
-                            if (ImGui::ColorEdit3("Color", &lights[i].Color.x)) {
-                                r.setPointLights(lights);
-                            }
+                            changed |= ImGui::InputFloat3("Position", &lights[i].Position.x);
+                            changed |= ImGui::ColorEdit3("Color", &lights[i].Color.x);
+                            changed |= ImGui::SliderFloat("Linear", &lights[i].Position.w, 0.0f, 5.0f, "%f");
+                            changed |= ImGui::SliderFloat("Quadratic", &lights[i].Color.w, 0.0f, 5.0f, "%f");
 
-                            if (ImGui::SliderFloat("Linear", &lights[i].Position.w, 0.0f, 5.0f, "%f")) {
-                                r.setPointLights(lights);
-                            }
-
-                            if (ImGui::SliderFloat("Quadratic", &lights[i].Color.w, 0.0f, 5.0f, "%f")) {
+                            if (changed) {
                                 r.setPointLights(lights);
                             }
 
@@ -333,15 +245,13 @@ int main(int argc, char* argv[])
                         auto id = reinterpret_cast<void*>(static_cast<uintptr_t>(i));
 
                         if (ImGui::TreeNode(obj.name.c_str())) {
-                            if (ImGui::InputFloat3("Position", &obj.position.x)) {
-                                obj.update();
-                            }
+                            bool changed = false;
 
-                            if (ImGui::InputFloat3("Rotation", &obj.rotation.x)) {
-                                obj.update();
-                            }
+                            changed |= ImGui::InputFloat3("Position", &obj.position.x);
+                            changed |= ImGui::InputFloat3("Rotation", &obj.rotation.x);
+                            changed |= ImGui::InputFloat3("Scale", &obj.scale.x);
 
-                            if (ImGui::InputFloat3("Scale", &obj.scale.x)) {
+                            if (changed) {
                                 obj.update();
                             }
 
@@ -387,18 +297,8 @@ int main(int argc, char* argv[])
             ImGui::Render();
 
             r.clear(0.1f, 0.2f, 0.3f);
-
-            /*
-            t2.rotate(0.0f, angle, 0.0f);
-            auto m = t2.getMatrix();
-            auto d = XMVector3TransformNormal(forward, m);
-            t.move(d * velocity);
-            t.move(XMVectorSet(0.0f, upVelocity, 0.0f, 0.0f));
-            t.Rotation = t2.Rotation;
-            */
             t.move(velocity.x, velocity.y, velocity.z);
             t.rotate(0.0f, angle, 0.0f);
-            //r.draw(cube, cam, t);
             r.draw(models[modelIdx].renderable, cam, t);
 
             for (const auto& o : scene) {
