@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_SHOWN);
+    auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_SHOWN);
     if (!window) {
         reportError("SDL_CreateWindow returned nullptr");
         SDL_Quit();
