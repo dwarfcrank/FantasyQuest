@@ -14,6 +14,9 @@ struct PointLight
 
 StructuredBuffer<PointLight> PointLights : register(t0);
 
+Texture2D ShadowMap : register(t1);
+SamplerState ShadowMapSampler : register(s0);
+
 float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 {
     float3 l = light.Position.xyz - position;
@@ -40,6 +43,17 @@ float4 main(VS_Output v) : SV_TARGET
 
     for (uint i = 0; i < NumPointLights; i++) {
         total += ComputePointLight(PointLights[i], v.PositionWS.xyz, v.Normal);
+    }
+
+    float2 texcoord = v.ShadowPos.xy;
+
+    texcoord += 1.0f;
+    texcoord *= 0.5;
+    texcoord.y = 1.0f - texcoord.y;
+
+    float depth = ShadowMap.Sample(ShadowMapSampler, texcoord).r;
+    if (v.ShadowPos.z < (depth - 0.005f)) {
+        total *= 0.5f;
     }
 
     return v.Color * float4(total, 1.0f);

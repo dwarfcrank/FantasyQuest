@@ -89,6 +89,8 @@ Renderer::Renderer(SDL_Window* window)
 
     int w, h;
     SDL_GetWindowSize(window, &w, &h);
+    m_width = static_cast<UINT>(w);
+    m_height = static_cast<UINT>(h);
 
     ComPtr<ID3D11Device> device;
     ComPtr<ID3D11DeviceContext> context;
@@ -111,8 +113,8 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     DXGI_SWAP_CHAIN_DESC1 sd = {};
-    sd.Width = static_cast<UINT>(w);
-    sd.Height = static_cast<UINT>(h);
+    sd.Width = m_width;
+    sd.Height = m_height;
     sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
@@ -126,9 +128,6 @@ Renderer::Renderer(SDL_Window* window)
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 
     hr = m_device->CreateRenderTargetView(backbuffer.Get(), nullptr, &m_backbufferRTV);
-
-    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(w), static_cast<float>(h));
-    m_context->RSSetViewports(1, &vp);
 
     {
         auto vs = loadFile("../x64/Debug/VertexShader.cso");
@@ -146,7 +145,16 @@ Renderer::Renderer(SDL_Window* window)
         hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
     }
 
+    {
+        auto vs = loadFile("../x64/Debug/ShadowVertexShader.cso");
+        auto ps = loadFile("../x64/Debug/ShadowPixelShader.cso");
+
+        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_shadowVS);
+        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_shadowPS);
+    }
+
     m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
+    m_shadowCameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
 
     {
         auto dir = XMVector3Normalize(XMVectorSet(1.0f, 1.0f, -1.0f, 0.0f));
@@ -157,15 +165,31 @@ Renderer::Renderer(SDL_Window* window)
         m_psConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, m_psConstants);
     }
 
-    CD3D11_TEXTURE2D_DESC dsd(
-        DXGI_FORMAT_D24_UNORM_S8_UINT, static_cast<UINT>(w), static_cast<UINT>(h), 1, 1, D3D11_BIND_DEPTH_STENCIL);
-    hr = m_device->CreateTexture2D(&dsd, nullptr, &m_depthStencilTexture);
+    {
+        CD3D11_TEXTURE2D_DESC dsd(DXGI_FORMAT_D24_UNORM_S8_UINT, m_width, m_height, 1, 1, D3D11_BIND_DEPTH_STENCIL);
+        hr = m_device->CreateTexture2D(&dsd, nullptr, &m_depthStencilTexture);
 
-    CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, dsd.Format);
-    hr = m_device->CreateDepthStencilView(m_depthStencilTexture.Get(), &dsvd, &m_depthStencilView);
+        CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, dsd.Format);
+        hr = m_device->CreateDepthStencilView(m_depthStencilTexture.Get(), &dsvd, &m_depthStencilView);
+    }
 
-    auto rtv = m_backbufferRTV.Get();
-    m_context->OMSetRenderTargets(1, &rtv, m_depthStencilView.Get());
+    {
+        CD3D11_TEXTURE2D_DESC dsd(DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
+            D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
+        hr = m_device->CreateTexture2D(&dsd, nullptr, &m_shadowTexture);
+
+        CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
+        hr = m_device->CreateDepthStencilView(m_shadowTexture.Get(), &dsvd, &m_shadowDSV);
+
+        CD3D11_SHADER_RESOURCE_VIEW_DESC dsrvd(m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
+            DXGI_FORMAT_R32_FLOAT);
+        hr = m_device->CreateShaderResourceView(m_shadowTexture.Get(), &dsrvd, &m_shadowSRV);
+
+        CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_MIN_MAG_MIP_LINEAR,
+            D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
+            0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+        hr = m_device->CreateSamplerState(&tsd, &m_shadowSampler);
+    }
 }
 
 Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
@@ -203,19 +227,9 @@ void Renderer::setPointLights(const std::vector<PointLight>& lights)
         CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(PointLight) * lights.size()), D3D11_BIND_SHADER_RESOURCE);
         bd.StructureByteStride = sizeof(PointLight);
         bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+
         Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
-        
-        //m_pointLightBuffer = createBuffer(m_device, D3D11_BIND_SHADER_RESOURCE, lights);
 
-        /*
-        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T) * contents.size()), flags);
-
-        D3D11_SUBRESOURCE_DATA sd = {};
-        sd.pSysMem = contents.data();
-
-        ComPtr<ID3D11Buffer> buf;
-        Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
-        */
         m_pointLightCapacity = static_cast<UINT>(lights.size());
         CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
         hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
@@ -250,9 +264,11 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
         m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get(),
+        m_shadowCameraConstantBuffer.Get() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.Get(), m_psConstantBuffer.Get() };
-    std::array psResources{ m_pointLightBufferSRV.Get() };
+    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowSRV.Get() };
+    std::array psSamplers{ m_shadowSampler.Get() };
 
     std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
@@ -269,6 +285,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
     m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
     m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
+    m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }
@@ -280,9 +297,84 @@ void Renderer::clear(float r, float g, float b)
     m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 }
 
+void Renderer::beginFrame()
+{
+    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
+    m_context->RSSetViewports(1, &vp);
+
+    auto rtv = m_backbufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, m_depthStencilView.Get());
+}
+
 void Renderer::endFrame()
 {
     m_swapChain->Present(0, 0);
+}
+
+void Renderer::beginShadowPass()
+{
+    // Make sure the shadow stuff isn't bound
+    std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> srvs;
+    std::memset(srvs.data(), 0, sizeof(srvs));
+    m_context->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs.data());
+
+    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_shadowWidth), static_cast<float>(m_shadowHeight));
+    m_context->RSSetViewports(1, &vp);
+
+    m_context->ClearDepthStencilView(m_shadowDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+    m_context->OMSetRenderTargets(0, nullptr, m_shadowDSV.Get());
+
+    m_context->PSSetShader(nullptr, nullptr, 0);
+}
+
+void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
+{
+    {
+        CameraConstantBuffer cb{
+            .ViewMatrix = XMMatrixTranspose(camera.getViewMatrix()),
+            .ProjectionMatrix = XMMatrixTranspose(camera.getProjectionMatrix()),
+        };
+
+        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        m_context->UpdateSubresource(m_shadowCameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+    }
+
+    {
+        auto wm = transform.getMatrix();
+        RenderableConstantBuffer cb{
+            .WorldMatrix = XMMatrixTranspose(wm),
+            .WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm),
+        };
+
+        m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+    }
+
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
+
+    std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
+    std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
+    std::array offsets{ UINT(0) };
+
+    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->IASetInputLayout(m_inputLayout.Get());
+
+    m_context->VSSetShader(m_shadowVS.Get(), nullptr, 0);
+    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
+
+    //m_context->PSSetShader(m_shadowPS.Get(), nullptr, 0);
+    /*
+    m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
+    m_context->PSSetShaderResources(0, 0, nullptr);
+    */
+
+    m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
+}
+
+void Renderer::endShadowPass()
+{
+    m_context->OMSetRenderTargets(0, nullptr, nullptr);
 }
 
 XMMATRIX Camera::getViewMatrix() const

@@ -77,6 +77,11 @@ int main(int argc, char* argv[])
         }
 
         Camera cam;
+
+        Camera shadowCam;
+        shadowCam.makeOrtho();
+        shadowCam.setPosition(0.0f, 0.0f, 0.0f);
+
         Transform t, t2;
 
         bool running = true;
@@ -86,6 +91,7 @@ int main(int argc, char* argv[])
         float angle = 0.0f;
 
         XMFLOAT3 velocity(0.0f, 0.0f, 0.0f);
+        XMFLOAT3 lightVelocity(0.0f, 0.0f, 0.0f);
 
         float dt = 0.0f;
         auto t0 = std::chrono::high_resolution_clock::now();
@@ -101,12 +107,18 @@ int main(int argc, char* argv[])
 
         doBind(SDLK_q, angle, turnSpeed);
         doBind(SDLK_e, angle, -turnSpeed);
+
         doBind(SDLK_d, velocity.x, moveSpeed);
         doBind(SDLK_a, velocity.x, -moveSpeed);
         doBind(SDLK_w, velocity.z, moveSpeed);
         doBind(SDLK_s, velocity.z, -moveSpeed);
         doBind(SDLK_r, velocity.y, moveSpeed);
         doBind(SDLK_f, velocity.y, -moveSpeed);
+
+        doBind(SDLK_LEFT, lightVelocity.x, moveSpeed);
+        doBind(SDLK_RIGHT, lightVelocity.x, -moveSpeed);
+        doBind(SDLK_UP, lightVelocity.z, moveSpeed);
+        doBind(SDLK_DOWN, lightVelocity.z, -moveSpeed);
 
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
@@ -288,16 +300,35 @@ int main(int argc, char* argv[])
 
             ImGui::Render();
 
-            r.clear(0.1f, 0.2f, 0.3f);
             t.move(velocity.x, velocity.y, velocity.z);
             t.rotate(0.0f, angle, 0.0f);
-            r.draw(models[modelIdx].renderable, cam, t);
 
-            for (const auto& o : scene.objects) {
-                r.draw(o.renderable, cam, o.transform);
+            scene.directionalLight.x += lightVelocity.x;
+            scene.directionalLight.y += lightVelocity.y;
+            scene.directionalLight.z += lightVelocity.z;
+
+            shadowCam.setDirection(scene.directionalLight);
+            shadowCam.invertDirection();
+
+            r.beginShadowPass();
+            {
+                for (const auto& o : scene.objects) {
+                    r.drawShadow(o.renderable, shadowCam, o.transform);
+                }
             }
+            r.endShadowPass();
 
-            ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+            r.beginFrame();
+            {
+                r.clear(0.1f, 0.2f, 0.3f);
+                r.draw(models[modelIdx].renderable, cam, t);
+
+                for (const auto& o : scene.objects) {
+                    r.draw(o.renderable, cam, o.transform);
+                }
+
+                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+            }
 
             r.endFrame();
 
