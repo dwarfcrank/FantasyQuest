@@ -179,7 +179,9 @@ int main(int argc, char* argv[])
 
                 case SDL_KEYUP:
                 case SDL_KEYDOWN:
-                    inputs.handleEvent(event.key);
+                    if (!io.WantCaptureKeyboard) {
+                        inputs.handleEvent(event.key);
+                    }
                     break;
 
                 default:
