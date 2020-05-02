@@ -30,11 +30,13 @@ float3 ComputePointLight(PointLight light, float3 position, float3 normal)
     return light.Color.rgb * ndotl * attenuation;
 }
 
+// TODO: implement color for directional light
+static const float3 DirectionalColor = float3(0.2f, 0.2f, 0.2f);
+
 float3 ComputeDirectionalLight(float3 light, float3 normal)
 {
     float ndotl = max(0.0f, dot(normal, light.xyz));
-    // TODO: implement color for directional light
-	return ndotl * float3(1.0f, 1.0f, 1.0f);
+    return ndotl * DirectionalColor;
 }
 
 static const float2 PoissonDisk[4] = {
@@ -43,6 +45,8 @@ static const float2 PoissonDisk[4] = {
     float2(-0.094184101f, -0.92938870f),
     float2(0.34495938f, 0.29387760f)
 };
+
+static const float DepthBias = 0.005f;
 
 float4 main(VS_Output v) : SV_TARGET
 {
@@ -63,8 +67,7 @@ float4 main(VS_Output v) : SV_TARGET
     for (uint j = 0; j < 4; j++) {
         float depth = ShadowMap.Sample(ShadowMapSampler, texcoord + PoissonDisk[j] / 700.0f).r;
 
-        //if (v.ShadowPos.z > (depth - 0.0015f)) {
-        if (v.ShadowPos.z > (depth - 0.00015f)) {
+        if (v.ShadowPos.z < (depth - DepthBias)) {
             m -= 0.2f;
         }
     }

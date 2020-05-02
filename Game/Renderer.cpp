@@ -194,6 +194,18 @@ Renderer::Renderer(SDL_Window* window)
             FALSE, FALSE, FALSE);
         hr = m_device->CreateRasterizerState(&rd, &m_shadowRasterizerState);
     }
+
+    {
+        CD3D11_DEPTH_STENCIL_DESC dsd(
+            TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_GREATER,
+            FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
+
+        hr = m_device->CreateDepthStencilState(&dsd, &m_depthStencilState);
+
+        m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+    }
 }
 
 Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
@@ -298,7 +310,7 @@ void Renderer::clear(float r, float g, float b)
 {
     float color[4] = { r, g, b, 1.0f };
     m_context->ClearRenderTargetView(m_backbufferRTV.Get(), color);
-    m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+    m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
 }
 
 void Renderer::beginFrame()
@@ -325,7 +337,7 @@ void Renderer::beginShadowPass()
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_shadowWidth), static_cast<float>(m_shadowHeight));
     m_context->RSSetViewports(1, &vp);
 
-    m_context->ClearDepthStencilView(m_shadowDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+    m_context->ClearDepthStencilView(m_shadowDSV.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
     m_context->OMSetRenderTargets(0, nullptr, m_shadowDSV.Get());
 
     m_context->PSSetShader(nullptr, nullptr, 0);

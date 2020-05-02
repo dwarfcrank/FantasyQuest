@@ -95,14 +95,14 @@ public:
 
     void makeOrtho()
     {
-        m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, -10.0f, 20.0f);
+        m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, 20.0f, -10.0f);
     }
 
 private:
     XMVECTOR m_position = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
     XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
     
-    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 0.01f, 100.0f);
+    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 100.0f, 0.01f);
 };
 
 class Renderer
@@ -142,6 +142,8 @@ private:
     ComPtr<ID3D11InputLayout> m_inputLayout;
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
+
+    ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
     ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
