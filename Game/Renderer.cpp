@@ -62,6 +62,110 @@ public:
 private:
     void loadShaders();
 
+    template<typename... Args>
+    auto createTexture2D(Args... args)
+    {
+        CD3D11_TEXTURE2D_DESC desc(args...);
+        ComPtr<ID3D11Texture2D> texture;
+        Hresult hr = m_device->CreateTexture2D(&desc, nullptr, &texture);
+        return texture;
+    }
+
+    template<typename... Args>
+    auto createBuffer(Args... args)
+    {
+        CD3D11_BUFFER_DESC desc(args...);
+        ComPtr<ID3D11Buffer> buffer;
+        Hresult hr = m_device->CreateBuffer(&desc, nullptr, &buffer);
+        return buffer;
+    }
+
+    template<typename T, typename... Args>
+    auto createBuffer(ArrayView<T> contents, Args... args)
+    {
+        CD3D11_BUFFER_DESC desc(contents.byteSize(), args...);
+        D3D11_SUBRESOURCE_DATA sd = {};
+        sd.pSysMem = contents.data;
+
+        ComPtr<ID3D11Buffer> buffer;
+        Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
+        return buffer;
+    }
+
+    template<typename T, typename... Args>
+    auto createBuffer(const T& contents, Args... args)
+    {
+        static_assert(std::is_standard_layout_v<T>);
+        CD3D11_BUFFER_DESC desc(sizeof(T), args...);
+        D3D11_SUBRESOURCE_DATA sd = {};
+        sd.pSysMem = &contents;
+
+        ComPtr<ID3D11Buffer> buffer;
+        Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
+        return buffer;
+    }
+
+    template<typename... Args>
+    auto createRenderTargetView(ID3D11Resource* resource, Args... args)
+    {
+        CD3D11_RENDER_TARGET_VIEW_DESC desc(args...);
+        ComPtr<ID3D11RenderTargetView> rtv;
+        Hresult hr = m_device->CreateRenderTargetView(resource, &desc, &rtv);
+        return rtv;
+    }
+
+    auto createRenderTargetView(ID3D11Resource* resource)
+    {
+        ComPtr<ID3D11RenderTargetView> rtv;
+        Hresult hr = m_device->CreateRenderTargetView(resource, nullptr, &rtv);
+        return rtv;
+    }
+
+    template<typename... Args>
+    auto createShaderResourceView(ID3D11Resource* resource, Args... args)
+    {
+        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(args...);
+        ComPtr<ID3D11ShaderResourceView> srv;
+        Hresult hr = m_device->CreateShaderResourceView(resource, &desc, &srv);
+        return srv;
+    }
+
+    template<typename... Args>
+    auto createDepthStencilView(ID3D11Resource* resource, Args... args)
+    {
+        CD3D11_DEPTH_STENCIL_VIEW_DESC desc(args...);
+        ComPtr<ID3D11DepthStencilView> dsv;
+        Hresult hr = m_device->CreateDepthStencilView(resource, &desc, &dsv);
+        return dsv;
+    }
+
+    template<typename... Args>
+    auto createDepthStencilState(Args... args)
+    {
+        CD3D11_DEPTH_STENCIL_DESC desc(args...);
+        ComPtr<ID3D11DepthStencilState> dss;
+        Hresult hr = m_device->CreateDepthStencilState(&desc, &dss);
+        return dss;
+    }
+
+    template<typename... Args>
+    auto createSamplerState(Args... args)
+    {
+        CD3D11_SAMPLER_DESC desc(args...);
+        ComPtr<ID3D11SamplerState> ss;
+        Hresult hr = m_device->CreateSamplerState(&desc, &ss);
+        return ss;
+    }
+
+    template<typename... Args>
+    auto createRasterizerState(Args... args)
+    {
+        CD3D11_RASTERIZER_DESC desc(args...);
+        ComPtr<ID3D11RasterizerState> rs;
+        Hresult hr = m_device->CreateRasterizerState(&desc, &rs);
+        return rs;
+    }
+
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
     ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
 
@@ -106,36 +210,6 @@ private:
     ComPtr<ID3D11DepthStencilView> m_shadowDSV;
     ComPtr<ID3D11ShaderResourceView> m_shadowSRV;
 };
-
-template<typename T>
-ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, ArrayView<T> contents)
-{
-    static_assert(std::is_standard_layout_v<T>);
-    CD3D11_BUFFER_DESC bd(contents.byteSize(), flags);
-
-    D3D11_SUBRESOURCE_DATA sd = {};
-    sd.pSysMem = contents.data;
-
-    ComPtr<ID3D11Buffer> buf;
-    Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
-
-    return buf;
-}
-
-template<typename T>
-ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, const T& contents)
-{
-    static_assert(std::is_standard_layout_v<T>);
-    CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T)), flags);
-
-    D3D11_SUBRESOURCE_DATA sd = {};
-    sd.pSysMem = &contents;
-
-    ComPtr<ID3D11Buffer> buf;
-    Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
-
-    return buf;
-}
 
 using namespace DirectX;
 
@@ -197,12 +271,12 @@ Renderer::Renderer(SDL_Window* window)
     ComPtr<ID3D11Texture2D> backbuffer;
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 
-    hr = m_device->CreateRenderTargetView(backbuffer.Get(), nullptr, &m_backbufferRTV);
+    m_backbufferRTV = createRenderTargetView(backbuffer.Get());
 
     loadShaders();
 
-    m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
-    m_shadowCameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
+    m_cameraConstantBuffer = createBuffer(CameraConstantBuffer{}, D3D11_BIND_CONSTANT_BUFFER);
+    m_shadowCameraConstantBuffer = createBuffer(CameraConstantBuffer{}, D3D11_BIND_CONSTANT_BUFFER);
 
     {
         auto dir = XMVector3Normalize(XMVectorSet(1.0f, 1.0f, -1.0f, 0.0f));
@@ -210,48 +284,37 @@ Renderer::Renderer(SDL_Window* window)
         XMStoreFloat3(&m_psConstants.LightPosition, dir);
         m_psConstants.NumPointLights = 0;
 
-        m_psConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, m_psConstants);
+        m_psConstantBuffer = createBuffer(m_psConstants, D3D11_BIND_CONSTANT_BUFFER);
     }
 
     {
-        CD3D11_TEXTURE2D_DESC dsd(DXGI_FORMAT_D24_UNORM_S8_UINT, m_width, m_height, 1, 1, D3D11_BIND_DEPTH_STENCIL);
-        hr = m_device->CreateTexture2D(&dsd, nullptr, &m_depthStencilTexture);
+        auto format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 
-        CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, dsd.Format);
-        hr = m_device->CreateDepthStencilView(m_depthStencilTexture.Get(), &dsvd, &m_depthStencilView);
+        m_depthStencilTexture = createTexture2D(format, m_width, m_height, 1, 1, D3D11_BIND_DEPTH_STENCIL);
+        m_depthStencilView = createDepthStencilView(m_depthStencilTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, format);
     }
 
     {
-        CD3D11_TEXTURE2D_DESC dsd(DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
+        m_shadowTexture = createTexture2D(DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
             D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
-        hr = m_device->CreateTexture2D(&dsd, nullptr, &m_shadowTexture);
-
-        CD3D11_DEPTH_STENCIL_VIEW_DESC dsvd(D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
-        hr = m_device->CreateDepthStencilView(m_shadowTexture.Get(), &dsvd, &m_shadowDSV);
-
-        CD3D11_SHADER_RESOURCE_VIEW_DESC dsrvd(m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
+        m_shadowDSV = createDepthStencilView(m_shadowTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
+        m_shadowSRV = createShaderResourceView(m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
             DXGI_FORMAT_R32_FLOAT);
-        hr = m_device->CreateShaderResourceView(m_shadowTexture.Get(), &dsrvd, &m_shadowSRV);
 
-        CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+        m_shadowSampler = createSamplerState(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_LESS, nullptr, 0.0f, D3D11_FLOAT32_MAX);
 
-        hr = m_device->CreateSamplerState(&tsd, &m_shadowSampler);
-
-        CD3D11_RASTERIZER_DESC rd(D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
+        m_shadowRasterizerState = createRasterizerState(D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
-        hr = m_device->CreateRasterizerState(&rd, &m_shadowRasterizerState);
     }
 
     {
-        CD3D11_DEPTH_STENCIL_DESC dsd(
+        m_depthStencilState = createDepthStencilState(
             TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_GREATER,
             FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
-
-        hr = m_device->CreateDepthStencilState(&dsd, &m_depthStencilState);
 
         m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
     }
@@ -261,17 +324,17 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
-    renderable->m_vertexBuffer = createBuffer(m_device.Get(), D3D11_BIND_VERTEX_BUFFER, vertices);
+    renderable->m_vertexBuffer = createBuffer(vertices, D3D11_BIND_VERTEX_BUFFER);
     renderable->m_vertexCount = vertices.size;
 
-    renderable->m_indexBuffer = createBuffer(m_device.Get(), D3D11_BIND_INDEX_BUFFER, indices);
+    renderable->m_indexBuffer = createBuffer(indices, D3D11_BIND_INDEX_BUFFER);
     renderable->m_indexCount = indices.size;
 
     RenderableConstantBuffer cb{
         .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
     };
 
-    renderable->m_constantBuffer = createBuffer(m_device.Get(), D3D11_BIND_CONSTANT_BUFFER, cb);
+    renderable->m_constantBuffer = createBuffer(cb, D3D11_BIND_CONSTANT_BUFFER);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -296,8 +359,8 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
         Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
 
         m_pointLightCapacity = lights.size;
-        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
-        hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
+        m_pointLightBufferSRV = createShaderResourceView(m_pointLightBuffer.Get(),
+            m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
     }
 
     CD3D11_BOX box(0, 0, 0, lights.byteSize(), 1, 1);
@@ -355,45 +418,15 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
 }
 
-/*
-void Renderer::setPointLights(const std::vector<PointLight>& lights)
-{
-    m_psConstants.NumPointLights = static_cast<UINT>(lights.size());
-
-    if (lights.size() > m_pointLightCapacity) {
-        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(PointLight) * lights.size()), D3D11_BIND_SHADER_RESOURCE);
-        bd.StructureByteStride = sizeof(PointLight);
-        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-
-        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
-
-        m_pointLightCapacity = static_cast<UINT>(lights.size());
-        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
-        hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
-    }
-
-    CD3D11_BOX box(0, 0, 0, sizeof(PointLight) * m_psConstants.NumPointLights, 1, 1);
-
-    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data(),
-        static_cast<UINT>(sizeof(PointLight) * m_psConstants.NumPointLights), 0);
-
-    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
-}
-*/
-
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
     if (vertices.size > m_debugVerticesCapacity) {
-        CD3D11_BUFFER_DESC bd(vertices.byteSize(), D3D11_BIND_VERTEX_BUFFER);
-
-        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_debugVertexBuffer);
-
+        m_debugVertexBuffer = createBuffer(vertices, D3D11_BIND_VERTEX_BUFFER);
         m_debugVerticesCapacity = vertices.size;
+    } else {
+        CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);
+        m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data, vertices.byteSize(), 0);
     }
-
-    CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);
-
-    m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data, vertices.byteSize(), 0);
 
     {
         CameraConstantBuffer cb{
