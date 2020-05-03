@@ -30,6 +30,135 @@ void reportError(const char* message, TArgs&&... args)
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
 
+class Game
+{
+public:
+    Game(ImGuiIO& io, std::vector<Model>& models, std::unordered_map<std::string, Renderable*>& renderables, Scene& scene, InputMap& inputs);
+
+    bool update(float dt);
+    void render(Renderer& r);
+
+private:
+    ImGuiIO& io;
+
+    std::vector<Model>& models;
+    std::unordered_map<std::string, Renderable*>& renderables;
+    Scene& scene;
+
+    Camera cam;
+    Camera shadowCam;
+
+    Transform t, t2;
+
+    float moveSpeed = 5.1f;
+    float turnSpeed = 3.0f;
+    float angle = 0.0f;
+
+    XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
+    XMFLOAT3 lightVelocity{ 0.0f, 0.0f, 0.0f };
+
+    InputMap& inputs;
+};
+
+Game::Game(ImGuiIO& io, std::vector<Model>& models, std::unordered_map<std::string, Renderable*>& renderables, Scene& scene, InputMap& inputs) :
+    io(io), models(models), renderables(renderables), scene(scene), inputs(inputs)
+{
+    auto doBind = [&inputs](SDL_Keycode k, float& target, float value) {
+        inputs.key(k)
+            .down([&target,  value] { target = value; })
+            .up([&target] { target = 0.0f; });
+    };
+
+    doBind(SDLK_q, angle, -turnSpeed);
+    doBind(SDLK_e, angle, turnSpeed);
+
+    doBind(SDLK_d, velocity.x, moveSpeed);
+    doBind(SDLK_a, velocity.x, -moveSpeed);
+    doBind(SDLK_w, velocity.z, moveSpeed);
+    doBind(SDLK_s, velocity.z, -moveSpeed);
+    doBind(SDLK_r, velocity.y, moveSpeed);
+    doBind(SDLK_f, velocity.y, -moveSpeed);
+
+    doBind(SDLK_LEFT, lightVelocity.x, moveSpeed);
+    doBind(SDLK_RIGHT, lightVelocity.x, -moveSpeed);
+    doBind(SDLK_UP, lightVelocity.z, moveSpeed);
+    doBind(SDLK_DOWN, lightVelocity.z, -moveSpeed);
+}
+
+bool Game::update(float dt)
+{
+    bool running = true;
+
+    velocity.x *= dt;
+    velocity.y *= dt;
+    velocity.z *= dt;
+    angle *= dt;
+
+    cam.move(velocity.x, velocity.y, velocity.z);
+    cam.rotate(0.0f, angle);
+
+    return running;
+}
+
+void Game::render(Renderer& r)
+{
+    //r.draw(models[modelIdx].renderable, cam, t);
+    for (const auto& o : scene.objects) {
+        r.draw(o.renderable, cam, o.transform);
+    }
+}
+
+void loadAssets(Renderer& r, std::vector<Model>& models, std::unordered_map<std::string, Renderable*>& renderables)
+{
+    std::filesystem::directory_iterator end;
+    for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
+        if (!it->is_regular_file()) {
+            continue;
+        }
+
+        const auto p = it->path();
+        if (p.extension() == ".fbx") {
+            Mesh mesh(p);
+
+            auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
+            models.emplace_back(mesh.getName(), renderable);
+            renderables.emplace(mesh.getName(), renderable);
+        }
+    }
+}
+
+class GameTime
+{
+public:
+    float update();
+    float getDelta() const;
+
+private:
+    std::chrono::high_resolution_clock::time_point m_prev = std::chrono::high_resolution_clock::now();
+    float m_delta = 0.0f;
+};
+
+float GameTime::update()
+{
+    auto t = std::chrono::high_resolution_clock::now();
+
+    if constexpr (false) {
+        auto d = std::chrono::duration_cast<std::chrono::milliseconds>(t - m_prev);
+        m_delta = static_cast<float>(d.count()) / 1000.0f;
+    } else {
+        auto d = std::chrono::duration_cast<std::chrono::microseconds>(t - m_prev);
+        m_delta = static_cast<float>(static_cast<double>(d.count()) / 1'000'000.0);
+    }
+
+    m_prev = t;
+    return m_delta;
+}
+
+float GameTime::getDelta() const
+{
+    return m_delta;
+}
+
 int main(int argc, char* argv[])
 {
     if (auto ret = SDL_Init(SDL_INIT_VIDEO); ret < 0) {
@@ -59,24 +188,165 @@ int main(int argc, char* argv[])
         ImGui_ImplSDL2_InitForD3D(window);
         ImGui_ImplDX11_Init(r.getDevice(), r.getDeviceContext());
 
-        {
-            std::filesystem::directory_iterator end;
-            for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
-                if (!it->is_regular_file()) {
-                    continue;
-                }
+        loadAssets(r, models, renderables);
 
-                const auto p = it->path();
-                if (p.extension() == ".fbx") {
-                    Mesh mesh(p);
+        InputMap inputs;
 
-                    auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
-                    models.emplace_back(mesh.getName(), renderable);
-                    renderables.emplace(mesh.getName(), renderable);
+        bool running = true;
+        inputs.key(SDLK_ESCAPE).up([&] { running = false; });
+
+        Game game(io, models, renderables, scene, inputs);
+
+        GameTime gt;
+
+        /*
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                ImGui_ImplSDL2_ProcessEvent(&event);
+
+                switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_KEYUP:
+                case SDL_KEYDOWN:
+                    if (!io.WantCaptureKeyboard) {
+                        inputs.handleEvent(event.key);
+                    }
+                    break;
+
+                case SDL_MOUSEMOTION:
+                    if (!io.WantCaptureMouse) {
+                        if (event.motion.state & SDL_BUTTON_RMASK) {
+                            auto x = static_cast<float>(event.motion.xrel) / 450.0f;
+                            auto y = static_cast<float>(event.motion.yrel) / 450.0f;
+                            cam.rotate(y, x);
+                        }
+                    }
+                    break;
+
+                default:
+                    break;
                 }
             }
+
+            ImGui_ImplDX11_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
+            if (showDemo) {
+                ImGui::ShowDemoWindow(&showDemo);
+            }
+        */
+
+        bool showDemo = false;
+        inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
+
+        auto handleEvents = [&io, &inputs, &running] {
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                ImGui_ImplSDL2_ProcessEvent(&event);
+
+                switch (event.type) {
+                case SDL_QUIT:
+                    running = false;
+                    break;
+
+                case SDL_KEYUP:
+                case SDL_KEYDOWN:
+                    if (!io.WantCaptureKeyboard) {
+                        inputs.handleEvent(event.key);
+                    }
+                    break;
+
+                case SDL_MOUSEMOTION:
+                    if (!io.WantCaptureMouse) {
+                        if (event.motion.state & SDL_BUTTON_RMASK) {
+                            auto x = static_cast<float>(event.motion.xrel) / 450.0f;
+                            auto y = static_cast<float>(event.motion.yrel) / 450.0f;
+                            //cam.rotate(y, x);
+                        }
+                    }
+                    break;
+
+                default:
+                    break;
+                }
+            }
+        };
+
+        /*
+                r.clear(0.1f, 0.2f, 0.3f);
+                r.draw(models[modelIdx].renderable, cam, t);
+
+                for (const auto& o : scene.objects) {
+                    r.draw(o.renderable, cam, o.transform);
+                }
+
+                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+                    scene.load(scenePath);
+
+                    for (auto& o : scene.objects) {
+                        o.renderable = renderables[o.modelName];
+                    }
+
+                    r.setDirectionalLight(scene.directionalLight);
+                    r.setPointLights(scene.lights);
+        */
+        {
+            scene.load("../scene.json");
+
+            for (auto& o : scene.objects) {
+                o.renderable = renderables[o.modelName];
+            }
+
+            r.setDirectionalLight(scene.directionalLight);
+            r.setPointLights(scene.lights);
         }
 
+        while (running) {
+            float dt = gt.update();
+
+            handleEvents();
+
+            if (!game.update(dt)) {
+                break;
+            }
+
+            ImGui_ImplDX11_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
+            if (showDemo) {
+                ImGui::ShowDemoWindow(&showDemo);
+            }
+
+            {
+                if (ImGui::Begin("Hmm")) {
+                    ImGui::Text("dt=%f", dt);
+                }
+                ImGui::End();
+            }
+
+            ImGui::Render();
+
+            r.beginFrame();
+            {
+                r.clear(0.1f, 0.2f, 0.3f);
+                game.render(r);
+
+                if (auto drawData = ImGui::GetDrawData()) {
+                    ImGui_ImplDX11_RenderDrawData(drawData);
+                }
+            }
+            r.endFrame();
+
+            //dt = gt.getDelta();
+        }
+
+        /*
         Camera cam;
 
         Camera shadowCam;
@@ -96,9 +366,7 @@ int main(int argc, char* argv[])
 
         float dt = 0.0f;
         auto t0 = std::chrono::high_resolution_clock::now();
-        const auto forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 
-        InputMap inputs;
 
         auto doBind = [&inputs, &dt](SDL_Keycode k, float& target, float value) {
             inputs.key(k)
@@ -183,34 +451,23 @@ int main(int argc, char* argv[])
 
             if constexpr (true) {
                 ImGui::Begin("Scene");
-                {
-                    static char scenePath[128] = "../scene.json";
-                    ImGui::InputText("Filename", scenePath, sizeof(scenePath));
 
-                    if (ImGui::Button("Load")) {
-                        /*
-                        auto d = loadFile(scenePath);
-                        nlohmann::json::parse(d).get_to(scene);
-                        */
-                        scene.load(scenePath);
+                static char scenePath[128] = "../scene.json";
+                ImGui::InputText("Filename", scenePath, sizeof(scenePath));
 
-                        for (auto& o : scene.objects) {
-                            o.renderable = renderables[o.modelName];
-                        }
+                if (ImGui::Button("Load")) {
+                    scene.load(scenePath);
 
-                        r.setDirectionalLight(scene.directionalLight);
-                        r.setPointLights(scene.lights);
+                    for (auto& o : scene.objects) {
+                        o.renderable = renderables[o.modelName];
                     }
 
-                    if (ImGui::Button("Save")) {
-                        /*
-                        nlohmann::json j;
-                        j = scene;
-                        std::ofstream os(scenePath);
-                        os << j;
-                        */
-                        scene.save(scenePath);
-                    }
+                    r.setDirectionalLight(scene.directionalLight);
+                    r.setPointLights(scene.lights);
+                }
+
+                if (ImGui::Button("Save")) {
+                    scene.save(scenePath);
                 }
 
                 if (ImGui::TreeNode("Lights")) {
@@ -350,6 +607,7 @@ int main(int argc, char* argv[])
             dt = static_cast<float>(dtMs.count()) / 1000.0f;
             t0 = t1;
         }
+        */
 
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplSDL2_Shutdown();
