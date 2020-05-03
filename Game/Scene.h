@@ -10,9 +10,9 @@
 
 class Renderable;
 
-struct Model
+struct RModel
 {
-    Model(std::string name, Renderable* renderable) :
+    RModel(std::string name, Renderable* renderable) :
         name{ std::move(name) }, renderable(renderable)
     {
     }
@@ -26,7 +26,7 @@ struct Object
 {
     Object() = default;
 
-    Object(const Model& model, const Transform& t);
+    Object(const RModel& model, const Transform& t);
     void update();
 
     Renderable* renderable = nullptr;

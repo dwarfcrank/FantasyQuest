@@ -27,7 +27,7 @@ void reportError(const char* message, TArgs&&... args)
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
 
-void loadAssets(Renderer& r, std::vector<Model>& models, std::unordered_map<std::string, Renderable*>& renderables)
+void loadAssets(Renderer& r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
 {
     std::filesystem::directory_iterator end;
     for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
@@ -63,7 +63,7 @@ int main(int argc, char* argv[])
     {
         Renderer r(window);
 
-        std::vector<Model> models;
+        std::vector<RModel> models;
         std::unordered_map<std::string, Renderable*> renderables;
 
         Scene scene;

@@ -51,7 +51,7 @@ namespace nlohmann
     };
 }
 
- Object::Object(const Model& model, const Transform& t) :
+ Object::Object(const RModel& model, const Transform& t) :
     renderable(model.renderable), transform(t), modelName(model.name)
 {
     name = fmt::format("{}:{}", model.name, model.count);
