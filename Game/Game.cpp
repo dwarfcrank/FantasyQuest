@@ -38,13 +38,14 @@ Game::Game(Scene& scene, InputMap& inputs) :
     doBind(SDLK_a, velocity.x, -moveSpeed);
     doBind(SDLK_w, velocity.z, moveSpeed);
     doBind(SDLK_s, velocity.z, -moveSpeed);
-    doBind(SDLK_r, velocity.y, moveSpeed);
-    doBind(SDLK_f, velocity.y, -moveSpeed);
 
-    doBind(SDLK_LEFT, lightVelocity.x, moveSpeed);
-    doBind(SDLK_RIGHT, lightVelocity.x, -moveSpeed);
+    doBind(SDLK_LEFT, lightVelocity.x, -moveSpeed);
+    doBind(SDLK_RIGHT, lightVelocity.x, moveSpeed);
     doBind(SDLK_UP, lightVelocity.z, moveSpeed);
     doBind(SDLK_DOWN, lightVelocity.z, -moveSpeed);
+
+    doBind(SDLK_r, lightVelocity.y, moveSpeed);
+    doBind(SDLK_f, lightVelocity.y, -moveSpeed);
 
     inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
         if (event.state & SDL_BUTTON_RMASK) {
@@ -59,7 +60,8 @@ bool Game::update(float dt)
 {
     bool running = true;
 
-    cam.move(velocity.x * dt, velocity.y * dt, velocity.z * dt);
+    cam.move(Vector<View>(velocity.x, velocity.y, velocity.z) * dt);
+    cam.move(Vector<World>(lightVelocity.x, lightVelocity.y, lightVelocity.z) * dt);
     cam.rotate(0.0f, angle * dt);
 
     return running;

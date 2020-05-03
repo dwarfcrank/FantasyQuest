@@ -271,8 +271,8 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 {
     {
         CameraConstantBuffer cb{
-            .ViewMatrix = XMMatrixTranspose(camera.getViewMatrix()),
-            .ProjectionMatrix = XMMatrixTranspose(camera.getProjectionMatrix()),
+            .ViewMatrix = camera.getViewMatrix().transposed(),
+            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
         };
 
         m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
@@ -356,8 +356,8 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
 {
     {
         CameraConstantBuffer cb{
-            .ViewMatrix = XMMatrixTranspose(camera.getViewMatrix()),
-            .ProjectionMatrix = XMMatrixTranspose(camera.getProjectionMatrix()),
+            .ViewMatrix = camera.getViewMatrix().transposed(),
+            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
         };
 
         m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);

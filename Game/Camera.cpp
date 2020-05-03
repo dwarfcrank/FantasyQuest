@@ -5,18 +5,18 @@
 Camera Camera::ortho(float width, float height, float nearZ, float farZ)
 {
     Camera cam;
-    cam.m_projectionMatrix = XMMatrixOrthographicLH(width, height, nearZ, farZ);
+    cam.m_projectionMatrix.mat = XMMatrixOrthographicLH(width, height, nearZ, farZ);
     return cam;
 }
 
 Camera Camera::perspective(float fovY, float aspect, float nearZ, float farZ)
 {
     Camera cam;
-    cam.m_projectionMatrix = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
+    cam.m_projectionMatrix.mat = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
     return cam;
 }
 
-XMMATRIX Camera::getViewMatrix() const
+Matrix<World, View> Camera::getViewMatrix() const
 {
     XMVECTOR direction;
 
@@ -27,24 +27,30 @@ XMMATRIX Camera::getViewMatrix() const
         direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
     }
 
-    return XMMatrixLookToLH(m_position, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    return Matrix<World, View>(XMMatrixLookToLH(m_position.vec, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)));
 }
 
-XMMATRIX Camera::getProjectionMatrix() const
+void Camera::move(Vector<View> direction)
 {
-    return m_projectionMatrix;
+    auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
+    Vector<World> worldDir(XMVector3Rotate(direction.vec, rotation));
+
+    move(worldDir);
+}
+
+void Camera::move(Vector<World> direction)
+{
+    m_position += direction;
 }
 
 void Camera::move(float xOff, float yOff, float zOff)
 {
-    auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
-    auto direction = XMVector3Rotate(XMVectorSet(xOff, yOff, zOff, 0.0f), rotation);
-    m_position += direction;
+    move(Vector<View>(xOff, yOff, zOff));
 }
 
 void Camera::setPosition(float x, float y, float z)
 {
-    m_position = XMVectorSet(x, y, z, 0.0f);
+    m_position = Vector<World>(x, y, z);
 }
 
 void Camera::setDirection(const XMFLOAT3& dir)
@@ -78,5 +84,5 @@ void Camera::setDirection(float x, float y, float z)
 
 void Camera::makeOrtho()
 {
-    m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
+    m_projectionMatrix.mat = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
 }

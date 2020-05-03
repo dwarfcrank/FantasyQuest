@@ -27,9 +27,21 @@ struct Vector
     {
     }
 
-    Vector(float x, float y, float z, float w) :
+    Vector(float x, float y, float z = 0.0f, float w = 0.0f) :
         vec(DirectX::XMVectorSet(x, y, z, w))
     {
+    }
+
+    Vector& operator+=(const Vector& o)
+    {
+        vec += o.vec;
+        return *this;
+    }
+
+    Vector& operator-=(const Vector& o)
+    {
+        vec -= o.vec;
+        return *this;
     }
 
     DirectX::XMVECTOR vec;
@@ -43,6 +55,11 @@ struct Matrix
     explicit Matrix(DirectX::FXMMATRIX mat) :
         mat(mat)
     {
+    }
+
+    DirectX::XMMATRIX transposed() const
+    {
+        return DirectX::XMMatrixTranspose(mat);
     }
 
     DirectX::XMMATRIX mat;
@@ -75,13 +92,13 @@ inline Vector<S> operator-(const Vector<S>& a, const Vector<S>& b)
 template<Space S>
 inline Vector<S> operator*(const Vector<S>& a, float f)
 {
-    return Vector<S>{ a.vec * f };
+    return Vector<S>{ DirectX::XMVectorMultiply(a.vec, DirectX::XMVectorReplicate(f)) };
 }
 
 template<Space S>
 inline Vector<S> operator*(float f, const Vector<S>& a)
 {
-    return Vector<S>{ a.vec * f };
+    return Vector<S>{ a.vec * DirectX::XMVectorReplicate(f) };
 }
 
 template<Space S>
