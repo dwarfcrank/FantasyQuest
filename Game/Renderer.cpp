@@ -398,7 +398,16 @@ void Renderer::endShadowPass()
 
 XMMATRIX Camera::getViewMatrix() const
 {
-    return XMMatrixLookToLH(m_position, m_direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    XMVECTOR direction;
+
+    if (m_useDirection) {
+        direction = m_direction;
+    } else {
+        auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
+        direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
+    }
+
+    return XMMatrixLookToLH(m_position, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
 }
 
 XMMATRIX Camera::getProjectionMatrix() const
@@ -408,7 +417,9 @@ XMMATRIX Camera::getProjectionMatrix() const
 
 void Camera::move(float xOff, float yOff, float zOff)
 {
-    m_position += XMVectorSet(xOff, yOff, zOff, 0.0f);
+    auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
+    auto direction = XMVector3Rotate(XMVectorSet(xOff, yOff, zOff, 0.0f), rotation);
+    m_position += direction;
 }
 
 void Camera::setPosition(float x, float y, float z)

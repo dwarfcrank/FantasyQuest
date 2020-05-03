@@ -79,6 +79,7 @@ public:
 
     void setDirection(const XMFLOAT3& dir)
     {
+        m_useDirection = true;
         m_direction = XMLoadFloat3(&dir);
         m_direction = XMVector3Normalize(m_direction);
     }
@@ -88,6 +89,17 @@ public:
         m_direction = -m_direction;
     }
 
+    void rotate(float pitch, float yaw)
+    {
+        m_pitch += pitch;
+        m_yaw += yaw;
+        /*
+        auto rot = XMQuaternionRotationRollPitchYaw(x, y, 0.0f);
+        m_direction = XMVector3Rotate(m_direction, rot);
+        */
+        //XMQuaternionRotationRollPitchYawFromVector()
+    }
+
     void setDirection(float x, float y, float z)
     {
         m_direction = XMVectorSet(x, y, z, 0.0f);
@@ -95,14 +107,19 @@ public:
 
     void makeOrtho()
     {
-        m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, 20.0f, -10.0f);
+        m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
     }
 
 private:
+    bool m_useDirection = false;
     XMVECTOR m_position = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
     XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+    //XMVECTOR m_rotation = XMVectorZero();
+    float m_pitch = 0.0f;
+    float m_yaw = 0.0f;
     
-    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 100.0f, 0.01f);
+    //XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 100.0f, 0.01f);
+    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2.5f, 16.0f / 9.0f, 100.0f, 0.01f);
 };
 
 class Renderer

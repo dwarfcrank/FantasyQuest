@@ -105,8 +105,8 @@ int main(int argc, char* argv[])
                 .up([&target] { target = 0.0f; });
         };
 
-        doBind(SDLK_q, angle, turnSpeed);
-        doBind(SDLK_e, angle, -turnSpeed);
+        doBind(SDLK_q, angle, -turnSpeed);
+        doBind(SDLK_e, angle, turnSpeed);
 
         doBind(SDLK_d, velocity.x, moveSpeed);
         doBind(SDLK_a, velocity.x, -moveSpeed);
@@ -154,6 +154,16 @@ int main(int argc, char* argv[])
                 case SDL_KEYDOWN:
                     if (!io.WantCaptureKeyboard) {
                         inputs.handleEvent(event.key);
+                    }
+                    break;
+
+                case SDL_MOUSEMOTION:
+                    if (!io.WantCaptureMouse) {
+                        if (event.motion.state & SDL_BUTTON_RMASK) {
+                            auto x = static_cast<float>(event.motion.xrel) / 450.0f;
+                            auto y = static_cast<float>(event.motion.yrel) / 450.0f;
+                            cam.rotate(y, x);
+                        }
                     }
                     break;
 
@@ -217,8 +227,8 @@ int main(int argc, char* argv[])
 
                             changed |= ImGui::InputFloat3("Position", &scene.lights[i].Position.x);
                             changed |= ImGui::ColorEdit3("Color", &scene.lights[i].Color.x);
-                            changed |= ImGui::SliderFloat("Linear", &scene.lights[i].Position.w, 0.0f, 5.0f, "%f");
-                            changed |= ImGui::SliderFloat("Quadratic", &scene.lights[i].Color.w, 0.0f, 5.0f, "%f");
+                            changed |= ImGui::SliderFloat("Linear", &scene.lights[i].Position.w, 0.0f, 1.0f, "%f");
+                            changed |= ImGui::SliderFloat("Quadratic", &scene.lights[i].Color.w, 0.0f, 1.0f, "%f");
 
                             if (changed) {
                                 r.setPointLights(scene.lights);
@@ -300,8 +310,10 @@ int main(int argc, char* argv[])
 
             ImGui::Render();
 
-            t.move(velocity.x, velocity.y, velocity.z);
-            t.rotate(0.0f, angle, 0.0f);
+            //t.move(velocity.x, velocity.y, velocity.z);
+            cam.move(velocity.x, velocity.y, velocity.z);
+            //t.rotate(0.0f, angle, 0.0f);
+            cam.rotate(0.0f, angle);
 
             scene.directionalLight.x += lightVelocity.x;
             scene.directionalLight.y += lightVelocity.y;
