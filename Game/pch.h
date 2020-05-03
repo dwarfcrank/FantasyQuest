@@ -1,7 +1,11 @@
 #define NOMINMAX
 #include <windows.h>
 
+#include <algorithm>
 #include <array>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <chrono>
 #include <cstdint>
 #include <d3d11_1.h>
@@ -13,19 +17,17 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <functional>
-#include <malloc.h>
 #include <memory>
-#include <memory.h>
-#include <SDKDDKVer.h>
+#include <nlohmann/json.hpp>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_syswm.h>
 #include <stdexcept>
-#include <stdlib.h>
-#include <tchar.h>
+#include <string>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
 #include <wrl.h>
+
 #include "imgui.h"
-#include <nlohmann/json.hpp>
