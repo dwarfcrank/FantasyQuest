@@ -97,13 +97,8 @@ bool Game::update(float dt)
 {
     bool running = true;
 
-    velocity.x *= dt;
-    velocity.y *= dt;
-    velocity.z *= dt;
-    angle *= dt;
-
-    cam.move(velocity.x, velocity.y, velocity.z);
-    cam.rotate(0.0f, angle);
+    cam.move(velocity.x * dt, velocity.y * dt, velocity.z * dt);
+    cam.rotate(0.0f, angle * dt);
 
     return running;
 }
@@ -203,50 +198,20 @@ int main(int argc, char* argv[])
         bool running = true;
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
+        {
+            scene.load("../scene.json");
+
+            for (auto& o : scene.objects) {
+                o.renderable = renderables[o.modelName];
+            }
+
+            r.setDirectionalLight(scene.directionalLight);
+            r.setPointLights(scene.lights);
+        }
+
         Game game(io, models, renderables, scene, inputs);
 
         GameTime gt;
-
-        /*
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                ImGui_ImplSDL2_ProcessEvent(&event);
-
-                switch (event.type) {
-                case SDL_QUIT:
-                    running = false;
-                    break;
-
-                case SDL_KEYUP:
-                case SDL_KEYDOWN:
-                    if (!io.WantCaptureKeyboard) {
-                        inputs.handleEvent(event.key);
-                    }
-                    break;
-
-                case SDL_MOUSEMOTION:
-                    if (!io.WantCaptureMouse) {
-                        if (event.motion.state & SDL_BUTTON_RMASK) {
-                            auto x = static_cast<float>(event.motion.xrel) / 450.0f;
-                            auto y = static_cast<float>(event.motion.yrel) / 450.0f;
-                            cam.rotate(y, x);
-                        }
-                    }
-                    break;
-
-                default:
-                    break;
-                }
-            }
-
-            ImGui_ImplDX11_NewFrame();
-            ImGui_ImplSDL2_NewFrame(window);
-            ImGui::NewFrame();
-
-            if (showDemo) {
-                ImGui::ShowDemoWindow(&showDemo);
-            }
-        */
 
         bool showDemo = false;
         inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
@@ -279,36 +244,6 @@ int main(int argc, char* argv[])
                 }
             }
         };
-
-        /*
-                r.clear(0.1f, 0.2f, 0.3f);
-                r.draw(models[modelIdx].renderable, cam, t);
-
-                for (const auto& o : scene.objects) {
-                    r.draw(o.renderable, cam, o.transform);
-                }
-
-                ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-                    scene.load(scenePath);
-
-                    for (auto& o : scene.objects) {
-                        o.renderable = renderables[o.modelName];
-                    }
-
-                    r.setDirectionalLight(scene.directionalLight);
-                    r.setPointLights(scene.lights);
-        */
-        {
-            scene.load("../scene.json");
-
-            for (auto& o : scene.objects) {
-                o.renderable = renderables[o.modelName];
-            }
-
-            r.setDirectionalLight(scene.directionalLight);
-            r.setPointLights(scene.lights);
-        }
 
         while (running) {
             float dt = gt.update();
