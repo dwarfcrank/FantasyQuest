@@ -3,8 +3,11 @@
 #include "Common.h"
 
 #include <SDL2/SDL_keyboard.h>
+#include <SDL2/SDL_mouse.h>
 #include <unordered_map>
 #include <functional>
+
+using MouseMotionHandler = std::function<void(const SDL_MouseMotionEvent&)>;
 
 class KeyHandler
 {
@@ -48,11 +51,15 @@ class InputMap
 {
 public:
     void handleEvent(const SDL_KeyboardEvent&) const;
+    void handleEvent(const SDL_MouseMotionEvent&) const;
 
     KeyHandler& key(SDL_Keycode);
     void unbind(SDL_Keycode);
 
+    void onMouseMove(MouseMotionHandler);
+
 private:
     std::unordered_map<SDL_Keycode, KeyHandler> m_keys;
+    MouseMotionHandler m_mouseMotionHandler;
 };
 

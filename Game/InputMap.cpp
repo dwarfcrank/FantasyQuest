@@ -16,6 +16,13 @@ void InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
     }
 }
 
+void InputMap::handleEvent(const SDL_MouseMotionEvent& event) const
+{
+    if (m_mouseMotionHandler) {
+        m_mouseMotionHandler(event);
+    }
+}
+
 KeyHandler& InputMap::key(SDL_Keycode key)
 {
     return m_keys[key];
@@ -24,4 +31,9 @@ KeyHandler& InputMap::key(SDL_Keycode key)
 void InputMap::unbind(SDL_Keycode key)
 {
     m_keys.erase(key);
+}
+
+void InputMap::onMouseMove(MouseMotionHandler handler)
+{
+    m_mouseMotionHandler = handler;
 }

@@ -83,6 +83,14 @@ Game::Game(ImGuiIO& io, std::vector<Model>& models, std::unordered_map<std::stri
     doBind(SDLK_RIGHT, lightVelocity.x, -moveSpeed);
     doBind(SDLK_UP, lightVelocity.z, moveSpeed);
     doBind(SDLK_DOWN, lightVelocity.z, -moveSpeed);
+
+    inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
+        if (event.state & SDL_BUTTON_RMASK) {
+            auto x = static_cast<float>(event.xrel) / 450.0f;
+            auto y = static_cast<float>(event.yrel) / 450.0f;
+            cam.rotate(y, x);
+        }
+    });
 }
 
 bool Game::update(float dt)
@@ -262,11 +270,7 @@ int main(int argc, char* argv[])
 
                 case SDL_MOUSEMOTION:
                     if (!io.WantCaptureMouse) {
-                        if (event.motion.state & SDL_BUTTON_RMASK) {
-                            auto x = static_cast<float>(event.motion.xrel) / 450.0f;
-                            auto y = static_cast<float>(event.motion.yrel) / 450.0f;
-                            //cam.rotate(y, x);
-                        }
+                        inputs.handleEvent(event.motion);
                     }
                     break;
 
