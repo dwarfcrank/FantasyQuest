@@ -24,6 +24,16 @@ struct Vertex
     XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
+static_assert(sizeof(Vertex) == 40);
+
+struct DebugDrawVertex
+{
+    XMFLOAT3 Position;
+    XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
+};
+
+static_assert(sizeof(DebugDrawVertex) == 28);
+
 struct CameraConstantBuffer
 {
     XMMATRIX ViewMatrix;
@@ -76,6 +86,7 @@ public:
     void setDirectionalLight(const XMFLOAT3& pos);
     void setPointLights(const std::vector<PointLight>& lights);
     void draw(Renderable*, const Camera&, const struct Transform&);
+    void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&);
     void clear(float r, float g, float b);
 
     void beginFrame();
@@ -103,6 +114,12 @@ private:
     ComPtr<ID3D11InputLayout> m_inputLayout;
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
+
+    ComPtr<ID3D11InputLayout> m_debugInputLayout;
+    ComPtr<ID3D11VertexShader> m_debugVS;
+    ComPtr<ID3D11PixelShader> m_debugPS;
+    ComPtr<ID3D11Buffer> m_debugVertexBuffer;
+    UINT m_debugVerticesCapacity = 0;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 

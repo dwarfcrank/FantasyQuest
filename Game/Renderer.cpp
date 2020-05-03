@@ -154,6 +154,21 @@ Renderer::Renderer(SDL_Window* window)
         hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_shadowPS);
     }
 
+    {
+        auto vs = loadFile("../x64/Debug/DebugDrawVertexShader.cso");
+        auto ps = loadFile("../x64/Debug/DebugDrawPixelShader.cso");
+
+        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_debugVS);
+        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_debugPS);
+
+        std::array layout{
+            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        };
+
+        hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_debugInputLayout);
+    }
+
     m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
     m_shadowCameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
 
@@ -185,12 +200,6 @@ Renderer::Renderer(SDL_Window* window)
         CD3D11_SHADER_RESOURCE_VIEW_DESC dsrvd(m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
             DXGI_FORMAT_R32_FLOAT);
         hr = m_device->CreateShaderResourceView(m_shadowTexture.Get(), &dsrvd, &m_shadowSRV);
-
-        /*
-        CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_MIN_MAG_MIP_LINEAR,
-            D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
-            0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
-        */
 
         CD3D11_SAMPLER_DESC tsd(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
@@ -312,6 +321,74 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
     m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
+}
+
+/*
+void Renderer::setPointLights(const std::vector<PointLight>& lights)
+{
+    m_psConstants.NumPointLights = static_cast<UINT>(lights.size());
+
+    if (lights.size() > m_pointLightCapacity) {
+        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(PointLight) * lights.size()), D3D11_BIND_SHADER_RESOURCE);
+        bd.StructureByteStride = sizeof(PointLight);
+        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+
+        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
+
+        m_pointLightCapacity = static_cast<UINT>(lights.size());
+        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
+        hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
+    }
+
+    CD3D11_BOX box(0, 0, 0, sizeof(PointLight) * m_psConstants.NumPointLights, 1, 1);
+
+    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data(),
+        static_cast<UINT>(sizeof(PointLight) * m_psConstants.NumPointLights), 0);
+
+    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
+}
+*/
+
+void Renderer::debugDraw(const Camera& camera, const std::vector<DebugDrawVertex>& vertices)
+{
+    auto size = static_cast<UINT>(sizeof(DebugDrawVertex) * vertices.size());
+
+    if (vertices.size() > m_debugVerticesCapacity) {
+        CD3D11_BUFFER_DESC bd(size, D3D11_BIND_VERTEX_BUFFER);
+
+        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_debugVertexBuffer);
+
+        m_debugVerticesCapacity = static_cast<UINT>(vertices.size());
+    }
+
+    CD3D11_BOX box(0, 0, 0, size, 1, 1);
+
+    m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data(), size, 0);
+
+    {
+        CameraConstantBuffer cb{
+            .ViewMatrix = camera.getViewMatrix().transposed(),
+            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
+        };
+
+        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+    }
+
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get() };
+    std::array vertexBuffers{ m_debugVertexBuffer.Get() };
+    std::array strides{ static_cast<UINT>(sizeof(DebugDrawVertex)) };
+    std::array offsets{ UINT(0) };
+
+    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+    m_context->IASetInputLayout(m_debugInputLayout.Get());
+
+    m_context->VSSetShader(m_debugVS.Get(), nullptr, 0);
+    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
+
+    m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
+
+    m_context->Draw(static_cast<UINT>(vertices.size()), 0);
 }
 
 void Renderer::clear(float r, float g, float b)

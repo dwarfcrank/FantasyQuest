@@ -133,6 +133,32 @@ int main(int argc, char* argv[])
 
         XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
 
+        std::vector<DebugDrawVertex> debugVerts;
+
+        {
+            XMFLOAT4 gridAxisColor(0.8f, 0.8f, 0.8f, 1.0f);
+            XMFLOAT4 gridColor(0.3f, 0.3f, 0.3f, 1.0f);
+
+            debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
+            debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
+            debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, -100.0f }, .Color = gridAxisColor });
+            debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, 100.0f }, .Color = gridAxisColor });
+
+
+            for (auto i = 1; i < 20; i++) {
+                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
+
+                debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+                debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+            }
+
+        }
+
         while (running) {
             float dt = gt.update();
 
@@ -184,6 +210,8 @@ int main(int argc, char* argv[])
                 for (const auto& o : scene.objects) {
                     r.draw(o.renderable, game.getCamera(), o.transform);
                 }
+
+                r.debugDraw(game.getCamera(), debugVerts);
 
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);
