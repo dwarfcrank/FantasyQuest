@@ -2,6 +2,20 @@
 
 #include "Camera.h"
 
+Camera Camera::ortho(float width, float height, float near, float far)
+{
+    Camera cam;
+    cam.m_projectionMatrix = XMMatrixOrthographicLH(width, height, near, far);
+    return cam;
+}
+
+Camera Camera::perspective(float fovY, float aspect, float near, float far)
+{
+    Camera cam;
+    cam.m_projectionMatrix = XMMatrixPerspectiveFovLH(fovY, aspect, near, far);
+    return cam;
+}
+
 XMMATRIX Camera::getViewMatrix() const
 {
     XMVECTOR direction;
