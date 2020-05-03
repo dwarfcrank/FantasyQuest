@@ -21,6 +21,7 @@
 #include "Mesh.h"
 #include "File.h"
 #include "Scene.h"
+#include "Camera.h"
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)

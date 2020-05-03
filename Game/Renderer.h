@@ -15,6 +15,8 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 
+class Camera;
+
 struct Vertex
 {
     XMFLOAT3 Position;
@@ -42,10 +44,6 @@ struct alignas(16) PSConstantBuffer
 
 struct PointLight
 {
-    /*
-    XMVECTOR Position;
-    XMVECTOR Color;
-    */
     XMFLOAT4 Position;
     XMFLOAT4 Color;
 };
@@ -66,60 +64,6 @@ private:
     ComPtr<ID3D11Buffer> m_vertexBuffer;
     ComPtr<ID3D11Buffer> m_indexBuffer;
     ComPtr<ID3D11Buffer> m_constantBuffer;
-};
-
-class Camera
-{
-public:
-    XMMATRIX getViewMatrix() const;
-    XMMATRIX getProjectionMatrix() const;
-
-    void move(float xOff, float yOff, float zOff);
-    void setPosition(float x, float y, float z);
-
-    void setDirection(const XMFLOAT3& dir)
-    {
-        m_useDirection = true;
-        m_direction = XMLoadFloat3(&dir);
-        m_direction = XMVector3Normalize(m_direction);
-    }
-
-    void invertDirection()
-    {
-        m_direction = -m_direction;
-    }
-
-    void rotate(float pitch, float yaw)
-    {
-        m_pitch += pitch;
-        m_yaw += yaw;
-        /*
-        auto rot = XMQuaternionRotationRollPitchYaw(x, y, 0.0f);
-        m_direction = XMVector3Rotate(m_direction, rot);
-        */
-        //XMQuaternionRotationRollPitchYawFromVector()
-    }
-
-    void setDirection(float x, float y, float z)
-    {
-        m_direction = XMVectorSet(x, y, z, 0.0f);
-    }
-
-    void makeOrtho()
-    {
-        m_projectionMatrix = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
-    }
-
-private:
-    bool m_useDirection = false;
-    XMVECTOR m_position = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-    XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
-    //XMVECTOR m_rotation = XMVectorZero();
-    float m_pitch = 0.0f;
-    float m_yaw = 0.0f;
-    
-    //XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PIDIV2, 16.0f / 9.0f, 100.0f, 0.01f);
-    XMMATRIX m_projectionMatrix = XMMatrixPerspectiveFovLH(XM_PI / 2.5f, 16.0f / 9.0f, 100.0f, 0.01f);
 };
 
 class Renderer
