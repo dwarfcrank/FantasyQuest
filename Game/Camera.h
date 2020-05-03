@@ -7,8 +7,8 @@ using namespace DirectX;
 class Camera
 {
 public:
-    static Camera ortho(float width = 40.0f, float height = 40.0f, float near = 100.0f, float far = -10.0f);
-    static Camera perspective(float fovY = XM_PI / 2.5f, float aspect = 16.0f / 9.0f, float near = 100.0f, float far = 0.01f);
+    static Camera ortho(float width = 40.0f, float height = 40.0f, float nearZ = 100.0f, float farZ = -10.0f);
+    static Camera perspective(float fovY = XM_PI / 2.5f, float aspect = 16.0f / 9.0f, float nearZ = 100.0f, float farZ = 0.01f);
 
     XMMATRIX getViewMatrix() const;
     XMMATRIX getProjectionMatrix() const;

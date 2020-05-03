@@ -129,6 +129,10 @@ int main(int argc, char* argv[])
             }
         };
 
+        Camera shadowCam = Camera::ortho();
+
+        XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
+
         while (running) {
             float dt = gt.update();
 
@@ -147,18 +151,39 @@ int main(int argc, char* argv[])
             }
 
             {
-                if (ImGui::Begin("Hmm")) {
-                    ImGui::Text("dt=%f", dt);
+                if (ImGui::Begin("Scene")) {
+                    if (ImGui::InputFloat3("Direction", &shadowDir.x)) {
+                        auto pitch = XMConvertToRadians(shadowDir.y);
+                        auto yaw = XMConvertToRadians(shadowDir.x);
+                        shadowCam.setRotation(pitch, yaw);
+
+                        auto rotation = XMQuaternionRotationRollPitchYaw(pitch, yaw, 0.0f);
+                        auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
+                        XMFLOAT3 d;
+                        XMStoreFloat3(&d, direction);
+                        r.setDirectionalLight(d);
+                    }
                 }
                 ImGui::End();
             }
 
             ImGui::Render();
 
+            r.beginShadowPass();
+            {
+                for (const auto& o : scene.objects) {
+                    r.drawShadow(o.renderable, shadowCam, o.transform);
+                }
+            }
+            r.endShadowPass();
+
             r.beginFrame();
             {
                 r.clear(0.1f, 0.2f, 0.3f);
-                game.render(r);
+                //game.render(r);
+                for (const auto& o : scene.objects) {
+                    r.draw(o.renderable, game.getCamera(), o.transform);
+                }
 
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);

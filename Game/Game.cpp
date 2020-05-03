@@ -67,7 +67,9 @@ bool Game::update(float dt)
 
 void Game::render(Renderer& r)
 {
+    /*
     for (const auto& o : scene.objects) {
         r.draw(o.renderable, cam, o.transform);
     }
+    */
 }

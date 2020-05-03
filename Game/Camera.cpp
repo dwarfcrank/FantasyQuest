@@ -2,17 +2,17 @@
 
 #include "Camera.h"
 
-Camera Camera::ortho(float width, float height, float near, float far)
+Camera Camera::ortho(float width, float height, float nearZ, float farZ)
 {
     Camera cam;
-    cam.m_projectionMatrix = XMMatrixOrthographicLH(width, height, near, far);
+    cam.m_projectionMatrix = XMMatrixOrthographicLH(width, height, nearZ, farZ);
     return cam;
 }
 
-Camera Camera::perspective(float fovY, float aspect, float near, float far)
+Camera Camera::perspective(float fovY, float aspect, float nearZ, float farZ)
 {
     Camera cam;
-    cam.m_projectionMatrix = XMMatrixPerspectiveFovLH(fovY, aspect, near, far);
+    cam.m_projectionMatrix = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
     return cam;
 }
 
@@ -63,6 +63,12 @@ void Camera::rotate(float pitch, float yaw)
 {
     m_pitch += pitch;
     m_yaw += yaw;
+}
+
+void Camera::setRotation(float pitch, float yaw)
+{
+    m_pitch = pitch;
+    m_yaw = yaw;
 }
 
 void Camera::setDirection(float x, float y, float z)
