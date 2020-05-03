@@ -2,6 +2,8 @@
 
 #include "Common.h"
 
+#include "ArrayView.h"
+
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>
@@ -84,9 +86,9 @@ public:
     virtual ~IRenderer() = default;
 
     virtual void setDirectionalLight(const XMFLOAT3& pos) = 0;
-    virtual void setPointLights(const std::vector<PointLight>& lights) = 0;
+    virtual void setPointLights(ArrayView<PointLight> lights) = 0;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
-    virtual void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&) = 0;
+    virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) = 0;
     virtual void clear(float r, float g, float b) = 0;
 
     virtual void beginFrame() = 0;
@@ -96,7 +98,7 @@ public:
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void endShadowPass() = 0;
 
-    virtual Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices) = 0;
+    virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 
     ID3D11Device1* getDevice() { return m_device.Get(); }
     ID3D11DeviceContext1* getDeviceContext() { return m_context.Get(); }

@@ -5,6 +5,7 @@
 #include "File.h"
 #include "Transform.h"
 #include "Camera.h"
+#include "ArrayView.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -43,12 +44,12 @@ class Renderer : public IRenderer
 public:
     Renderer(SDL_Window* window);
 
-    virtual Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices) override;
+    virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
 
     virtual void setDirectionalLight(const XMFLOAT3& pos) override;
-    virtual void setPointLights(const std::vector<PointLight>& lights) override;
+    virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
-    virtual void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&) override;
+    virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) override;
     virtual void clear(float r, float g, float b) override;
 
     virtual void beginFrame() override;
@@ -107,13 +108,13 @@ private:
 };
 
 template<typename T>
-ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, const std::vector<T>& contents)
+ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, ArrayView<T> contents)
 {
     static_assert(std::is_standard_layout_v<T>);
-    CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(T) * contents.size()), flags);
+    CD3D11_BUFFER_DESC bd(contents.byteSize(), flags);
 
     D3D11_SUBRESOURCE_DATA sd = {};
-    sd.pSysMem = contents.data();
+    sd.pSysMem = contents.data;
 
     ComPtr<ID3D11Buffer> buf;
     Hresult hr = device->CreateBuffer(&bd, &sd, &buf);
@@ -256,15 +257,15 @@ Renderer::Renderer(SDL_Window* window)
     }
 }
 
-Renderable* Renderer::createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices)
+Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices)
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
     renderable->m_vertexBuffer = createBuffer(m_device.Get(), D3D11_BIND_VERTEX_BUFFER, vertices);
-    renderable->m_vertexCount = static_cast<UINT>(vertices.size());
+    renderable->m_vertexCount = vertices.size;
 
     renderable->m_indexBuffer = createBuffer(m_device.Get(), D3D11_BIND_INDEX_BUFFER, indices);
-    renderable->m_indexCount = static_cast<UINT>(indices.size());
+    renderable->m_indexCount = indices.size;
 
     RenderableConstantBuffer cb{
         .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
@@ -283,26 +284,26 @@ void Renderer::setDirectionalLight(const XMFLOAT3& pos)
     m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
 }
 
-void Renderer::setPointLights(const std::vector<PointLight>& lights)
+void Renderer::setPointLights(ArrayView<PointLight> lights)
 {
-    m_psConstants.NumPointLights = static_cast<UINT>(lights.size());
+    m_psConstants.NumPointLights = lights.size;
 
-    if (lights.size() > m_pointLightCapacity) {
-        CD3D11_BUFFER_DESC bd(static_cast<UINT>(sizeof(PointLight) * lights.size()), D3D11_BIND_SHADER_RESOURCE);
+    if (lights.size > m_pointLightCapacity) {
+        CD3D11_BUFFER_DESC bd(lights.byteSize(), D3D11_BIND_SHADER_RESOURCE);
         bd.StructureByteStride = sizeof(PointLight);
         bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 
         Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
 
-        m_pointLightCapacity = static_cast<UINT>(lights.size());
+        m_pointLightCapacity = lights.size;
         CD3D11_SHADER_RESOURCE_VIEW_DESC desc(m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
         hr = m_device->CreateShaderResourceView(m_pointLightBuffer.Get(), &desc, &m_pointLightBufferSRV);
     }
 
-    CD3D11_BOX box(0, 0, 0, sizeof(PointLight) * m_psConstants.NumPointLights, 1, 1);
+    CD3D11_BOX box(0, 0, 0, lights.byteSize(), 1, 1);
 
-    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data(),
-        static_cast<UINT>(sizeof(PointLight) * m_psConstants.NumPointLights), 0);
+    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data,
+        lights.byteSize(), 0);
 
     m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
 }
@@ -380,21 +381,19 @@ void Renderer::setPointLights(const std::vector<PointLight>& lights)
 }
 */
 
-void Renderer::debugDraw(const Camera& camera, const std::vector<DebugDrawVertex>& vertices)
+void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
-    auto size = static_cast<UINT>(sizeof(DebugDrawVertex) * vertices.size());
-
-    if (vertices.size() > m_debugVerticesCapacity) {
-        CD3D11_BUFFER_DESC bd(size, D3D11_BIND_VERTEX_BUFFER);
+    if (vertices.size > m_debugVerticesCapacity) {
+        CD3D11_BUFFER_DESC bd(vertices.byteSize(), D3D11_BIND_VERTEX_BUFFER);
 
         Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_debugVertexBuffer);
 
-        m_debugVerticesCapacity = static_cast<UINT>(vertices.size());
+        m_debugVerticesCapacity = vertices.size;
     }
 
-    CD3D11_BOX box(0, 0, 0, size, 1, 1);
+    CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);
 
-    m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data(), size, 0);
+    m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data, vertices.byteSize(), 0);
 
     {
         CameraConstantBuffer cb{
@@ -419,7 +418,7 @@ void Renderer::debugDraw(const Camera& camera, const std::vector<DebugDrawVertex
 
     m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
 
-    m_context->Draw(static_cast<UINT>(vertices.size()), 0);
+    m_context->Draw(vertices.size, 0);
 }
 
 void Renderer::clear(float r, float g, float b)

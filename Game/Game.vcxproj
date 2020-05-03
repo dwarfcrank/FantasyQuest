@@ -97,6 +97,7 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ArrayView.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="DebugDraw.h" />
     <ClInclude Include="GameTime.h" />

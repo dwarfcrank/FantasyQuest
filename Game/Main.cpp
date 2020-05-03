@@ -14,6 +14,7 @@
 #include "Camera.h"
 #include "GameTime.h"
 #include "SceneEditor.h"
+#include "ArrayView.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -39,6 +40,9 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
         const auto p = it->path();
         if (p.extension() == ".fbx") {
             Mesh mesh(p);
+
+            auto a = ArrayView(mesh.getVertices());
+            auto b = a.byteSize();
 
             auto renderable = r->createRenderable(mesh.getVertices(), mesh.getIndices());
             models.emplace_back(mesh.getName(), renderable);
