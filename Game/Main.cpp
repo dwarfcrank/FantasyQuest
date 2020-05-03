@@ -13,6 +13,7 @@
 #include "Scene.h"
 #include "Camera.h"
 #include "GameTime.h"
+#include "SceneEditor.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -94,6 +95,7 @@ int main(int argc, char* argv[])
         }
 
         Game game(scene, inputs);
+        SceneEditor editor(scene);
 
         GameTime gt;
 
@@ -144,7 +146,6 @@ int main(int argc, char* argv[])
             debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, -100.0f }, .Color = gridAxisColor });
             debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, 100.0f }, .Color = gridAxisColor });
 
-
             for (auto i = 1; i < 20; i++) {
                 debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
                 debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
@@ -162,22 +163,24 @@ int main(int argc, char* argv[])
         while (running) {
             float dt = gt.update();
 
+            ImGui_ImplDX11_NewFrame();
+            ImGui_ImplSDL2_NewFrame(window);
+            ImGui::NewFrame();
+
             handleEvents();
 
             if (!game.update(dt)) {
                 break;
             }
 
-            ImGui_ImplDX11_NewFrame();
-            ImGui_ImplSDL2_NewFrame(window);
-            ImGui::NewFrame();
+            editor.update(dt);
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
             }
 
             {
-                if (ImGui::Begin("Scene")) {
+                if (ImGui::Begin("Scene2")) {
                     if (ImGui::InputFloat3("Direction", &shadowDir.x)) {
                         auto pitch = XMConvertToRadians(shadowDir.y);
                         auto yaw = XMConvertToRadians(shadowDir.x);
@@ -194,6 +197,9 @@ int main(int argc, char* argv[])
             }
 
             ImGui::Render();
+
+            r.setDirectionalLight(scene.directionalLight);
+            r.setPointLights(scene.lights);
 
             r.beginShadowPass();
             {
@@ -212,6 +218,7 @@ int main(int argc, char* argv[])
                 }
 
                 r.debugDraw(game.getCamera(), debugVerts);
+                editor.render(r);
 
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);
