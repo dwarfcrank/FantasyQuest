@@ -1,7 +1,6 @@
 #pragma once
 
 struct Scene;
-class Renderer;
 
 class SceneEditor
 {
@@ -10,7 +9,7 @@ public:
 
     void update(float dt);
 
-    void render(Renderer&);
+    void render(class IRenderer*);
 
 private:
     Scene& m_scene;

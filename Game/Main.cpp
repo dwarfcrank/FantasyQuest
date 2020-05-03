@@ -28,7 +28,7 @@ void reportError(const char* message, TArgs&&... args)
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
 }
 
-void loadAssets(Renderer& r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
+void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
 {
     std::filesystem::directory_iterator end;
     for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
@@ -40,7 +40,7 @@ void loadAssets(Renderer& r, std::vector<RModel>& models, std::unordered_map<std
         if (p.extension() == ".fbx") {
             Mesh mesh(p);
 
-            auto renderable = r.createRenderable(mesh.getVertices(), mesh.getIndices());
+            auto renderable = r->createRenderable(mesh.getVertices(), mesh.getIndices());
             models.emplace_back(mesh.getName(), renderable);
             renderables.emplace(mesh.getName(), renderable);
         }
@@ -62,7 +62,8 @@ int main(int argc, char* argv[])
     }
 
     {
-        Renderer r(window);
+        //Renderer r(window);
+        auto r = createRenderer(window);
 
         std::vector<RModel> models;
         std::unordered_map<std::string, Renderable*> renderables;
@@ -74,9 +75,9 @@ int main(int argc, char* argv[])
         auto& io = ImGui::GetIO();
         ImGui::StyleColorsDark();
         ImGui_ImplSDL2_InitForD3D(window);
-        ImGui_ImplDX11_Init(r.getDevice(), r.getDeviceContext());
+        ImGui_ImplDX11_Init(r->getDevice(), r->getDeviceContext());
 
-        loadAssets(r, models, renderables);
+        loadAssets(r.get(), models, renderables);
 
         InputMap inputs;
 
@@ -90,8 +91,8 @@ int main(int argc, char* argv[])
                 o.renderable = renderables[o.modelName];
             }
 
-            r.setDirectionalLight(scene.directionalLight);
-            r.setPointLights(scene.lights);
+            r->setDirectionalLight(scene.directionalLight);
+            r->setPointLights(scene.lights);
         }
 
         Game game(scene, inputs);
@@ -190,7 +191,7 @@ int main(int argc, char* argv[])
                         auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
                         XMFLOAT3 d;
                         XMStoreFloat3(&d, direction);
-                        r.setDirectionalLight(d);
+                        r->setDirectionalLight(d);
                     }
                 }
                 ImGui::End();
@@ -198,33 +199,33 @@ int main(int argc, char* argv[])
 
             ImGui::Render();
 
-            r.setDirectionalLight(scene.directionalLight);
-            r.setPointLights(scene.lights);
+            r->setDirectionalLight(scene.directionalLight);
+            r->setPointLights(scene.lights);
 
-            r.beginShadowPass();
+            r->beginShadowPass();
             {
                 for (const auto& o : scene.objects) {
-                    r.drawShadow(o.renderable, shadowCam, o.transform);
+                    r->drawShadow(o.renderable, shadowCam, o.transform);
                 }
             }
-            r.endShadowPass();
+            r->endShadowPass();
 
-            r.beginFrame();
+            r->beginFrame();
             {
-                r.clear(0.1f, 0.2f, 0.3f);
+                r->clear(0.1f, 0.2f, 0.3f);
                 //game.render(r);
                 for (const auto& o : scene.objects) {
-                    r.draw(o.renderable, game.getCamera(), o.transform);
+                    r->draw(o.renderable, game.getCamera(), o.transform);
                 }
 
-                r.debugDraw(game.getCamera(), debugVerts);
-                editor.render(r);
+                r->debugDraw(game.getCamera(), debugVerts);
+                editor.render(r.get());
 
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);
                 }
             }
-            r.endFrame();
+            r->endFrame();
         }
 
         ImGui_ImplDX11_Shutdown();

@@ -13,7 +13,7 @@ public:
     Game(Scene& scene, InputMap& inputs);
 
     bool update(float dt);
-    void render(class Renderer& r);
+    void render(class IRenderer* r);
 
     const Camera& getCamera() const
     {

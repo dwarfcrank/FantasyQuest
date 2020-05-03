@@ -38,6 +38,74 @@ public:
     }
 };
 
+class Renderer : public IRenderer
+{
+public:
+    Renderer(SDL_Window* window);
+
+    virtual Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices) override;
+
+    virtual void setDirectionalLight(const XMFLOAT3& pos) override;
+    virtual void setPointLights(const std::vector<PointLight>& lights) override;
+    virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
+    virtual void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&) override;
+    virtual void clear(float r, float g, float b) override;
+
+    virtual void beginFrame() override;
+    virtual void endFrame() override;
+
+    virtual void beginShadowPass() override;
+    virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
+    virtual void endShadowPass() override;
+
+private:
+    void loadShaders();
+
+    ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
+    ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
+
+    UINT m_width = 0;
+    UINT m_height = 0;
+    UINT m_shadowWidth = 1024;
+    UINT m_shadowHeight = 1024;
+
+    std::vector<std::unique_ptr<Renderable>> m_renderables;
+
+    ComPtr<IDXGISwapChain1> m_swapChain;
+
+    ComPtr<ID3D11InputLayout> m_inputLayout;
+    ComPtr<ID3D11VertexShader> m_vs;
+    ComPtr<ID3D11PixelShader> m_ps;
+
+    ComPtr<ID3D11InputLayout> m_debugInputLayout;
+    ComPtr<ID3D11VertexShader> m_debugVS;
+    ComPtr<ID3D11PixelShader> m_debugPS;
+    ComPtr<ID3D11Buffer> m_debugVertexBuffer;
+    UINT m_debugVerticesCapacity = 0;
+
+    ComPtr<ID3D11DepthStencilState> m_depthStencilState;
+
+    ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
+    ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
+    ComPtr<ID3D11Buffer> m_shadowCameraConstantBuffer;
+    ComPtr<ID3D11Buffer> m_psConstantBuffer;
+    PSConstantBuffer m_psConstants;
+    ComPtr<ID3D11Buffer> m_pointLightBuffer;
+    ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
+    UINT m_pointLightCapacity = 0;
+
+    ComPtr<ID3D11Texture2D> m_depthStencilTexture;
+    ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+
+    ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
+    ComPtr<ID3D11SamplerState> m_shadowSampler;
+    ComPtr<ID3D11VertexShader> m_shadowVS;
+    ComPtr<ID3D11PixelShader> m_shadowPS;
+    ComPtr<ID3D11Texture2D> m_shadowTexture;
+    ComPtr<ID3D11DepthStencilView> m_shadowDSV;
+    ComPtr<ID3D11ShaderResourceView> m_shadowSRV;
+};
+
 template<typename T>
 ComPtr<ID3D11Buffer> createBuffer(const ComPtr<ID3D11Device1>& device, UINT flags, const std::vector<T>& contents)
 {
@@ -130,44 +198,7 @@ Renderer::Renderer(SDL_Window* window)
 
     hr = m_device->CreateRenderTargetView(backbuffer.Get(), nullptr, &m_backbufferRTV);
 
-    {
-        auto vs = loadFile("../x64/Debug/VertexShader.cso");
-        auto ps = loadFile("../x64/Debug/PixelShader.cso");
-
-        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_vs);
-        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_ps);
-
-        std::array layout{
-            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        };
-
-        hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_inputLayout);
-    }
-
-    {
-        auto vs = loadFile("../x64/Debug/ShadowVertexShader.cso");
-        auto ps = loadFile("../x64/Debug/ShadowPixelShader.cso");
-
-        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_shadowVS);
-        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_shadowPS);
-    }
-
-    {
-        auto vs = loadFile("../x64/Debug/DebugDrawVertexShader.cso");
-        auto ps = loadFile("../x64/Debug/DebugDrawPixelShader.cso");
-
-        hr = m_device->CreateVertexShader(vs.data(), vs.size(), nullptr, &m_debugVS);
-        hr = m_device->CreatePixelShader(ps.data(), ps.size(), nullptr, &m_debugPS);
-
-        std::array layout{
-            D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        };
-
-        hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()), vs.data(), vs.size(), &m_debugInputLayout);
-    }
+    loadShaders();
 
     m_cameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
     m_shadowCameraConstantBuffer = createBuffer(m_device, D3D11_BIND_CONSTANT_BUFFER, CameraConstantBuffer{});
@@ -472,4 +503,63 @@ void Renderer::endShadowPass()
 {
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
     m_context->RSSetState(nullptr);
+}
+
+void Renderer::loadShaders()
+{
+    m_ps = loadPixelShader("../x64/Debug/PixelShader.cso");
+    m_vs = loadVertexShader("../x64/Debug/VertexShader.cso",
+        [this](const std::vector<u8>& bytecode) {
+            std::array layout{
+                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            };
+
+            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
+                bytecode.data(), bytecode.size(), &m_inputLayout);
+        });
+
+    m_shadowVS = loadVertexShader("../x64/Debug/ShadowVertexShader.cso");
+
+    m_debugPS = loadPixelShader("../x64/Debug/DebugDrawPixelShader.cso");
+    m_debugVS = loadVertexShader("../x64/Debug/DebugDrawVertexShader.cso",
+        [this](const std::vector<u8>& bytecode) {
+            std::array layout{
+                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            };
+
+            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
+                bytecode.data(), bytecode.size(), &m_debugInputLayout);
+        });
+}
+
+ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback)
+{
+    auto bytecode = loadFile(path);
+
+    ComPtr<ID3D11VertexShader> shader;
+    Hresult hr = m_device->CreateVertexShader(bytecode.data(), bytecode.size(), nullptr, &shader);
+
+    if (callback) {
+        callback(bytecode);
+    }
+
+    return shader;
+}
+
+ComPtr<ID3D11PixelShader> Renderer::loadPixelShader(const char* path)
+{
+    auto bytecode = loadFile(path);
+
+    ComPtr<ID3D11PixelShader> shader;
+    Hresult hr = m_device->CreatePixelShader(bytecode.data(), bytecode.size(), nullptr, &shader);
+
+    return shader;
+}
+
+std::unique_ptr<IRenderer> createRenderer(SDL_Window* window)
+{
+    return std::unique_ptr<IRenderer>(new Renderer(window));
 }

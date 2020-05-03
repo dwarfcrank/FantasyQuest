@@ -67,7 +67,7 @@ bool Game::update(float dt)
     return running;
 }
 
-void Game::render(Renderer& r)
+void Game::render(IRenderer* r)
 {
     /*
     for (const auto& o : scene.objects) {

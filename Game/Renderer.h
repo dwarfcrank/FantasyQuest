@@ -11,6 +11,8 @@
 #include <wrl.h>
 #include <vector>
 #include <memory>
+#include <tuple>
+#include <functional>
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -76,70 +78,33 @@ private:
     ComPtr<ID3D11Buffer> m_constantBuffer;
 };
 
-class Renderer
+class IRenderer
 {
 public:
-    Renderer(SDL_Window* window);
+    virtual ~IRenderer() = default;
 
-    Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices);
+    virtual void setDirectionalLight(const XMFLOAT3& pos) = 0;
+    virtual void setPointLights(const std::vector<PointLight>& lights) = 0;
+    virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
+    virtual void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&) = 0;
+    virtual void clear(float r, float g, float b) = 0;
 
-    void setDirectionalLight(const XMFLOAT3& pos);
-    void setPointLights(const std::vector<PointLight>& lights);
-    void draw(Renderable*, const Camera&, const struct Transform&);
-    void debugDraw(const Camera&, const std::vector<DebugDrawVertex>&);
-    void clear(float r, float g, float b);
+    virtual void beginFrame() = 0;
+    virtual void endFrame() = 0;
 
-    void beginFrame();
-    void endFrame();
+    virtual void beginShadowPass() = 0;
+    virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) = 0;
+    virtual void endShadowPass() = 0;
 
-    void beginShadowPass();
-    void drawShadow(Renderable*, const Camera&, const struct Transform&);
-    void endShadowPass();
+    virtual Renderable* createRenderable(const std::vector<Vertex>& vertices, const std::vector<u16>& indices) = 0;
 
     ID3D11Device1* getDevice() { return m_device.Get(); }
     ID3D11DeviceContext1* getDeviceContext() { return m_context.Get(); }
 
-private:
-    UINT m_width = 0;
-    UINT m_height = 0;
-    UINT m_shadowWidth = 1024;
-    UINT m_shadowHeight = 1024;
-
-    std::vector<std::unique_ptr<Renderable>> m_renderables;
-
-    ComPtr<IDXGISwapChain1> m_swapChain;
+protected:
     ComPtr<ID3D11Device1> m_device;
     ComPtr<ID3D11DeviceContext1> m_context;
-
-    ComPtr<ID3D11InputLayout> m_inputLayout;
-    ComPtr<ID3D11VertexShader> m_vs;
-    ComPtr<ID3D11PixelShader> m_ps;
-
-    ComPtr<ID3D11InputLayout> m_debugInputLayout;
-    ComPtr<ID3D11VertexShader> m_debugVS;
-    ComPtr<ID3D11PixelShader> m_debugPS;
-    ComPtr<ID3D11Buffer> m_debugVertexBuffer;
-    UINT m_debugVerticesCapacity = 0;
-
-    ComPtr<ID3D11DepthStencilState> m_depthStencilState;
-
-    ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
-    ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
-    ComPtr<ID3D11Buffer> m_shadowCameraConstantBuffer;
-    ComPtr<ID3D11Buffer> m_psConstantBuffer;
-    PSConstantBuffer m_psConstants;
-    ComPtr<ID3D11Buffer> m_pointLightBuffer;
-    ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
-    UINT m_pointLightCapacity = 0;
-
-    ComPtr<ID3D11Texture2D> m_depthStencilTexture;
-    ComPtr<ID3D11DepthStencilView> m_depthStencilView;
-
-    ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
-    ComPtr<ID3D11SamplerState> m_shadowSampler;
-    ComPtr<ID3D11VertexShader> m_shadowVS;
-    ComPtr<ID3D11PixelShader> m_shadowPS;
-    ComPtr<ID3D11Texture2D> m_shadowTexture;
-    ComPtr<ID3D11DepthStencilView> m_shadowDSV;
-    ComPtr<ID3D11ShaderResourceView> m_shadowSRV;
 };
+
+std::unique_ptr<IRenderer> createRenderer(SDL_Window*);
+

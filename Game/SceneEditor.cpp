@@ -14,7 +14,7 @@ void SceneEditor::update(float dt)
     sceneWindow();
 }
 
-void SceneEditor::render(Renderer&)
+void SceneEditor::render(IRenderer*)
 {
 }
 
