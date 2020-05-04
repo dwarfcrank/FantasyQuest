@@ -98,6 +98,8 @@ public:
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void endShadowPass() = 0;
 
+    virtual void fullScreenPass() = 0;
+
     virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 
     ID3D11Device1* getDevice() { return m_device.Get(); }

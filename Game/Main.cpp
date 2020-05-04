@@ -225,6 +225,8 @@ int main(int argc, char* argv[])
                 r->debugDraw(game.getCamera(), debugVerts);
                 editor.render(r.get());
 
+                r->fullScreenPass();
+
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);
                 }

@@ -55,6 +55,8 @@ public:
     virtual void beginFrame() override;
     virtual void endFrame() override;
 
+    virtual void fullScreenPass() override;
+
     virtual void beginShadowPass() override;
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
     virtual void endShadowPass() override;
@@ -182,6 +184,9 @@ private:
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
 
+    ComPtr<ID3D11VertexShader> m_fsvs;
+    ComPtr<ID3D11PixelShader> m_fsps;
+
     ComPtr<ID3D11InputLayout> m_debugInputLayout;
     ComPtr<ID3D11VertexShader> m_debugVS;
     ComPtr<ID3D11PixelShader> m_debugPS;
@@ -199,8 +204,9 @@ private:
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
     UINT m_pointLightCapacity = 0;
 
-    ComPtr<ID3D11Texture2D> m_depthStencilTexture;
+    ComPtr<ID3D11Texture2D> m_depthTexture;
     ComPtr<ID3D11DepthStencilView> m_depthStencilView;
+    ComPtr<ID3D11ShaderResourceView> m_depthSRV;
 
     ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
     ComPtr<ID3D11SamplerState> m_shadowSampler;
@@ -209,6 +215,11 @@ private:
     ComPtr<ID3D11Texture2D> m_shadowTexture;
     ComPtr<ID3D11DepthStencilView> m_shadowDSV;
     ComPtr<ID3D11ShaderResourceView> m_shadowSRV;
+
+    ComPtr<ID3D11SamplerState> m_framebufferSampler;
+    ComPtr<ID3D11Texture2D> m_framebuffer;
+    ComPtr<ID3D11RenderTargetView> m_framebufferRTV;
+    ComPtr<ID3D11ShaderResourceView> m_framebufferSRV;
 };
 
 using namespace DirectX;
@@ -288,10 +299,10 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        auto format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-
-        m_depthStencilTexture = createTexture2D(format, m_width, m_height, 1, 1, D3D11_BIND_DEPTH_STENCIL);
-        m_depthStencilView = createDepthStencilView(m_depthStencilTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, format);
+        m_depthTexture = createTexture2D(DXGI_FORMAT_R32_TYPELESS, m_width, m_height, 1, 1,
+            D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
+        m_depthStencilView = createDepthStencilView(m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
+        m_depthSRV = createShaderResourceView(m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R32_FLOAT);
     }
 
     {
@@ -317,6 +328,17 @@ Renderer::Renderer(SDL_Window* window)
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
 
         m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
+    }
+
+    {
+        m_framebuffer = createTexture2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1,
+            D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+        m_framebufferRTV = createRenderTargetView(m_framebuffer.Get());
+        m_framebufferSRV = createShaderResourceView(m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+
+        m_framebufferSampler = createSamplerState(D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
+            D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
+            0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
     }
 }
 
@@ -457,7 +479,7 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
 void Renderer::clear(float r, float g, float b)
 {
     float color[4] = { r, g, b, 1.0f };
-    m_context->ClearRenderTargetView(m_backbufferRTV.Get(), color);
+    m_context->ClearRenderTargetView(m_framebufferRTV.Get(), color);
     m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
 }
 
@@ -466,13 +488,35 @@ void Renderer::beginFrame()
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
-    auto rtv = m_backbufferRTV.Get();
+    auto rtv = m_framebufferRTV.Get();
     m_context->OMSetRenderTargets(1, &rtv, m_depthStencilView.Get());
 }
 
 void Renderer::endFrame()
 {
     m_swapChain->Present(0, 0);
+}
+
+void Renderer::fullScreenPass()
+{
+    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
+    m_context->RSSetViewports(1, &vp);
+
+    auto rtv = m_backbufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, nullptr);
+
+    m_context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    m_context->VSSetShader(m_fsvs.Get(), nullptr, 0);
+    m_context->PSSetShader(m_fsps.Get(), nullptr, 0);
+
+    std::array psSamplers{ m_framebufferSampler.Get() };
+    std::array psResources{ m_framebufferSRV.Get(), m_depthSRV.Get() };
+
+    m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
+    m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
+
+    m_context->Draw(4, 0);
 }
 
 void Renderer::beginShadowPass()
@@ -565,6 +609,9 @@ void Renderer::loadShaders()
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode.data(), bytecode.size(), &m_debugInputLayout);
         });
+
+    m_fsvs = loadVertexShader("../x64/Debug/FullScreenPassVS.cso");
+    m_fsps = loadPixelShader("../x64/Debug/FullScreenPassPS.cso");
 }
 
 ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback)
