@@ -179,25 +179,25 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="PixelShader.hlsl">
+    <FxCompile Include="DebugDraw.ps">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="VertexShader.hlsl">
+    <FxCompile Include="DebugDraw.vs">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="ShadowVertexShader.hlsl">
+    <FxCompile Include="FullScreenPass.ps">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DebugDrawVertexShader.hlsl">
+    <FxCompile Include="FullScreenPass.vs">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DebugDrawPixelShader.hlsl">
+    <FxCompile Include="PixelShader.ps">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenPassVS.hlsl">
+    <FxCompile Include="Shadow.vs">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenPassPS.hlsl">
+    <FxCompile Include="VertexShader.vs">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

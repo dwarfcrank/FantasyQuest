@@ -527,8 +527,8 @@ void Renderer::endShadowPass()
 
 void Renderer::loadShaders()
 {
-    m_ps = loadPixelShader("../x64/Debug/PixelShader.cso");
-    m_vs = loadVertexShader("../x64/Debug/VertexShader.cso",
+    m_ps = loadPixelShader("shaders/PixelShader.ps.cso");
+    m_vs = loadVertexShader("shaders/VertexShader.vs.cso",
         [this](const std::vector<u8>& bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -540,10 +540,10 @@ void Renderer::loadShaders()
                 bytecode.data(), bytecode.size(), &m_inputLayout);
         });
 
-    m_shadowVS = loadVertexShader("../x64/Debug/ShadowVertexShader.cso");
+    m_shadowVS = loadVertexShader("shaders/Shadow.vs.cso");
 
-    m_debugPS = loadPixelShader("../x64/Debug/DebugDrawPixelShader.cso");
-    m_debugVS = loadVertexShader("../x64/Debug/DebugDrawVertexShader.cso",
+    m_debugPS = loadPixelShader("shaders/DebugDraw.ps.cso");
+    m_debugVS = loadVertexShader("shaders/DebugDraw.vs.cso",
         [this](const std::vector<u8>& bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -554,8 +554,8 @@ void Renderer::loadShaders()
                 bytecode.data(), bytecode.size(), &m_debugInputLayout);
         });
 
-    m_fsvs = loadVertexShader("../x64/Debug/FullScreenPassVS.cso");
-    m_fsps = loadPixelShader("../x64/Debug/FullScreenPassPS.cso");
+    m_fsvs = loadVertexShader("shaders/FullScreenPass.vs.cso");
+    m_fsps = loadPixelShader("shaders/FullScreenPass.ps.cso");
 }
 
 ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback)
