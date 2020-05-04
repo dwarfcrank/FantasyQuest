@@ -25,7 +25,7 @@ auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... 
 }
 
 template<typename T, typename... Args>
-auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ArrayView<T> contents, Args... args)
+auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ArrayView<T> contents, Args... args)
 {
     CD3D11_BUFFER_DESC desc(contents.byteSize(), args...);
     D3D11_SUBRESOURCE_DATA sd = {};
@@ -37,7 +37,7 @@ auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ArrayVie
 }
 
 template<typename T, typename... Args>
-auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, const T& contents, Args... args)
+auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, const T& contents, Args... args)
 {
     static_assert(std::is_standard_layout_v<T>);
     CD3D11_BUFFER_DESC desc(sizeof(T), args...);

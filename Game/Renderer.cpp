@@ -26,11 +26,59 @@ struct ConstantBuffer
     ComPtr<ID3D11Buffer> buffer;
     T data;
 
+    void init(const ComPtr<ID3D11Device>& device)
+    {
+        buffer = createBufferWithData(device, data, D3D11_BIND_CONSTANT_BUFFER);
+    }
+
     void update(const ComPtr<ID3D11DeviceContext>& context)
     {
         context->UpdateSubresource(buffer.Get(), 0, nullptr, &data, 0, 0);
     }
 };
+
+template<typename T, UINT BindFlags>
+struct Buffer
+{
+    using ElementType = T;
+
+    UINT capacity = 0;
+    UINT size = 0;
+
+    ComPtr<ID3D11Buffer> buffer;
+
+    void init(const ComPtr<ID3D11Device>& device, UINT capacity)
+    {
+        this->capacity = capacity;
+
+        CD3D11_BUFFER_DESC bd(sizeof(ElementType) * capacity, BindFlags);
+
+        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0) {
+            bd.StructureByteStride = sizeof(ElementType);
+            bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        }
+
+        buffer = createBuffer(device, bd);
+    }
+
+    void update(const ComPtr<ID3D11DeviceContext>& context, ArrayView<T> contents)
+    {
+        size = contents.size;
+        auto byteSize = static_cast<LONG>(size * sizeof(ElementType));
+
+        CD3D11_BOX box(0, 0, 0, byteSize, 1, 1);
+        context->UpdateSubresource(buffer.Get(), 0, nullptr, contents.data, 0, 0);
+    }
+};
+
+template<typename T>
+using VertexBuffer = Buffer<T, D3D11_BIND_VERTEX_BUFFER>;
+
+template<typename T>
+using IndexBuffer = Buffer<T, D3D11_BIND_INDEX_BUFFER>;
+
+template<typename T>
+using StructuredBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE>;
 
 class Renderer : public IRenderer
 {
@@ -56,12 +104,6 @@ public:
 
 private:
     void loadShaders();
-
-    template<typename T>
-    void initConstantBuffer(ConstantBuffer<T>& cb)
-    {
-        cb.buffer = createBuffer(m_device, cb.data, D3D11_BIND_CONSTANT_BUFFER);
-    }
 
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
     ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
@@ -96,10 +138,8 @@ private:
     ConstantBuffer<CameraConstantBuffer> m_shadowCameraConstantBuffer;
     ConstantBuffer<PSConstantBuffer> m_psConstants;
 
-
-    ComPtr<ID3D11Buffer> m_pointLightBuffer;
+    StructuredBuffer<PointLight> m_pointLights;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
-    UINT m_pointLightCapacity = 0;
 
     ComPtr<ID3D11Texture2D> m_depthTexture;
     ComPtr<ID3D11DepthStencilView> m_depthStencilView;
@@ -183,8 +223,12 @@ Renderer::Renderer(SDL_Window* window)
 
     loadShaders();
 
+    /*
     initConstantBuffer(m_cameraConstantBuffer);
     initConstantBuffer(m_shadowCameraConstantBuffer);
+    */
+    m_cameraConstantBuffer.init(m_device);
+    m_shadowCameraConstantBuffer.init(m_device);
 
     {
         auto dirV = XMVector3Normalize(XMVectorSet(1.0f, -1.0f, 0.0f, 0.0f));
@@ -192,7 +236,8 @@ Renderer::Renderer(SDL_Window* window)
         XMStoreFloat3(&m_psConstants.data.LightPosition, dirV);
         m_psConstants.data.NumPointLights = 0;
 
-        initConstantBuffer(m_psConstants);
+        //initConstantBuffer(m_psConstants);
+        m_psConstants.init(m_device);
     }
 
     {
@@ -243,17 +288,17 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
-    renderable->m_vertexBuffer = createBuffer(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
+    renderable->m_vertexBuffer = createBufferWithData(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
     renderable->m_vertexCount = vertices.size;
 
-    renderable->m_indexBuffer = createBuffer(m_device, indices, D3D11_BIND_INDEX_BUFFER);
+    renderable->m_indexBuffer = createBufferWithData(m_device, indices, D3D11_BIND_INDEX_BUFFER);
     renderable->m_indexCount = indices.size;
 
     RenderableConstantBuffer cb{
         .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
     };
 
-    renderable->m_constantBuffer = createBuffer(m_device, cb, D3D11_BIND_CONSTANT_BUFFER);
+    renderable->m_constantBuffer = createBufferWithData(m_device, cb, D3D11_BIND_CONSTANT_BUFFER);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -268,25 +313,14 @@ void Renderer::setDirectionalLight(const XMFLOAT3& pos)
 
 void Renderer::setPointLights(ArrayView<PointLight> lights)
 {
-    m_psConstants.data.NumPointLights = lights.size;
-
-    if (lights.size > m_pointLightCapacity) {
-        CD3D11_BUFFER_DESC bd(lights.byteSize(), D3D11_BIND_SHADER_RESOURCE);
-        bd.StructureByteStride = sizeof(PointLight);
-        bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-
-        Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
-
-        m_pointLightCapacity = lights.size;
-        m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLightBuffer.Get(),
-            m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
+    if (lights.size > m_pointLights.capacity) {
+        m_pointLights.init(m_device, lights.size);
+        m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLights.buffer.Get(),
+            m_pointLights.buffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLights.capacity);
     }
 
-    CD3D11_BOX box(0, 0, 0, lights.byteSize(), 1, 1);
-
-    m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data,
-        lights.byteSize(), 0);
-
+    m_pointLights.update(m_context, lights);
+    m_psConstants.data.NumPointLights = lights.size;
     m_psConstants.update(m_context);
 }
 
@@ -337,7 +371,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
     if (vertices.size > m_debugVerticesCapacity) {
-        m_debugVertexBuffer = createBuffer(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
+        m_debugVertexBuffer = createBufferWithData(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
         m_debugVerticesCapacity = vertices.size;
     } else {
         CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);
