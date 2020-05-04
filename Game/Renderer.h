@@ -62,23 +62,7 @@ struct PointLight
     XMFLOAT4 Color;
 };
 
-class Renderable
-{
-public:
-    ~Renderable() = default;
-
-private:
-    Renderable() = default;
-
-    friend class Renderer;
-
-    UINT m_vertexCount;
-    UINT m_indexCount;
-
-    ComPtr<ID3D11Buffer> m_vertexBuffer;
-    ComPtr<ID3D11Buffer> m_indexBuffer;
-    ComPtr<ID3D11Buffer> m_constantBuffer;
-};
+class Renderable;
 
 class IRenderer
 {

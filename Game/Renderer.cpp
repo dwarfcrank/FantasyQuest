@@ -61,6 +61,20 @@ struct Buffer
         buffer = createBuffer(device, bd);
     }
 
+    void init(const ComPtr<ID3D11Device>& device, ArrayView<T> contents)
+    {
+        capacity = contents.size;
+        size = contents.size;
+
+        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0) {
+            buffer = createBufferWithData(device, contents, BindFlags,
+                D3D11_USAGE_DEFAULT, 0, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, sizeof(ElementType));
+        } else {
+            buffer = createBufferWithData(device, contents, BindFlags);
+        }
+
+    }
+
     void update(const ComPtr<ID3D11DeviceContext>& context, ArrayView<T> contents)
     {
         size = contents.size;
@@ -79,6 +93,14 @@ using IndexBuffer = Buffer<T, D3D11_BIND_INDEX_BUFFER>;
 
 template<typename T>
 using StructuredBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE>;
+
+class Renderable
+{
+public:
+    VertexBuffer<Vertex> m_vertexBuffer;
+    IndexBuffer<u16> m_indexBuffer;
+    ConstantBuffer<RenderableConstantBuffer> m_constantBuffer;
+};
 
 class Renderer : public IRenderer
 {
@@ -286,19 +308,20 @@ Renderer::Renderer(SDL_Window* window)
 
 Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices)
 {
-    std::unique_ptr<Renderable> renderable(new Renderable());
+    //std::unique_ptr<Renderable> renderable(new Renderable());
+    auto renderable = std::make_unique<Renderable>();
+    
+    renderable->m_vertexBuffer.init(m_device, vertices);
+    renderable->m_indexBuffer.init(m_device, indices);
 
-    renderable->m_vertexBuffer = createBufferWithData(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
-    renderable->m_vertexCount = vertices.size;
-
-    renderable->m_indexBuffer = createBufferWithData(m_device, indices, D3D11_BIND_INDEX_BUFFER);
-    renderable->m_indexCount = indices.size;
-
+    /*
     RenderableConstantBuffer cb{
         .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
     };
 
     renderable->m_constantBuffer = createBufferWithData(m_device, cb, D3D11_BIND_CONSTANT_BUFFER);
+    */
+    renderable->m_constantBuffer.init(m_device);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -334,26 +357,23 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
     {
         auto wm = transform.getMatrix();
-        RenderableConstantBuffer cb{
-            .WorldMatrix = XMMatrixTranspose(wm),
-            .WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm),
-        };
-
-        m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        renderable->m_constantBuffer.data.WorldMatrix = XMMatrixTranspose(wm);
+        renderable->m_constantBuffer.data.WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm);
+        renderable->m_constantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.Get(),
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.buffer.Get(),
         m_shadowCameraConstantBuffer.buffer.Get() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), m_psConstants.buffer.Get() };
     std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get() };
 
-    std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
+    std::array vertexBuffers{ renderable->m_vertexBuffer.buffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.buffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
@@ -365,7 +385,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
-    m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
+    m_context->DrawIndexed(renderable->m_indexBuffer.size, 0, 0);
 }
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
@@ -474,29 +494,27 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
 
     {
         auto wm = transform.getMatrix();
-        RenderableConstantBuffer cb{
-            .WorldMatrix = XMMatrixTranspose(wm),
-            .WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm),
-        };
 
-        m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        renderable->m_constantBuffer.data.WorldMatrix = XMMatrixTranspose(wm);
+        renderable->m_constantBuffer.data.WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm);
+        renderable->m_constantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.buffer.Get() };
 
-    std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
+    std::array vertexBuffers{ renderable->m_vertexBuffer.buffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.buffer.Get(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
     m_context->VSSetShader(m_shadowVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
 
-    m_context->DrawIndexed(renderable->m_indexCount, 0, 0);
+    m_context->DrawIndexed(renderable->m_indexBuffer.size, 0, 0);
 }
 
 void Renderer::endShadowPass()
