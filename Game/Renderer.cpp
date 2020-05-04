@@ -6,6 +6,7 @@
 #include "Transform.h"
 #include "Camera.h"
 #include "ArrayView.h"
+#include "RendererHelpers.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -18,26 +19,6 @@
 #include <stdexcept>
 #include <array>
 #include <dxgi.h>
-
-class Hresult
-{
-public:
-    Hresult() = default;
-
-    Hresult(HRESULT hr)
-    {
-        if (FAILED(hr)) {
-            throw std::runtime_error(fmt::format("hr={:x}", hr));
-        }
-    }
-
-    void operator=(HRESULT hr)
-    {
-        if (FAILED(hr)) {
-            throw std::runtime_error(fmt::format("hr={:x}", hr));
-        }
-    }
-};
 
 template<typename T>
 struct ConstantBuffer
@@ -76,114 +57,10 @@ public:
 private:
     void loadShaders();
 
-    template<typename... Args>
-    auto createTexture2D(Args... args)
-    {
-        CD3D11_TEXTURE2D_DESC desc(args...);
-        ComPtr<ID3D11Texture2D> texture;
-        Hresult hr = m_device->CreateTexture2D(&desc, nullptr, &texture);
-        return texture;
-    }
-
-    template<typename... Args>
-    auto createBuffer(Args... args)
-    {
-        CD3D11_BUFFER_DESC desc(args...);
-        ComPtr<ID3D11Buffer> buffer;
-        Hresult hr = m_device->CreateBuffer(&desc, nullptr, &buffer);
-        return buffer;
-    }
-
-    template<typename T, typename... Args>
-    auto createBuffer(ArrayView<T> contents, Args... args)
-    {
-        CD3D11_BUFFER_DESC desc(contents.byteSize(), args...);
-        D3D11_SUBRESOURCE_DATA sd = {};
-        sd.pSysMem = contents.data;
-
-        ComPtr<ID3D11Buffer> buffer;
-        Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
-        return buffer;
-    }
-
-    template<typename T, typename... Args>
-    auto createBuffer(const T& contents, Args... args)
-    {
-        static_assert(std::is_standard_layout_v<T>);
-        CD3D11_BUFFER_DESC desc(sizeof(T), args...);
-        D3D11_SUBRESOURCE_DATA sd = {};
-        sd.pSysMem = &contents;
-
-        ComPtr<ID3D11Buffer> buffer;
-        Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
-        return buffer;
-    }
-
-    template<typename... Args>
-    auto createRenderTargetView(ID3D11Resource* resource, Args... args)
-    {
-        CD3D11_RENDER_TARGET_VIEW_DESC desc(args...);
-        ComPtr<ID3D11RenderTargetView> rtv;
-        Hresult hr = m_device->CreateRenderTargetView(resource, &desc, &rtv);
-        return rtv;
-    }
-
-    auto createRenderTargetView(ID3D11Resource* resource)
-    {
-        ComPtr<ID3D11RenderTargetView> rtv;
-        Hresult hr = m_device->CreateRenderTargetView(resource, nullptr, &rtv);
-        return rtv;
-    }
-
-    template<typename... Args>
-    auto createShaderResourceView(ID3D11Resource* resource, Args... args)
-    {
-        CD3D11_SHADER_RESOURCE_VIEW_DESC desc(args...);
-        ComPtr<ID3D11ShaderResourceView> srv;
-        Hresult hr = m_device->CreateShaderResourceView(resource, &desc, &srv);
-        return srv;
-    }
-
-    template<typename... Args>
-    auto createDepthStencilView(ID3D11Resource* resource, Args... args)
-    {
-        CD3D11_DEPTH_STENCIL_VIEW_DESC desc(args...);
-        ComPtr<ID3D11DepthStencilView> dsv;
-        Hresult hr = m_device->CreateDepthStencilView(resource, &desc, &dsv);
-        return dsv;
-    }
-
-    template<typename... Args>
-    auto createDepthStencilState(Args... args)
-    {
-        CD3D11_DEPTH_STENCIL_DESC desc(args...);
-        ComPtr<ID3D11DepthStencilState> dss;
-        Hresult hr = m_device->CreateDepthStencilState(&desc, &dss);
-        return dss;
-    }
-
-    template<typename... Args>
-    auto createSamplerState(Args... args)
-    {
-        CD3D11_SAMPLER_DESC desc(args...);
-        ComPtr<ID3D11SamplerState> ss;
-        Hresult hr = m_device->CreateSamplerState(&desc, &ss);
-        return ss;
-    }
-
-    template<typename... Args>
-    auto createRasterizerState(Args... args)
-    {
-        CD3D11_RASTERIZER_DESC desc(args...);
-        ComPtr<ID3D11RasterizerState> rs;
-        Hresult hr = m_device->CreateRasterizerState(&desc, &rs);
-        return rs;
-    }
-
     template<typename T>
     void initConstantBuffer(ConstantBuffer<T>& cb)
     {
-        cb.buffer = createBuffer(cb.data, D3D11_BIND_CONSTANT_BUFFER);
+        cb.buffer = createBuffer(m_device, cb.data, D3D11_BIND_CONSTANT_BUFFER);
     }
 
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
@@ -302,7 +179,7 @@ Renderer::Renderer(SDL_Window* window)
     ComPtr<ID3D11Texture2D> backbuffer;
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 
-    m_backbufferRTV = createRenderTargetView(backbuffer.Get());
+    m_backbufferRTV = createRenderTargetView(m_device, backbuffer.Get());
 
     loadShaders();
 
@@ -319,29 +196,29 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        m_depthTexture = createTexture2D(DXGI_FORMAT_R32_TYPELESS, m_width, m_height, 1, 1,
+        m_depthTexture = createTexture2D(m_device, DXGI_FORMAT_R32_TYPELESS, m_width, m_height, 1, 1,
             D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
-        m_depthStencilView = createDepthStencilView(m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
-        m_depthSRV = createShaderResourceView(m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R32_FLOAT);
+        m_depthStencilView = createDepthStencilView(m_device, m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
+        m_depthSRV = createShaderResourceView(m_device, m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R32_FLOAT);
     }
 
     {
-        m_shadowTexture = createTexture2D(DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
+        m_shadowTexture = createTexture2D(m_device, DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
             D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
-        m_shadowDSV = createDepthStencilView(m_shadowTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
-        m_shadowSRV = createShaderResourceView(m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
+        m_shadowDSV = createDepthStencilView(m_device, m_shadowTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
+        m_shadowSRV = createShaderResourceView(m_device, m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
             DXGI_FORMAT_R32_FLOAT);
 
-        m_shadowSampler = createSamplerState(D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+        m_shadowSampler = createSamplerState(m_device, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_LESS, nullptr, 0.0f, D3D11_FLOAT32_MAX);
 
-        m_shadowRasterizerState = createRasterizerState(D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
+        m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
     }
 
     {
-        m_depthStencilState = createDepthStencilState(
+        m_depthStencilState = createDepthStencilState(m_device,
             TRUE, D3D11_DEPTH_WRITE_MASK_ALL, D3D11_COMPARISON_GREATER,
             FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
@@ -351,12 +228,12 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        m_framebuffer = createTexture2D(DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1,
+        m_framebuffer = createTexture2D(m_device, DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1,
             D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        m_framebufferRTV = createRenderTargetView(m_framebuffer.Get());
-        m_framebufferSRV = createShaderResourceView(m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
+        m_framebufferRTV = createRenderTargetView(m_device, m_framebuffer.Get());
+        m_framebufferSRV = createShaderResourceView(m_device, m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
 
-        m_framebufferSampler = createSamplerState(D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
+        m_framebufferSampler = createSamplerState(m_device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
     }
@@ -366,17 +243,17 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
 {
     std::unique_ptr<Renderable> renderable(new Renderable());
 
-    renderable->m_vertexBuffer = createBuffer(vertices, D3D11_BIND_VERTEX_BUFFER);
+    renderable->m_vertexBuffer = createBuffer(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
     renderable->m_vertexCount = vertices.size;
 
-    renderable->m_indexBuffer = createBuffer(indices, D3D11_BIND_INDEX_BUFFER);
+    renderable->m_indexBuffer = createBuffer(m_device, indices, D3D11_BIND_INDEX_BUFFER);
     renderable->m_indexCount = indices.size;
 
     RenderableConstantBuffer cb{
         .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
     };
 
-    renderable->m_constantBuffer = createBuffer(cb, D3D11_BIND_CONSTANT_BUFFER);
+    renderable->m_constantBuffer = createBuffer(m_device, cb, D3D11_BIND_CONSTANT_BUFFER);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -401,7 +278,7 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
         Hresult hr = m_device->CreateBuffer(&bd, nullptr, &m_pointLightBuffer);
 
         m_pointLightCapacity = lights.size;
-        m_pointLightBufferSRV = createShaderResourceView(m_pointLightBuffer.Get(),
+        m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLightBuffer.Get(),
             m_pointLightBuffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLightCapacity);
     }
 
@@ -460,7 +337,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
     if (vertices.size > m_debugVerticesCapacity) {
-        m_debugVertexBuffer = createBuffer(vertices, D3D11_BIND_VERTEX_BUFFER);
+        m_debugVertexBuffer = createBuffer(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
         m_debugVerticesCapacity = vertices.size;
     } else {
         CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);

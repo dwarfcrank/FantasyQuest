@@ -101,6 +101,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="DebugDraw.h" />
     <ClInclude Include="GameTime.h" />
+    <ClInclude Include="Hresult.h" />
     <ClInclude Include="imgui_impl_dx11.h" />
     <ClInclude Include="imgui_impl_sdl.h" />
     <ClInclude Include="imconfig.h" />
@@ -118,6 +119,7 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Renderer.h" />
+    <ClInclude Include="RendererHelpers.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneEditor.h" />

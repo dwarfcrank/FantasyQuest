@@ -102,6 +102,12 @@
     <ClInclude Include="ArrayView.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="RendererHelpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Hresult.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp">
