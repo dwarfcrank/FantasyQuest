@@ -182,25 +182,25 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="DebugDraw.ps">
+    <FxCompile Include="DebugDraw.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DebugDraw.vs">
+    <FxCompile Include="DebugDraw.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenPass.ps">
+    <FxCompile Include="FullScreenPass.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenPass.vs">
+    <FxCompile Include="FullScreenPass.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="PixelShader.ps">
+    <FxCompile Include="PixelShader.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shadow.vs">
+    <FxCompile Include="Shadow.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="VertexShader.vs">
+    <FxCompile Include="VertexShader.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
