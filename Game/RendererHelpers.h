@@ -36,32 +36,6 @@ auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, 
     return buffer;
 }
 
-/*
-template<typename T>
-auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, const CD3D11_BUFFER_DESC& desc, ArrayView<T> contents)
-{
-    D3D11_SUBRESOURCE_DATA sd = {};
-    sd.pSysMem = contents.data;
-
-    Microsoft::WRL::ComPtr<ID3D11Buffer> buffer;
-    Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
-    return buffer;
-}
-*/
-
-template<typename T, typename... Args>
-auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, const T& contents, Args... args)
-{
-    static_assert(std::is_standard_layout_v<T>);
-    CD3D11_BUFFER_DESC desc(sizeof(T), args...);
-    D3D11_SUBRESOURCE_DATA sd = {};
-    sd.pSysMem = &contents;
-
-    Microsoft::WRL::ComPtr<ID3D11Buffer> buffer;
-    Hresult hr = m_device->CreateBuffer(&desc, &sd, &buffer);
-    return buffer;
-}
-
 template<typename... Args>
 auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {

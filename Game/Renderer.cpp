@@ -21,35 +21,42 @@
 #include <dxgi.h>
 
 template<typename T>
-struct ConstantBuffer
+class ConstantBuffer
 {
-    ComPtr<ID3D11Buffer> buffer;
+public:
     T data;
 
     void init(const ComPtr<ID3D11Device>& device)
     {
-        buffer = createBufferWithData(device, data, D3D11_BIND_CONSTANT_BUFFER);
+        buffer = createBufferWithData(device, ArrayView(&data, 1), D3D11_BIND_CONSTANT_BUFFER);
     }
 
     void update(const ComPtr<ID3D11DeviceContext>& context)
     {
         context->UpdateSubresource(buffer.Get(), 0, nullptr, &data, 0, 0);
     }
+
+    auto bufferGet() { return buffer.Get(); }
+
+private:
+    ComPtr<ID3D11Buffer> buffer;
 };
 
 template<typename T, UINT BindFlags>
-struct Buffer
+class Buffer
 {
+public:
     using ElementType = T;
 
-    UINT capacity = 0;
-    UINT size = 0;
+    auto getCapacity() const { return m_capacity; }
+    auto getSize() const { return m_size; }
 
-    ComPtr<ID3D11Buffer> buffer;
+    auto getBuffer() { return m_buffer.Get(); }
 
     void init(const ComPtr<ID3D11Device>& device, UINT capacity)
     {
-        this->capacity = capacity;
+        this->m_capacity = capacity;
+        m_size = 0;
 
         CD3D11_BUFFER_DESC bd(sizeof(ElementType) * capacity, BindFlags);
 
@@ -58,31 +65,40 @@ struct Buffer
             bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         }
 
-        buffer = createBuffer(device, bd);
+        m_buffer = createBuffer(device, bd);
     }
 
     void init(const ComPtr<ID3D11Device>& device, ArrayView<T> contents)
     {
-        capacity = contents.size;
-        size = contents.size;
+        m_capacity = contents.size;
+        m_size = contents.size;
 
         if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0) {
-            buffer = createBufferWithData(device, contents, BindFlags,
+            m_buffer = createBufferWithData(device, contents, BindFlags,
                 D3D11_USAGE_DEFAULT, 0, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, sizeof(ElementType));
         } else {
-            buffer = createBufferWithData(device, contents, BindFlags);
+            m_buffer = createBufferWithData(device, contents, BindFlags);
         }
 
     }
 
     void update(const ComPtr<ID3D11DeviceContext>& context, ArrayView<T> contents)
     {
-        size = contents.size;
-        auto byteSize = static_cast<LONG>(size * sizeof(ElementType));
+        if (contents.size > m_capacity) {
+            throw std::runtime_error(fmt::format("Buffer capacity is {}, need {}!", m_capacity, contents.size));
+        }
+
+        m_size = contents.size;
+        auto byteSize = static_cast<LONG>(m_size * sizeof(ElementType));
 
         CD3D11_BOX box(0, 0, 0, byteSize, 1, 1);
-        context->UpdateSubresource(buffer.Get(), 0, nullptr, contents.data, 0, 0);
+        context->UpdateSubresource(m_buffer.Get(), 0, nullptr, contents.data, 0, 0);
     }
+
+private:
+    UINT m_size = 0;
+    UINT m_capacity = 0;
+    ComPtr<ID3D11Buffer> m_buffer;
 };
 
 template<typename T>
@@ -245,10 +261,6 @@ Renderer::Renderer(SDL_Window* window)
 
     loadShaders();
 
-    /*
-    initConstantBuffer(m_cameraConstantBuffer);
-    initConstantBuffer(m_shadowCameraConstantBuffer);
-    */
     m_cameraConstantBuffer.init(m_device);
     m_shadowCameraConstantBuffer.init(m_device);
 
@@ -258,7 +270,6 @@ Renderer::Renderer(SDL_Window* window)
         XMStoreFloat3(&m_psConstants.data.LightPosition, dirV);
         m_psConstants.data.NumPointLights = 0;
 
-        //initConstantBuffer(m_psConstants);
         m_psConstants.init(m_device);
     }
 
@@ -308,19 +319,10 @@ Renderer::Renderer(SDL_Window* window)
 
 Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices)
 {
-    //std::unique_ptr<Renderable> renderable(new Renderable());
     auto renderable = std::make_unique<Renderable>();
     
     renderable->m_vertexBuffer.init(m_device, vertices);
     renderable->m_indexBuffer.init(m_device, indices);
-
-    /*
-    RenderableConstantBuffer cb{
-        .WorldMatrix = XMMatrixTranslation(0.0f, 0.0f, 0.0f),
-    };
-
-    renderable->m_constantBuffer = createBufferWithData(m_device, cb, D3D11_BIND_CONSTANT_BUFFER);
-    */
     renderable->m_constantBuffer.init(m_device);
 
     return m_renderables.emplace_back(std::move(renderable)).get();
@@ -336,10 +338,10 @@ void Renderer::setDirectionalLight(const XMFLOAT3& pos)
 
 void Renderer::setPointLights(ArrayView<PointLight> lights)
 {
-    if (lights.size > m_pointLights.capacity) {
+    if (lights.size > m_pointLights.getCapacity()) {
         m_pointLights.init(m_device, lights.size);
-        m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLights.buffer.Get(),
-            m_pointLights.buffer.Get(), DXGI_FORMAT_UNKNOWN, 0, m_pointLights.capacity);
+        m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLights.getBuffer(),
+            m_pointLights.getBuffer(), DXGI_FORMAT_UNKNOWN, 0, m_pointLights.getCapacity());
     }
 
     m_pointLights.update(m_context, lights);
@@ -362,18 +364,18 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
         renderable->m_constantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.buffer.Get(),
-        m_shadowCameraConstantBuffer.buffer.Get() };
-    std::array psConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), m_psConstants.buffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(), renderable->m_constantBuffer.bufferGet(),
+        m_shadowCameraConstantBuffer.bufferGet() };
+    std::array psConstantBuffers{ m_cameraConstantBuffer.bufferGet(), m_psConstants.bufferGet() };
     std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get() };
 
-    std::array vertexBuffers{ renderable->m_vertexBuffer.buffer.Get() };
+    std::array vertexBuffers{ renderable->m_vertexBuffer.getBuffer() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.buffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
@@ -385,7 +387,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
-    m_context->DrawIndexed(renderable->m_indexBuffer.size, 0, 0);
+    m_context->DrawIndexed(renderable->m_indexBuffer.getSize(), 0, 0);
 }
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
@@ -404,7 +406,7 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
         m_cameraConstantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet() };
     std::array vertexBuffers{ m_debugVertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(DebugDrawVertex)) };
     std::array offsets{ UINT(0) };
@@ -500,21 +502,21 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
         renderable->m_constantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.buffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(), renderable->m_constantBuffer.bufferGet() };
 
-    std::array vertexBuffers{ renderable->m_vertexBuffer.buffer.Get() };
+    std::array vertexBuffers{ renderable->m_vertexBuffer.getBuffer() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
     std::array offsets{ UINT(0) };
 
     m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.buffer.Get(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetIndexBuffer(renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     m_context->IASetInputLayout(m_inputLayout.Get());
 
     m_context->VSSetShader(m_shadowVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
 
-    m_context->DrawIndexed(renderable->m_indexBuffer.size, 0, 0);
+    m_context->DrawIndexed(renderable->m_indexBuffer.getSize(), 0, 0);
 }
 
 void Renderer::endShadowPass()

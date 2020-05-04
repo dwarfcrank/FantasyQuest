@@ -32,3 +32,6 @@ struct ArrayView
         return size * sizeof(T);
     }
 };
+
+template<typename T>
+ArrayView(const T*, u32) -> ArrayView<T>;
