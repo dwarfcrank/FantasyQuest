@@ -39,6 +39,18 @@ public:
     }
 };
 
+template<typename T>
+struct ConstantBuffer
+{
+    ComPtr<ID3D11Buffer> buffer;
+    T data;
+
+    void update(const ComPtr<ID3D11DeviceContext>& context)
+    {
+        context->UpdateSubresource(buffer.Get(), 0, nullptr, &data, 0, 0);
+    }
+};
+
 class Renderer : public IRenderer
 {
 public:
@@ -168,6 +180,12 @@ private:
         return rs;
     }
 
+    template<typename T>
+    void initConstantBuffer(ConstantBuffer<T>& cb)
+    {
+        cb.buffer = createBuffer(cb.data, D3D11_BIND_CONSTANT_BUFFER);
+    }
+
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
     ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
 
@@ -196,10 +214,12 @@ private:
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
-    ComPtr<ID3D11Buffer> m_cameraConstantBuffer;
-    ComPtr<ID3D11Buffer> m_shadowCameraConstantBuffer;
-    ComPtr<ID3D11Buffer> m_psConstantBuffer;
-    PSConstantBuffer m_psConstants;
+
+    ConstantBuffer<CameraConstantBuffer> m_cameraConstantBuffer;
+    ConstantBuffer<CameraConstantBuffer> m_shadowCameraConstantBuffer;
+    ConstantBuffer<PSConstantBuffer> m_psConstants;
+
+
     ComPtr<ID3D11Buffer> m_pointLightBuffer;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
     UINT m_pointLightCapacity = 0;
@@ -286,16 +306,16 @@ Renderer::Renderer(SDL_Window* window)
 
     loadShaders();
 
-    m_cameraConstantBuffer = createBuffer(CameraConstantBuffer{}, D3D11_BIND_CONSTANT_BUFFER);
-    m_shadowCameraConstantBuffer = createBuffer(CameraConstantBuffer{}, D3D11_BIND_CONSTANT_BUFFER);
+    initConstantBuffer(m_cameraConstantBuffer);
+    initConstantBuffer(m_shadowCameraConstantBuffer);
 
     {
-        auto dir = XMVector3Normalize(XMVectorSet(1.0f, 1.0f, -1.0f, 0.0f));
+        auto dirV = XMVector3Normalize(XMVectorSet(1.0f, -1.0f, 0.0f, 0.0f));
 
-        XMStoreFloat3(&m_psConstants.LightPosition, dir);
-        m_psConstants.NumPointLights = 0;
+        XMStoreFloat3(&m_psConstants.data.LightPosition, dirV);
+        m_psConstants.data.NumPointLights = 0;
 
-        m_psConstantBuffer = createBuffer(m_psConstants, D3D11_BIND_CONSTANT_BUFFER);
+        initConstantBuffer(m_psConstants);
     }
 
     {
@@ -364,14 +384,14 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
 void Renderer::setDirectionalLight(const XMFLOAT3& pos)
 {
     auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
-    XMStoreFloat3(&m_psConstants.LightPosition, dir);
+    XMStoreFloat3(&m_psConstants.data.LightPosition, dir);
 
-    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
+    m_psConstants.update(m_context);
 }
 
 void Renderer::setPointLights(ArrayView<PointLight> lights)
 {
-    m_psConstants.NumPointLights = lights.size;
+    m_psConstants.data.NumPointLights = lights.size;
 
     if (lights.size > m_pointLightCapacity) {
         CD3D11_BUFFER_DESC bd(lights.byteSize(), D3D11_BIND_SHADER_RESOURCE);
@@ -390,18 +410,15 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
     m_context->UpdateSubresource(m_pointLightBuffer.Get(), 0, &box, lights.data,
         lights.byteSize(), 0);
 
-    m_context->UpdateSubresource(m_psConstantBuffer.Get(), 0, nullptr, &m_psConstants, 0, 0);
+    m_psConstants.update(m_context);
 }
 
 void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
-        CameraConstantBuffer cb{
-            .ViewMatrix = camera.getViewMatrix().transposed(),
-            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
-        };
-
-        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.update(m_context);
     }
 
     {
@@ -414,9 +431,9 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
         m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get(),
-        m_shadowCameraConstantBuffer.Get() };
-    std::array psConstantBuffers{ m_cameraConstantBuffer.Get(), m_psConstantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.Get(),
+        m_shadowCameraConstantBuffer.buffer.Get() };
+    std::array psConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), m_psConstants.buffer.Get() };
     std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get() };
 
@@ -451,15 +468,12 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
     }
 
     {
-        CameraConstantBuffer cb{
-            .ViewMatrix = camera.getViewMatrix().transposed(),
-            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
-        };
-
-        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get() };
     std::array vertexBuffers{ m_debugVertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(DebugDrawVertex)) };
     std::array offsets{ UINT(0) };
@@ -539,13 +553,12 @@ void Renderer::beginShadowPass()
 void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
-        CameraConstantBuffer cb{
-            .ViewMatrix = camera.getViewMatrix().transposed(),
-            .ProjectionMatrix = camera.getProjectionMatrix().transposed(),
-        };
+        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.update(m_context);
 
-        m_context->UpdateSubresource(m_cameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
-        m_context->UpdateSubresource(m_shadowCameraConstantBuffer.Get(), 0, nullptr, &cb, 0, 0);
+        m_shadowCameraConstantBuffer.data = m_cameraConstantBuffer.data;
+        m_shadowCameraConstantBuffer.update(m_context);
     }
 
     {
@@ -558,7 +571,7 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
         m_context->UpdateSubresource(renderable->m_constantBuffer.Get(), 0, nullptr, &cb, 0, 0);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.Get(), renderable->m_constantBuffer.Get() };
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.buffer.Get(), renderable->m_constantBuffer.Get() };
 
     std::array vertexBuffers{ renderable->m_vertexBuffer.Get() };
     std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
