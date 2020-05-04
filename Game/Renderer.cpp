@@ -21,6 +21,61 @@
 #include <array>
 #include <dxgi.h>
 
+enum RenderTargetFlags : u32
+{
+    RT_Color = (1 << 0),
+    RT_Depth = (1 << 1),
+    RT_DepthSRV = (1 << 2),
+};
+
+class RenderTarget
+{
+public:
+    ComPtr<ID3D11Texture2D> m_framebuffer;
+    ComPtr<ID3D11Texture2D> m_depthTexture;
+
+    ComPtr<ID3D11RenderTargetView> m_framebufferRTV;
+    ComPtr<ID3D11ShaderResourceView> m_framebufferSRV;
+
+    ComPtr<ID3D11DepthStencilView> m_dsv;
+    ComPtr<ID3D11ShaderResourceView> m_depthSRV;
+
+    u32 m_width;
+    u32 m_height;
+
+    void init(const ComPtr<ID3D11Device1>& device, u32 width, u32 height, u32 flags,
+        DXGI_FORMAT colorFormat = DXGI_FORMAT_UNKNOWN,
+        DXGI_FORMAT depthTextureFormat = DXGI_FORMAT_UNKNOWN,
+        DXGI_FORMAT depthFormat = DXGI_FORMAT_UNKNOWN,
+        DXGI_FORMAT depthSRVFormat = DXGI_FORMAT_UNKNOWN)
+    {
+        m_width = width;
+        m_height = height;
+
+        if (flags & RT_Color) {
+            m_framebuffer = createTexture2D(device, colorFormat, m_width, m_height, 1, 1,
+                D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+            m_framebufferRTV = createRenderTargetView(device, m_framebuffer.Get());
+            m_framebufferSRV = createShaderResourceView(device, m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
+                colorFormat);
+        }
+
+        if (flags & RT_Depth) {
+            UINT depthFlags = D3D11_BIND_DEPTH_STENCIL;
+
+            if (flags & RT_DepthSRV) {
+                depthFlags |= D3D11_BIND_SHADER_RESOURCE;
+            }
+
+            m_depthTexture = createTexture2D(device, depthTextureFormat, m_width, m_height, 1, 1, depthFlags);
+            m_dsv = createDepthStencilView(device, m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, depthFormat);
+
+            if (flags & RT_DepthSRV) {
+                m_depthSRV = createShaderResourceView(device, m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, depthSRVFormat);
+            }
+        }
+    }
+};
 
 class Renderable
 {
@@ -91,22 +146,15 @@ private:
     StructuredBuffer<PointLight> m_pointLights;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
 
-    ComPtr<ID3D11Texture2D> m_depthTexture;
-    ComPtr<ID3D11DepthStencilView> m_depthStencilView;
-    ComPtr<ID3D11ShaderResourceView> m_depthSRV;
-
     ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
     ComPtr<ID3D11SamplerState> m_shadowSampler;
     ComPtr<ID3D11VertexShader> m_shadowVS;
     ComPtr<ID3D11PixelShader> m_shadowPS;
-    ComPtr<ID3D11Texture2D> m_shadowTexture;
-    ComPtr<ID3D11DepthStencilView> m_shadowDSV;
-    ComPtr<ID3D11ShaderResourceView> m_shadowSRV;
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
-    ComPtr<ID3D11Texture2D> m_framebuffer;
-    ComPtr<ID3D11RenderTargetView> m_framebufferRTV;
-    ComPtr<ID3D11ShaderResourceView> m_framebufferSRV;
+
+    RenderTarget m_shadowRT;
+    RenderTarget m_mainRT;
 };
 
 using namespace DirectX;
@@ -186,18 +234,8 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        m_depthTexture = createTexture2D(m_device, DXGI_FORMAT_R32_TYPELESS, m_width, m_height, 1, 1,
-            D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
-        m_depthStencilView = createDepthStencilView(m_device, m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
-        m_depthSRV = createShaderResourceView(m_device, m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R32_FLOAT);
-    }
-
-    {
-        m_shadowTexture = createTexture2D(m_device, DXGI_FORMAT_R32_TYPELESS, m_shadowWidth, m_shadowHeight, 1, 1,
-            D3D11_BIND_DEPTH_STENCIL | D3D11_BIND_SHADER_RESOURCE);
-        m_shadowDSV = createDepthStencilView(m_device, m_shadowTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, DXGI_FORMAT_D32_FLOAT);
-        m_shadowSRV = createShaderResourceView(m_device, m_shadowTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
-            DXGI_FORMAT_R32_FLOAT);
+        m_shadowRT.init(m_device, m_shadowWidth, m_shadowHeight, RT_Depth | RT_DepthSRV, DXGI_FORMAT_UNKNOWN,
+            DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
 
         m_shadowSampler = createSamplerState(m_device, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
@@ -218,14 +256,12 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
-        m_framebuffer = createTexture2D(m_device, DXGI_FORMAT_R8G8B8A8_UNORM, m_width, m_height, 1, 1,
-            D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        m_framebufferRTV = createRenderTargetView(m_device, m_framebuffer.Get());
-        m_framebufferSRV = createShaderResourceView(m_device, m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, DXGI_FORMAT_R8G8B8A8_UNORM);
-
         m_framebufferSampler = createSamplerState(m_device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+
+        m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, DXGI_FORMAT_R8G8B8A8_UNORM,
+            DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
     }
 }
 
@@ -279,7 +315,7 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(), renderable->m_constantBuffer.bufferGet(),
         m_shadowCameraConstantBuffer.bufferGet() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.bufferGet(), m_psConstants.bufferGet() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowSRV.Get() };
+    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get() };
 
     std::array vertexBuffers{ renderable->m_vertexBuffer.getBuffer() };
@@ -338,8 +374,8 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
 void Renderer::clear(float r, float g, float b)
 {
     float color[4] = { r, g, b, 1.0f };
-    m_context->ClearRenderTargetView(m_framebufferRTV.Get(), color);
-    m_context->ClearDepthStencilView(m_depthStencilView.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
+    m_context->ClearRenderTargetView(m_mainRT.m_framebufferRTV.Get(), color);
+    m_context->ClearDepthStencilView(m_mainRT.m_dsv.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
 }
 
 void Renderer::beginFrame()
@@ -347,8 +383,8 @@ void Renderer::beginFrame()
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
-    auto rtv = m_framebufferRTV.Get();
-    m_context->OMSetRenderTargets(1, &rtv, m_depthStencilView.Get());
+    auto rtv = m_mainRT.m_framebufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, m_mainRT.m_dsv.Get());
 }
 
 void Renderer::endFrame()
@@ -370,7 +406,7 @@ void Renderer::fullScreenPass()
     m_context->PSSetShader(m_fsps.Get(), nullptr, 0);
 
     std::array psSamplers{ m_framebufferSampler.Get() };
-    std::array psResources{ m_framebufferSRV.Get(), m_depthSRV.Get() };
+    std::array psResources{ m_mainRT.m_framebufferSRV.Get(), m_mainRT.m_depthSRV.Get() };
 
     m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
@@ -388,8 +424,8 @@ void Renderer::beginShadowPass()
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_shadowWidth), static_cast<float>(m_shadowHeight));
     m_context->RSSetViewports(1, &vp);
 
-    m_context->ClearDepthStencilView(m_shadowDSV.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
-    m_context->OMSetRenderTargets(0, nullptr, m_shadowDSV.Get());
+    m_context->ClearDepthStencilView(m_shadowRT.m_dsv.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
+    m_context->OMSetRenderTargets(0, nullptr, m_shadowRT.m_dsv.Get());
 
     m_context->PSSetShader(nullptr, nullptr, 0);
     m_context->RSSetState(m_shadowRasterizerState.Get());
