@@ -34,10 +34,20 @@ Mesh::Mesh(const std::filesystem::path& path)
         material->Get(AI_MATKEY_COLOR_DIFFUSE, materialColors[matIdx]);
     }
 
+    auto aabbMin = scene->mMeshes[0]->mAABB.mMin;
+    auto aabbMax = scene->mMeshes[0]->mAABB.mMax;
+
     // TODO: probably shouldn't just merge different meshes into one...
     u16 baseIdx = 0;
     for (auto meshIdx = 0; meshIdx < scene->mNumMeshes; meshIdx++) {
         const auto* mesh = scene->mMeshes[meshIdx];
+
+        aabbMin.x = std::min(aabbMin.x, mesh->mAABB.mMin.x);
+        aabbMin.y = std::min(aabbMin.y, mesh->mAABB.mMin.y);
+        aabbMin.z = std::min(aabbMin.z, mesh->mAABB.mMin.z);
+        aabbMax.x = std::max(aabbMax.x, mesh->mAABB.mMax.x);
+        aabbMax.y = std::max(aabbMax.y, mesh->mAABB.mMax.y);
+        aabbMax.z = std::max(aabbMax.z, mesh->mAABB.mMax.z);
 
         for (auto i = 0; i < mesh->mNumVertices; i++) {
             const auto& v = mesh->mVertices[i];
@@ -62,13 +72,8 @@ Mesh::Mesh(const std::filesystem::path& path)
         baseIdx = static_cast<u16>(m_indices.size());
     }
 
-    {
-        const auto& min = scene->mMeshes[0]->mAABB.mMin;
-        const auto& max = scene->mMeshes[0]->mAABB.mMax;
-
-        m_bounds.min = Vector<Model>(min.x, min.y, min.z, 1.0f);
-        m_bounds.max = Vector<Model>(max.x, max.y, max.z, 1.0f);
-    }
+    m_bounds.min = Vector<Model>(aabbMin.x, aabbMin.y, aabbMin.z, 1.0f);
+    m_bounds.max = Vector<Model>(aabbMax.x, aabbMax.y, aabbMax.z, 1.0f);
 
     if (const auto& meshName = scene->mMeshes[0]->mName; meshName.length > 0) {
         m_name = scene->mMeshes[0]->mName.C_Str();
