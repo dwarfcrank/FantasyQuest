@@ -11,8 +11,8 @@ Output main(float3 position : POSITION, float4 color : COLOR)
 	Output o = (Output)0;
 	
 	o.position = float4(position, 1.0f);
-	o.position = mul(o.position, View);
-	o.position = mul(o.position, Projection);
+	o.position = mul(o.position, camera.View);
+	o.position = mul(o.position, camera.Projection);
 	o.color = color;
 
 	return o;

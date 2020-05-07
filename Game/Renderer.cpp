@@ -83,7 +83,7 @@ class Renderable
 public:
     VertexBuffer<Vertex> m_vertexBuffer;
     IndexBuffer<u16> m_indexBuffer;
-    ConstantBuffer<RenderableConstantBuffer> m_constantBuffer;
+    ConstantBuffer<RenderableConstants> m_constantBuffer;
 };
 
 class Renderer : public IRenderer
@@ -139,9 +139,9 @@ private:
 
     ComPtr<ID3D11RenderTargetView> m_backbufferRTV;
 
-    ConstantBuffer<CameraConstantBuffer> m_cameraConstantBuffer;
-    ConstantBuffer<CameraConstantBuffer> m_shadowCameraConstantBuffer;
-    ConstantBuffer<PSConstantBuffer> m_psConstants;
+    ConstantBuffer<CameraConstants> m_cameraConstantBuffer;
+    ConstantBuffer<CameraConstants> m_shadowCameraConstantBuffer;
+    ConstantBuffer<PSConstants> m_psConstants;
 
     StructuredBuffer<PointLight> m_pointLights;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
@@ -227,7 +227,7 @@ Renderer::Renderer(SDL_Window* window)
     {
         auto dirV = XMVector3Normalize(XMVectorSet(1.0f, -1.0f, 0.0f, 0.0f));
 
-        XMStoreFloat3(&m_psConstants.data.LightPosition, dirV);
+        XMStoreFloat3(&m_psConstants.data.LightDir, dirV);
         m_psConstants.data.NumPointLights = 0;
 
         m_psConstants.init(m_device);
@@ -279,7 +279,7 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
 void Renderer::setDirectionalLight(const XMFLOAT3& pos)
 {
     auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
-    XMStoreFloat3(&m_psConstants.data.LightPosition, dir);
+    XMStoreFloat3(&m_psConstants.data.LightDir, dir);
 
     m_psConstants.update(m_context);
 }
@@ -300,15 +300,15 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
 void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
-        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
         m_cameraConstantBuffer.update(m_context);
     }
 
     {
         auto wm = transform.getMatrix();
-        renderable->m_constantBuffer.data.WorldMatrix = XMMatrixTranspose(wm);
-        renderable->m_constantBuffer.data.WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm);
+        renderable->m_constantBuffer.data.World = XMMatrixTranspose(wm);
+        renderable->m_constantBuffer.data.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
         renderable->m_constantBuffer.update(m_context);
     }
 
@@ -347,8 +347,8 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
     }
 
     {
-        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
         m_cameraConstantBuffer.update(m_context);
     }
 
@@ -432,8 +432,8 @@ void Renderer::beginShadowPass()
 void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
     {
-        m_cameraConstantBuffer.data.ViewMatrix = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.ProjectionMatrix = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
         m_cameraConstantBuffer.update(m_context);
 
         m_shadowCameraConstantBuffer.data = m_cameraConstantBuffer.data;
@@ -443,8 +443,8 @@ void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Tr
     {
         auto wm = transform.getMatrix();
 
-        renderable->m_constantBuffer.data.WorldMatrix = XMMatrixTranspose(wm);
-        renderable->m_constantBuffer.data.WorldInvTransposeMatrix = XMMatrixInverse(nullptr, wm);
+        renderable->m_constantBuffer.data.World = XMMatrixTranspose(wm);
+        renderable->m_constantBuffer.data.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
         renderable->m_constantBuffer.update(m_context);
     }
 

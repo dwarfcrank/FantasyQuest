@@ -4,6 +4,7 @@
 
 #include "DebugDraw.h"
 #include "ArrayView.h"
+#include "ShaderCommon.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -37,12 +38,7 @@ struct Vertex
 
 static_assert(sizeof(Vertex) == 40);
 
-struct CameraConstantBuffer
-{
-    XMMATRIX ViewMatrix;
-    XMMATRIX ProjectionMatrix;
-};
-
+/*
 struct RenderableConstantBuffer
 {
     XMMATRIX WorldMatrix;
@@ -54,6 +50,7 @@ struct alignas(16) PSConstantBuffer
     XMFLOAT3 LightPosition;
     UINT NumPointLights;
 };
+*/
 
 struct PointLight
 {

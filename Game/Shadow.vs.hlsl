@@ -12,8 +12,8 @@ ShadowVS_Output main(VS_Input v)
 
 	o.Position = float4(v.Position, 1.0f);
 	o.Position = mul(o.Position, World);
-	o.Position = mul(o.Position, View);
-	o.Position = mul(o.Position, Projection);
+	o.Position = mul(o.Position, camera.View);
+	o.Position = mul(o.Position, camera.Projection);
 
 	return o;
 }

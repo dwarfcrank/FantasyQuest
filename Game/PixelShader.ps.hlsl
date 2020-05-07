@@ -1,9 +1,9 @@
 #include "Common.hlsli"
 
+//cbuffer PS_Constants : register(b1)
 cbuffer PS_Constants : register(b1)
 {
-    float3 LightDir;
-    uint NumPointLights;
+    PSConstants pc;
 };
 
 struct PointLight
@@ -51,9 +51,9 @@ static const float DepthBias = 0.005f;
 
 float4 main(VS_Output v) : SV_TARGET
 {
-    float3 total = ComputeDirectionalLight(LightDir, v.Normal);
+    float3 total = ComputeDirectionalLight(pc.LightDir, v.Normal);
 
-    for (uint i = 0; i < NumPointLights; i++) {
+    for (uint i = 0; i < pc.NumPointLights; i++) {
         total += ComputePointLight(PointLights[i], v.PositionWS.xyz, v.Normal);
     }
 

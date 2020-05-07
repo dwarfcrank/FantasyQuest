@@ -1,8 +1,17 @@
+/*
 cbuffer CameraConstants : register(b0)
 {
 	matrix View;
 	matrix Projection;
 };
+*/
+
+#include "ShaderCommon.h"
+
+cbuffer GlobalCameraConstants : register(b0)
+{
+	CameraConstants camera;
+}
 
 struct VS_Input
 {
