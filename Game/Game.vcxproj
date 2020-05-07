@@ -68,7 +68,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>SDL2maind.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>SDL2maind.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;noise-static.lib;noiseutils-static.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
     </Link>
@@ -103,6 +103,9 @@
     </FxCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="Octree.h" />
+    <ClInclude Include="qef.h" />
+    <ClInclude Include="Sampler.h" />
     <ClInclude Include="ArrayView.h" />
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="Camera.h" />
@@ -131,11 +134,15 @@
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneEditor.h" />
     <ClInclude Include="ShaderCommon.h" />
+    <ClInclude Include="svd.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Transform.h" />
     <ClInclude Include="VertexTypes.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Octree.cpp" />
+    <ClCompile Include="qef.cpp" />
+    <ClCompile Include="Sampler.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DebugDraw.cpp" />
     <ClCompile Include="GameTime.cpp" />
@@ -177,6 +184,7 @@
     <ClCompile Include="Renderer.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneEditor.cpp" />
+    <ClCompile Include="svd.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Game.rc" />

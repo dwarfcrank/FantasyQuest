@@ -15,6 +15,7 @@
 #include "GameTime.h"
 #include "SceneEditor.h"
 #include "ArrayView.h"
+#include "Octree.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>

@@ -117,6 +117,18 @@
     <ClInclude Include="ShaderCommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Octree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Sampler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="qef.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="svd.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp">
@@ -171,6 +183,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SceneEditor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Octree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Sampler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="qef.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="svd.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
