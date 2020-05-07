@@ -132,8 +132,7 @@ private:
     ComPtr<ID3D11InputLayout> m_debugInputLayout;
     ComPtr<ID3D11VertexShader> m_debugVS;
     ComPtr<ID3D11PixelShader> m_debugPS;
-    ComPtr<ID3D11Buffer> m_debugVertexBuffer;
-    UINT m_debugVerticesCapacity = 0;
+    VertexBuffer<DebugDrawVertex> m_debugVertexBuffer;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
@@ -340,12 +339,10 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
-    if (vertices.size > m_debugVerticesCapacity) {
-        m_debugVertexBuffer = createBufferWithData(m_device, vertices, D3D11_BIND_VERTEX_BUFFER);
-        m_debugVerticesCapacity = vertices.size;
+    if (vertices.size > m_debugVertexBuffer.getCapacity()) {
+        m_debugVertexBuffer.init(m_device, vertices);
     } else {
-        CD3D11_BOX box(0, 0, 0, vertices.byteSize(), 1, 1);
-        m_context->UpdateSubresource(m_debugVertexBuffer.Get(), 0, &box, vertices.data, vertices.byteSize(), 0);
+        m_debugVertexBuffer.update(m_context, vertices);
     }
 
     {
@@ -355,7 +352,7 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
     }
 
     std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet() };
-    std::array vertexBuffers{ m_debugVertexBuffer.Get() };
+    std::array vertexBuffers{ m_debugVertexBuffer.getBuffer() };
     std::array strides{ static_cast<UINT>(sizeof(DebugDrawVertex)) };
     std::array offsets{ UINT(0) };
 
