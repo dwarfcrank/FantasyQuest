@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Math.h"
 #include <DirectXMath.h>
 
 using namespace DirectX;
@@ -17,6 +18,11 @@ struct Transform
         auto s = XMMatrixScalingFromVector(Scale);
 
         return s * r * t;
+    }
+
+    Matrix<Model, World> getMatrix2() const
+    {
+        return Matrix<Model, World>{ getMatrix() };
     }
 
     void move(float xOff, float yOff, float zOff)

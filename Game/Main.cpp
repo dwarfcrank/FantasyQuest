@@ -22,7 +22,7 @@
 #include <DirectXMath.h>
 #include <chrono>
 
-extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 0;
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -167,6 +167,8 @@ int main(int argc, char* argv[])
 
         }
 
+        DebugDraw d;
+
         while (running) {
             float dt = gt.update();
 
@@ -186,27 +188,19 @@ int main(int argc, char* argv[])
                 ImGui::ShowDemoWindow(&showDemo);
             }
 
-            {
-                if (ImGui::Begin("Scene2")) {
-                    if (ImGui::InputFloat3("Direction", &shadowDir.x)) {
-                        auto pitch = XMConvertToRadians(shadowDir.y);
-                        auto yaw = XMConvertToRadians(shadowDir.x);
-                        shadowCam.setRotation(pitch, yaw);
-
-                        auto rotation = XMQuaternionRotationRollPitchYaw(pitch, yaw, 0.0f);
-                        auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
-                        XMFLOAT3 d;
-                        XMStoreFloat3(&d, direction);
-                        r->setDirectionalLight(d);
-                    }
-                }
-                ImGui::End();
-            }
-
             ImGui::Render();
 
-            r->setDirectionalLight(scene.directionalLight);
-            r->setPointLights(scene.lights);
+            {
+                shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
+
+                auto rotation = XMQuaternionRotationRollPitchYaw(scene.directionalLight.x, scene.directionalLight.y, 0.0f);
+                auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
+                XMFLOAT3 d;
+                XMStoreFloat3(&d, direction);
+                r->setDirectionalLight(d);
+
+                r->setPointLights(scene.lights);
+            }
 
             r->beginShadowPass();
             {
@@ -225,6 +219,14 @@ int main(int argc, char* argv[])
                 }
 
                 r->debugDraw(game.getCamera(), debugVerts);
+
+                {
+                    //d.clear();
+                    //d.drawAABB(Vector<World>(-10.0f, -10.0f, -10.0f), Vector<World>(10.0f, 10.0f, 10.0f));
+                    if (!editor.d.verts.empty()) {
+                        r->debugDraw(game.getCamera(), editor.d.verts);
+                    }
+                }
                 editor.render(r.get());
 
                 r->fullScreenPass();

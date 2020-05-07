@@ -2,6 +2,7 @@
 
 #include "Common.h"
 
+#include "DebugDraw.h"
 #include "ArrayView.h"
 
 #include <SDL2/SDL.h>
@@ -29,14 +30,6 @@ struct Vertex
 };
 
 static_assert(sizeof(Vertex) == 40);
-
-struct DebugDrawVertex
-{
-    XMFLOAT3 Position;
-    XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
-};
-
-static_assert(sizeof(DebugDrawVertex) == 28);
 
 struct CameraConstantBuffer
 {

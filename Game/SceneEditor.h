@@ -1,5 +1,7 @@
 #pragma once
 
+#include "DebugDraw.h"
+
 struct Scene;
 
 class SceneEditor
@@ -11,10 +13,15 @@ public:
 
     void render(class IRenderer*);
 
+    DebugDraw d;
+
 private:
     Scene& m_scene;
 
+    int m_currentObjectIdx = -1;
+
     void objectList();
+    void objectPropertiesWindow();
     void lightList();
     void sceneWindow();
 };
