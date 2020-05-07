@@ -22,6 +22,8 @@
 #include <DirectXMath.h>
 #include <chrono>
 
+extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
+
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
 {
