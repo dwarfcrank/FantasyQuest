@@ -29,35 +29,6 @@ struct Bounds
     Vector<Model> max;
 };
 
-struct Vertex
-{
-    XMFLOAT3 Position;
-    XMFLOAT3 Normal;
-    XMFLOAT4 Color{ 1.0f, 1.0f, 1.0f, 1.0f };
-};
-
-static_assert(sizeof(Vertex) == 40);
-
-/*
-struct RenderableConstantBuffer
-{
-    XMMATRIX WorldMatrix;
-    XMMATRIX WorldInvTransposeMatrix;
-};
-
-struct alignas(16) PSConstantBuffer
-{
-    XMFLOAT3 LightPosition;
-    UINT NumPointLights;
-};
-*/
-
-struct PointLight
-{
-    XMFLOAT4 Position;
-    XMFLOAT4 Color;
-};
-
 class Renderable;
 
 class IRenderer

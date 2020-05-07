@@ -6,7 +6,7 @@ cbuffer VS_Constants : register(b1)
 	matrix WorldInvTranspose;
 };
 
-ShadowVS_Output main(VS_Input v)
+ShadowVS_Output main(Vertex v)
 {
 	ShadowVS_Output o = (ShadowVS_Output)0;
 

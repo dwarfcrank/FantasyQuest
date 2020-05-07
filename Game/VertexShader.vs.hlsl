@@ -2,23 +2,15 @@
 
 cbuffer VS_Constants : register(b1)
 {
-	/*
-	matrix World;
-	matrix WorldInvTranspose;
-	*/
 	RenderableConstants rc;
 };
 
 cbuffer ShadowCameraConstants : register(b2)
 {
-	/*
-	matrix ShadowView;
-	matrix ShadowProjection;
-	*/
 	CameraConstants shadowCamera;
 };
 
-VS_Output main(VS_Input v)
+VS_Output main(Vertex v)
 {
 	VS_Output o = (VS_Output)0;
 

@@ -1,4 +1,5 @@
-#pragma once
+#ifndef SHADERCOMMON_H
+#define SHADERCOMMON_H
 
 #ifdef __cplusplus
 
@@ -39,38 +40,17 @@ CB_STRUCT PSConstants
     uint NumPointLights;
 };
 
-/*
-
-struct alignas(16) PSConstantBuffer
+struct Vertex
 {
-    XMFLOAT3 LightPosition;
-    UINT NumPointLights;
+	float3 Position SEMANTIC(POSITION);
+	float3 Normal SEMANTIC(NORMAL);
+	float4 Color SEMANTIC(COLOR);
 };
 
-cbuffer CameraConstants : register(b0)
+struct PointLight
 {
-	matrix View;
-	matrix Projection;
+    float4 Position; // .w = linear attenuation
+    float4 Color; // .w = quadratic attenuation
 };
 
-struct VS_Input
-{
-	float3 Position : POSITION;
-	float3 Normal : NORMAL;
-	float4 Color : COLOR;
-};
-
-struct VS_Output
-{
-	float4 Position : SV_POSITION;
-	float4 PositionWS : TEXCOORD0;
-	float4 ShadowPos : TEXCOORD1;
-	float3 Normal : NORMAL;
-	float4 Color : COLOR0;
-};
-
-struct ShadowVS_Output
-{
-	float4 Position : SV_POSITION;
-};
-*/
+#endif

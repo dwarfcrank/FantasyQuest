@@ -1,21 +1,13 @@
 #include "Common.hlsli"
 
-//cbuffer PS_Constants : register(b1)
 cbuffer PS_Constants : register(b1)
 {
     PSConstants pc;
 };
 
-struct PointLight
-{
-    float4 Position; // .w = linear attenuation
-    float4 Color; // .w = quadratic attenuation
-};
-
 StructuredBuffer<PointLight> PointLights : register(t0);
 
 Texture2D ShadowMap : register(t1);
-//SamplerState ShadowMapSampler : register(s0);
 SamplerComparisonState ShadowMapSampler : register(s0);
 
 float3 ComputePointLight(PointLight light, float3 position, float3 normal)
