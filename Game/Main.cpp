@@ -23,6 +23,8 @@
 #include <DirectXMath.h>
 #include <chrono>
 
+#include "Octree.h"
+
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
 template<typename... TArgs>
@@ -52,6 +54,20 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
             renderables.emplace(mesh.getName(), renderable);
         }
     }
+}
+
+void noiseMesh(IRenderer* r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
+{
+    auto tree = std::make_unique<Octree>(1, 16, glm::vec3(0, 0, 0));
+    tree->Construct();
+
+    std::vector<Vertex> verts;
+    std::vector<u16> indices;
+    tree->MeshFromOctree(indices, verts);
+
+    auto renderable = r->createRenderable(verts, indices);
+    models.emplace_back("hehebin", renderable, Bounds{});
+    renderables.emplace("hehebin", renderable);
 }
 
 int main(int argc, char* argv[])
@@ -87,6 +103,7 @@ int main(int argc, char* argv[])
         ImGui_ImplDX11_Init(r->getDevice(), r->getDeviceContext());
 
         loadAssets(r.get(), models, renderables);
+        noiseMesh(r.get(), models, renderables);
         {
             for (const auto& model : models) {
                 bounds[model.name] = model.bounds;
@@ -102,7 +119,8 @@ int main(int argc, char* argv[])
             scene.load("../scene.json");
 
             for (auto& o : scene.objects) {
-                o.renderable = renderables[o.modelName];
+                //o.renderable = renderables[o.modelName];
+                o.renderable = renderables["hehebin"];
                 o.bounds = bounds[o.modelName];
             }
 

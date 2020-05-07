@@ -175,15 +175,15 @@ float Density(const glm::vec3 pos)
 	static noise::module::Perlin noiseModule;
 	//printf("density %f %f %f \n", pos.x, pos.y, pos.z);
 
-	//glm::vec3 repeat(15, 15, 15);
-	//glm::vec3 repeatPos(
-	//	repeatAxis(pos.x, repeat.x),
-	//	repeatAxis(pos.y, repeat.y),
-	//	repeatAxis(pos.z, repeat.z)
-	//);
+	glm::vec3 repeat(15, 15, 15);
+	glm::vec3 repeatPos(
+		repeatAxis(pos.x, repeat.x),
+		repeatAxis(pos.y, repeat.y),
+		repeatAxis(pos.z, repeat.z)
+	);
 	//return glm::length(pos - origin) - radius; // repeating
-	return Noise(pos, noiseModule);
-	//return Sphere(repeatPos, glm::vec3(0, 0, 0), 6.0);
+	//return Noise(pos, noiseModule);
+	return Sphere(repeatPos, glm::vec3(0, 0, 0), 3.0);
 
 	//return Box(pos - glm::vec3(16,16,16), glm::vec3(128, 8, 8));
 	//return Box(repeatPos - glm::vec3(0,0,0), glm::vec3(5, 5, 5));

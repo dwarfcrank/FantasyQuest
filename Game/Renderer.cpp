@@ -143,6 +143,9 @@ private:
     ConstantBuffer<CameraConstants> m_shadowCameraConstantBuffer;
     ConstantBuffer<PSConstants> m_psConstants;
 
+    ComPtr<ID3D11RasterizerState> m_rasterizerState;
+    ComPtr<ID3D11RasterizerState> m_rasterizerState2;
+
     StructuredBuffer<PointLight> m_pointLights;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
 
@@ -244,6 +247,13 @@ Renderer::Renderer(SDL_Window* window)
         m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
     }
+
+    /*
+    */
+    m_rasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_NONE, TRUE, 0, 0.0f, 0.0f, TRUE,
+        FALSE, FALSE, FALSE);
+    m_rasterizerState2 = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE, 0, 0.0f, 0.0f, TRUE,
+        FALSE, FALSE, FALSE);
 
     {
         m_depthStencilState = createDepthStencilState(m_device,
@@ -383,6 +393,8 @@ void Renderer::beginFrame()
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
+    m_context->RSSetState(m_rasterizerState.Get());
+
     auto rtv = m_mainRT.m_framebufferRTV.Get();
     m_context->OMSetRenderTargets(1, &rtv, m_mainRT.m_dsv.Get());
 }
@@ -394,6 +406,7 @@ void Renderer::endFrame()
 
 void Renderer::fullScreenPass()
 {
+    m_context->RSSetState(m_rasterizerState2.Get());
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
