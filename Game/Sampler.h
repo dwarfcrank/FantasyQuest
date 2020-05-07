@@ -20,8 +20,7 @@ float SampleCache(const std::vector<std::vector<float>>& cache, const int coordi
 
 float SampleCache(const std::vector<std::vector<float>>& cache, const glm::ivec3 min, const int size, const glm::ivec3 coordinate);
 
-float Density(const glm::vec3 pos);
+float Density(const glm::vec3 pos, const unsigned int size);
 
-float Sample(const glm::vec3 pos);
-
+float Sample(const glm::vec3 pos, const unsigned int size);
 }

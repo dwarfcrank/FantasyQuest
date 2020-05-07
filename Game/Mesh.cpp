@@ -27,7 +27,7 @@ Mesh::Mesh(const std::filesystem::path& path)
         throw std::runtime_error(fmt::format("Loading mesh {} failed!", path.generic_string()));
     }
 
-    std::vector<aiColor3D> materialColors(scene->mNumMaterials);
+    std::vector<aiColor3D> materialColors(scene->mNumMaterials);    
 
     for (auto matIdx = 0; matIdx < scene->mNumMaterials; matIdx++) {
         const auto* material = scene->mMaterials[matIdx];

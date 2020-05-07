@@ -60,12 +60,12 @@ int index(int x, int y, int z, int dimensionLength)
 	return x + dimensionLength * (y + dimensionLength * z);
 }
 
-glm::vec3 CalculateSurfaceNormal(const glm::vec3& p)
+glm::vec3 CalculateSurfaceNormal(const glm::vec3& p, const unsigned int size)
 {
 	const float epsilon = 0.0001f;
-	const float dx = Sampler::Sample(p + glm::vec3(epsilon, 0.f, 0.f)) - Sampler::Sample(p - glm::vec3(epsilon, 0.f, 0.f));
-	const float dy = Sampler::Sample(p + glm::vec3(0.f, epsilon, 0.f)) - Sampler::Sample(p - glm::vec3(0.f, epsilon, 0.f));
-	const float dz = Sampler::Sample(p + glm::vec3(0.f, 0.f, epsilon)) - Sampler::Sample(p - glm::vec3(0.f, 0.f, epsilon));
+	const float dx = Sampler::Sample(p + glm::vec3(epsilon, 0.f, 0.f), size) - Sampler::Sample(p - glm::vec3(epsilon, 0.f, 0.f), size);
+	const float dy = Sampler::Sample(p + glm::vec3(0.f, epsilon, 0.f), size) - Sampler::Sample(p - glm::vec3(0.f, epsilon, 0.f), size);
+	const float dz = Sampler::Sample(p + glm::vec3(0.f, 0.f, epsilon), size) - Sampler::Sample(p - glm::vec3(0.f, 0.f, epsilon), size);
 
 	return glm::normalize(glm::vec3(dx, dy, dz));
 }
@@ -262,7 +262,7 @@ void Octree::GenerateVertexIndices(Octree* node, std::vector<Vertex>& vertexBuff
 	{
 		glm::vec3 color;
 
-		{ // debug stuff
+		if constexpr(false) { // debug stuff
 			static float count = 0;
 			static float totalCount = 7976;
 			static float firstStep = totalCount / 3;
@@ -284,6 +284,8 @@ void Octree::GenerateVertexIndices(Octree* node, std::vector<Vertex>& vertexBuff
 				color = { 0.0, 0.0, 1.0 };
 			}
 		}
+
+		color = { 0.9, 0.9, 0.9 };
 
 		node->m_index = vertexBuffer.size();
 		Vertex v;
@@ -664,7 +666,7 @@ void Octree::ProcessEdge(const Octree* node[4], int dir, std::vector<u16>& index
 		}
 	}
 }
-glm::vec3 ApproximateZeroCrossingPosition(const glm::vec3& p0, const glm::vec3& p1)
+glm::vec3 ApproximateZeroCrossingPosition(const glm::vec3& p0, const glm::vec3& p1, const unsigned int size)
 {
 	/*
 	This function copied from https://github.com/nickgildea/DualContouringSample/blob/master/DualContouringSample/octree.cpp
@@ -692,7 +694,7 @@ glm::vec3 ApproximateZeroCrossingPosition(const glm::vec3& p0, const glm::vec3& 
 	{
 		//std::cout << "pos " << currentT << std::endl;
 		const glm::vec3 p = p0 + ((p1 - p0) * currentT);
-		const float density = glm::abs(Sampler::Sample(p));
+		const float density = glm::abs(Sampler::Sample(p, size));
 		if (density < minValue)
 		{
 			minValue = density;
@@ -777,8 +779,8 @@ Octree* Octree::ConstructLeaf(const int resolution, glm::vec3 min)
 
 		const vec3 p1 = vec3(min + (vec3)CHILD_MIN_OFFSETS[c1]);
 		const vec3 p2 = vec3(min + (vec3)CHILD_MIN_OFFSETS[c2]);
-		const vec3 p = ApproximateZeroCrossingPosition(p1, p2);
-		const vec3 n = CalculateSurfaceNormal(p);
+		const vec3 p = ApproximateZeroCrossingPosition(p1, p2, m_size);
+		const vec3 n = CalculateSurfaceNormal(p, m_size);
 		qef.add(p.x, p.y, p.z, n.x, n.y, n.z);
 
 		averageNormal += n;
