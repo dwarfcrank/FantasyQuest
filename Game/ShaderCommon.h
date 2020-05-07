@@ -38,6 +38,8 @@ CB_STRUCT PSConstants
 {
 	float3 LightDir;
     uint NumPointLights;
+    float3 DirectionalColor;
+    float DepthBias;
 };
 
 struct Vertex

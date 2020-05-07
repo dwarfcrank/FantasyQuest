@@ -50,6 +50,8 @@ struct Scene
     void save(const std::filesystem::path& path) const;
 
     XMFLOAT3 directionalLight{ 1.0f, 1.0f, -1.0f };
+    XMFLOAT3 directionalLightColor{ 1.0f, 1.0f, 1.0f };
+    float depthBias = 0.005f;
 
     std::vector<Object> objects;
     std::vector<PointLight> lights;

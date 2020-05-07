@@ -105,7 +105,7 @@ int main(int argc, char* argv[])
                 o.bounds = bounds[o.modelName];
             }
 
-            r->setDirectionalLight(scene.directionalLight);
+            r->setDirectionalLight(scene.directionalLight, scene.directionalLightColor);
             r->setPointLights(scene.lights);
         }
 
@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
                 auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
                 XMFLOAT3 d;
                 XMStoreFloat3(&d, direction);
-                r->setDirectionalLight(d);
+                r->setDirectionalLight(d, scene.directionalLightColor);
 
                 r->setPointLights(scene.lights);
             }

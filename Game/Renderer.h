@@ -36,7 +36,7 @@ class IRenderer
 public:
     virtual ~IRenderer() = default;
 
-    virtual void setDirectionalLight(const XMFLOAT3& pos) = 0;
+    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) = 0;
     virtual void setPointLights(ArrayView<PointLight> lights) = 0;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) = 0;

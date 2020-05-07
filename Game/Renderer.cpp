@@ -93,7 +93,7 @@ public:
 
     virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
 
-    virtual void setDirectionalLight(const XMFLOAT3& pos) override;
+    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) override;
@@ -276,10 +276,12 @@ Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
-void Renderer::setDirectionalLight(const XMFLOAT3& pos)
+void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color)
 {
     auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
     XMStoreFloat3(&m_psConstants.data.LightDir, dir);
+    m_psConstants.data.DirectionalColor = color;
+    m_psConstants.data.DepthBias = 0.005f;
 
     m_psConstants.update(m_context);
 }

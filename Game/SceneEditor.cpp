@@ -78,6 +78,7 @@ void SceneEditor::lightList()
 
         changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
         changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
+        changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
 
         ImGui::TreePop();
     }
