@@ -170,11 +170,11 @@ int main(int argc, char* argv[])
         while (running) {
             float dt = gt.update();
 
+            handleEvents();
+
             ImGui_ImplDX11_NewFrame();
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
-
-            handleEvents();
 
             if (!game.update(dt)) {
                 break;

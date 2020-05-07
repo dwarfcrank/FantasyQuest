@@ -48,7 +48,7 @@ Game::Game(Scene& scene, InputMap& inputs) :
     doBind(SDLK_f, lightVelocity.y, -moveSpeed);
 
     inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
-        if (event.state & SDL_BUTTON_RMASK) {
+        if ((event.state & SDL_BUTTON_RMASK) || (SDL_GetModState() & KMOD_LCTRL)) {
             auto x = static_cast<float>(event.xrel) / 450.0f;
             auto y = static_cast<float>(event.yrel) / 450.0f;
             cam.rotate(y, x);
@@ -69,9 +69,4 @@ bool Game::update(float dt)
 
 void Game::render(IRenderer* r)
 {
-    /*
-    for (const auto& o : scene.objects) {
-        r.draw(o.renderable, cam, o.transform);
-    }
-    */
 }
