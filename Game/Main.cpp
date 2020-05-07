@@ -110,7 +110,11 @@ int main(int argc, char* argv[])
         }
 
         Game game(scene, inputs);
-        SceneEditor editor(scene);
+        SceneEditor editor(scene, inputs);
+
+        std::array<GameBase*, 2> games{ &game, &editor };
+        size_t gameIdx = 0;
+        inputs.key(SDLK_F1).up([&] { gameIdx++; gameIdx %= games.size(); });
 
         GameTime gt;
 
@@ -152,32 +156,11 @@ int main(int argc, char* argv[])
 
         std::vector<DebugDrawVertex> debugVerts;
 
-        {
-            XMFLOAT4 gridAxisColor(0.8f, 0.8f, 0.8f, 1.0f);
-            XMFLOAT4 gridColor(0.3f, 0.3f, 0.3f, 1.0f);
-
-            debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
-            debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
-            debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, -100.0f }, .Color = gridAxisColor });
-            debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, 100.0f }, .Color = gridAxisColor });
-
-            for (auto i = 1; i < 20; i++) {
-                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
-
-                debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-                debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-            }
-
-        }
 
         DebugDraw d;
 
         while (running) {
+            auto g = games[gameIdx];
             float dt = gt.update();
 
             handleEvents();
@@ -186,11 +169,14 @@ int main(int argc, char* argv[])
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
+            /*
             if (!game.update(dt)) {
                 break;
             }
 
             editor.update(dt);
+            */
+            g->update(dt);
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
@@ -223,19 +209,22 @@ int main(int argc, char* argv[])
                 r->clear(0.1f, 0.2f, 0.3f);
                 //game.render(r);
                 for (const auto& o : scene.objects) {
-                    r->draw(o.renderable, game.getCamera(), o.transform);
+                    r->draw(o.renderable, g->getCamera(), o.transform);
                 }
 
-                r->debugDraw(game.getCamera(), debugVerts);
+                /*
+                r->debugDraw(g->getCamera(), debugVerts);
 
                 {
                     //d.clear();
                     //d.drawAABB(Vector<World>(-10.0f, -10.0f, -10.0f), Vector<World>(10.0f, 10.0f, 10.0f));
                     if (!editor.d.verts.empty()) {
-                        r->debugDraw(game.getCamera(), editor.d.verts);
+                        r->debugDraw(g->getCamera(), editor.d.verts);
                     }
                 }
-                editor.render(r.get());
+                */
+                //editor.render(r.get());
+                g->render(r.get());
 
                 r->fullScreenPass();
 

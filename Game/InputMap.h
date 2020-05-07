@@ -50,8 +50,8 @@ private:
 class InputMap
 {
 public:
-    void handleEvent(const SDL_KeyboardEvent&) const;
-    void handleEvent(const SDL_MouseMotionEvent&) const;
+    bool handleEvent(const SDL_KeyboardEvent&) const;
+    bool handleEvent(const SDL_MouseMotionEvent&) const;
 
     KeyHandler& key(SDL_Keycode);
     void unbind(SDL_Keycode);

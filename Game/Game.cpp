@@ -22,11 +22,16 @@
 #include <wrl.h>
 #include <chrono>
 
-Game::Game(Scene& scene, InputMap& inputs) :
-    scene(scene), inputs(inputs)
+GameBase::GameBase(InputMap& inputs) :
+    m_inputs(inputs)
 {
-    auto doBind = [&inputs](SDL_Keycode k, float& target, float value) {
-        inputs.key(k)
+}
+
+Game::Game(Scene& scene, InputMap& inputs) :
+    GameBase(inputs), scene(scene)
+{
+    auto doBind = [this](SDL_Keycode k, float& target, float value) {
+        m_inputs.key(k)
             .down([&target,  value] { target = value; })
             .up([&target] { target = 0.0f; });
     };
@@ -47,11 +52,11 @@ Game::Game(Scene& scene, InputMap& inputs) :
     doBind(SDLK_r, lightVelocity.y, moveSpeed);
     doBind(SDLK_f, lightVelocity.y, -moveSpeed);
 
-    inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
+    m_inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
         if ((event.state & SDL_BUTTON_RMASK) || (SDL_GetModState() & KMOD_LCTRL)) {
             auto x = static_cast<float>(event.xrel) / 450.0f;
             auto y = static_cast<float>(event.yrel) / 450.0f;
-            cam.rotate(y, x);
+            m_camera.rotate(y, x);
         }
     });
 }
@@ -60,9 +65,9 @@ bool Game::update(float dt)
 {
     bool running = true;
 
-    cam.move(Vector<View>(velocity.x, velocity.y, velocity.z) * dt);
-    cam.move(Vector<World>(lightVelocity.x, lightVelocity.y, lightVelocity.z) * dt);
-    cam.rotate(0.0f, angle * dt);
+    m_camera.move(Vector<View>(velocity.x, velocity.y, velocity.z) * dt);
+    m_camera.move(Vector<World>(lightVelocity.x, lightVelocity.y, lightVelocity.z) * dt);
+    m_camera.rotate(0.0f, angle * dt);
 
     return running;
 }
@@ -70,3 +75,9 @@ bool Game::update(float dt)
 void Game::render(IRenderer* r)
 {
 }
+
+const Camera& Game::getCamera() const
+{
+    return m_camera;
+}
+

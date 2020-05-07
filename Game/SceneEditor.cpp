@@ -4,26 +4,86 @@
 #include "Scene.h"
 #include "imgui.h"
 #include "DebugDraw.h"
+#include "InputMap.h"
 
-SceneEditor::SceneEditor(Scene& scene) :
-    m_scene(scene)
+SceneEditor::SceneEditor(Scene& scene, InputMap& inputs) :
+    GameBase(inputs), m_scene(scene)
 {
+    auto doBind = [this](SDL_Keycode k, float& target, float value) {
+        m_inputs.key(k)
+            .down([&target,  value] { target = value; })
+            .up([&target] { target = 0.0f; });
+    };
+
+    doBind(SDLK_q, angle, -turnSpeed);
+    doBind(SDLK_e, angle, turnSpeed);
+
+    doBind(SDLK_d, velocity.x, moveSpeed);
+    doBind(SDLK_a, velocity.x, -moveSpeed);
+    doBind(SDLK_w, velocity.z, moveSpeed);
+    doBind(SDLK_s, velocity.z, -moveSpeed);
+
+    doBind(SDLK_r, velocity.y, moveSpeed);
+    doBind(SDLK_f, velocity.y, -moveSpeed);
+
+    m_inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
+        if ((event.state & SDL_BUTTON_RMASK) || (moveCamera)) {
+            auto x = static_cast<float>(event.xrel) / 450.0f;
+            auto y = static_cast<float>(event.yrel) / 450.0f;
+            m_camera.rotate(y, x);
+        }
+    });
 }
 
-void SceneEditor::update(float dt)
+bool SceneEditor::update(float dt)
 {
     d.clear();
-    sceneWindow();
-    objectPropertiesWindow();
+
+    moveCamera = (SDL_GetModState() & KMOD_LCTRL) != 0;
+
+    drawGrid();
+
+    XMFLOAT3 v(velocity.x * dt, velocity.y * dt, velocity.z * dt);
+    float changed = (v.x != 0.0f) || (v.y != 0.0f) || (v.z != 0.0f) || (angle != 0.0f);
+    float a = angle * dt;
 
     if (m_currentObjectIdx >= 0 && m_currentObjectIdx < static_cast<int>(m_scene.objects.size())) {
-        const auto& obj = m_scene.objects[m_currentObjectIdx];
+        auto& obj = m_scene.objects[m_currentObjectIdx];
+        if (!moveCamera && changed) {
+            /*
+            obj.transform.move(v.x, v.y, v.z);
+            obj.transform.rotate(0.0f, angle * dt, 0.0f);
+            */
+            obj.position.x += v.x;
+            obj.position.y += v.y;
+            obj.position.z += v.z;
+            obj.rotation.y += a;
+            obj.update();
+        }
         d.drawBounds(obj.bounds.min, obj.bounds.max, obj.transform);
     }
+
+    if (moveCamera) {
+        m_camera.move(v.x, v.y, v.z);
+        m_camera.rotate(0.0f, a);
+    }
+
+    sceneWindow();
+    objectPropertiesWindow();
+    
+    return true;
 }
 
 void SceneEditor::render(IRenderer* r)
 {
+    if (!d.verts.empty()) {
+        r->debugDraw(m_camera, d.verts);
+    }
+}
+
+const Camera& SceneEditor::getCamera() const
+{
+    return m_camera;
 }
 
 void SceneEditor::objectList()
@@ -121,4 +181,50 @@ void SceneEditor::sceneWindow()
     }
 
     ImGui::End();
+}
+
+void SceneEditor::drawGrid()
+{
+    const XMFLOAT4 gridAxisColor(0.8f, 0.8f, 0.8f, 1.0f);
+    const XMFLOAT4 gridColor(0.3f, 0.3f, 0.3f, 1.0f);
+
+    d.drawLine({ -100.0f, 0.0f, 0.0f, 1.0f }, { 100.0f, 0.0f, 0.0f, 1.0f }, gridAxisColor);
+    d.drawLine({ 0.0f, 0.0f, -100.0f, 1.0f }, { 0.0f, 0.0f, 100.0f, 1.0f }, gridAxisColor);
+
+    for (auto i = 1; i <= 20; i++) {
+        d.drawLine({ float(i) * 5.0f, 0.0f, 100.0f, 1.0f }, { float(i) * 5.0f, 0.0f, -100.0f, 1.0f }, gridColor);
+        d.drawLine({ float(i) * -5.0f, 0.0f, 100.0f, 1.0f }, { float(i) * -5.0f, 0.0f, -100.0f, 1.0f }, gridColor);
+        d.drawLine({ 100.0f, 0.0f, float(i) * 5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * 5.0f, 1.0f }, gridColor);
+        d.drawLine({ 100.0f, 0.0f, float(i) * -5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * -5.0f, 1.0f }, gridColor);
+        /*
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
+
+        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+        */
+    }
+
+    /*
+    debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
+    debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
+    debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, -100.0f }, .Color = gridAxisColor });
+    debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, 100.0f }, .Color = gridAxisColor });
+
+    for (auto i = 1; i < 20; i++) {
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
+
+        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
+    }
+    */
 }

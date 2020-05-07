@@ -1,12 +1,12 @@
 #include "pch.h"
 #include "InputMap.h"
 
-void InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
+bool InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
 {
     auto it = m_keys.find(keyEvent.keysym.sym); 
 
     if (it == m_keys.cend()) {
-        return;
+        return false;
     }
 
     if (keyEvent.type == SDL_KEYDOWN) {
@@ -14,13 +14,18 @@ void InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
     } else if (keyEvent.type == SDL_KEYUP) {
         it->second.handleUp();
     }
+
+    return true;
 }
 
-void InputMap::handleEvent(const SDL_MouseMotionEvent& event) const
+bool InputMap::handleEvent(const SDL_MouseMotionEvent& event) const
 {
     if (m_mouseMotionHandler) {
         m_mouseMotionHandler(event);
+        return true;
     }
+
+    return false;
 }
 
 KeyHandler& InputMap::key(SDL_Keycode key)
