@@ -17,9 +17,8 @@ void SceneEditor::update(float dt)
     objectPropertiesWindow();
 
     if (m_currentObjectIdx >= 0 && m_currentObjectIdx < static_cast<int>(m_scene.objects.size())) {
-        d.drawBounds({ -1.0f, -1.0f, -1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f },
-            m_scene.objects[m_currentObjectIdx].transform);
-        d.drawAABB({ -10.0f, -10.0f, -10.0f, 1.0f }, { 10.0f, 10.0f, 10.0f, 1.0f });
+        const auto& obj = m_scene.objects[m_currentObjectIdx];
+        d.drawBounds(obj.bounds.min, obj.bounds.max, obj.transform);
     }
 }
 

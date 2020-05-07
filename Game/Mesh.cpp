@@ -13,6 +13,7 @@ Mesh::Mesh(const std::filesystem::path& path)
 {
     constexpr auto flags =
         aiProcess_CalcTangentSpace
+        | aiProcess_GenBoundingBoxes
         | aiProcess_Triangulate
         | aiProcess_ConvertToLeftHanded
         | aiProcess_SortByPType
@@ -59,6 +60,14 @@ Mesh::Mesh(const std::filesystem::path& path)
         }
 
         baseIdx = static_cast<u16>(m_indices.size());
+    }
+
+    {
+        const auto& min = scene->mMeshes[0]->mAABB.mMin;
+        const auto& max = scene->mMeshes[0]->mAABB.mMax;
+
+        m_bounds.min = Vector<Model>(min.x, min.y, min.z, 1.0f);
+        m_bounds.max = Vector<Model>(max.x, max.y, max.z, 1.0f);
     }
 
     if (const auto& meshName = scene->mMeshes[0]->mName; meshName.length > 0) {

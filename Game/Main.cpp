@@ -22,7 +22,7 @@
 #include <DirectXMath.h>
 #include <chrono>
 
-extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 0;
+extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
 template<typename... TArgs>
 void reportError(const char* message, TArgs&&... args)
@@ -47,7 +47,7 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
             auto b = a.byteSize();
 
             auto renderable = r->createRenderable(mesh.getVertices(), mesh.getIndices());
-            models.emplace_back(mesh.getName(), renderable);
+            models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
             renderables.emplace(mesh.getName(), renderable);
         }
     }
@@ -60,7 +60,8 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_SHOWN);
+    //auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_SHOWN);
+    auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080, SDL_WINDOW_SHOWN);
     if (!window) {
         reportError("SDL_CreateWindow returned nullptr");
         SDL_Quit();
@@ -73,6 +74,7 @@ int main(int argc, char* argv[])
 
         std::vector<RModel> models;
         std::unordered_map<std::string, Renderable*> renderables;
+        std::unordered_map<std::string, Bounds> bounds;
 
         Scene scene;
 
@@ -84,6 +86,11 @@ int main(int argc, char* argv[])
         ImGui_ImplDX11_Init(r->getDevice(), r->getDeviceContext());
 
         loadAssets(r.get(), models, renderables);
+        {
+            for (const auto& model : models) {
+                bounds[model.name] = model.bounds;
+            }
+        }
 
         InputMap inputs;
 
@@ -95,6 +102,7 @@ int main(int argc, char* argv[])
 
             for (auto& o : scene.objects) {
                 o.renderable = renderables[o.modelName];
+                o.bounds = bounds[o.modelName];
             }
 
             r->setDirectionalLight(scene.directionalLight);

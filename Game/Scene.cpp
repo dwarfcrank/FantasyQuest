@@ -52,7 +52,7 @@ namespace nlohmann
 }
 
  Object::Object(const RModel& model, const Transform& t) :
-    renderable(model.renderable), transform(t), modelName(model.name)
+    renderable(model.renderable), transform(t), modelName(model.name), bounds(model.bounds)
 {
     name = fmt::format("{}:{}", model.name, model.count);
     XMStoreFloat3(&position, t.Position);

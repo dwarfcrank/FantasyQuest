@@ -12,11 +12,12 @@ class Renderable;
 
 struct RModel
 {
-    RModel(std::string name, Renderable* renderable) :
-        name{ std::move(name) }, renderable(renderable)
+    RModel(std::string name, Renderable* renderable, const Bounds& bounds) :
+        name{ std::move(name) }, renderable(renderable), bounds(bounds)
     {
     }
 
+    Bounds bounds;
     std::string name;
     Renderable* renderable;
     int count = 0;
@@ -31,6 +32,7 @@ struct Object
 
     Renderable* renderable = nullptr;
 
+    Bounds bounds;
     std::string name;
     std::string modelName;
     Transform transform;

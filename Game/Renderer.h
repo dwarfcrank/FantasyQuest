@@ -22,6 +22,12 @@ using namespace DirectX;
 
 class Camera;
 
+struct Bounds
+{
+    Vector<Model> min;
+    Vector<Model> max;
+};
+
 struct Vertex
 {
     XMFLOAT3 Position;
