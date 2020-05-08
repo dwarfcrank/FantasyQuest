@@ -24,6 +24,11 @@ public:
 
     auto bufferGet() { return buffer.Get(); }
 
+    void setName(std::string_view name)
+    {
+        setObjectName(buffer, name);
+    }
+
 private:
     ComPtr<ID3D11Buffer> buffer;
 };
@@ -79,6 +84,11 @@ public:
 
         CD3D11_BOX box(0, 0, 0, byteSize, 1, 1);
         context->UpdateSubresource(m_buffer.Get(), 0, &box, contents.data, 0, 0);
+    }
+
+    void setName(std::string_view name)
+    {
+        setObjectName(m_buffer, name);
     }
 
 private:

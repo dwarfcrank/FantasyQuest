@@ -4,6 +4,8 @@
 #include "RenderTarget.h"
 #include "RendererHelpers.h"
 
+#include <fmt/format.h>
+
 void RenderTarget::init(const Microsoft::WRL::ComPtr<ID3D11Device1>& device,
     u32 width, u32 height, u32 flags, 
     DXGI_FORMAT colorFormat, DXGI_FORMAT depthTextureFormat, DXGI_FORMAT depthFormat, DXGI_FORMAT depthSRVFormat)
@@ -31,6 +33,24 @@ void RenderTarget::init(const Microsoft::WRL::ComPtr<ID3D11Device1>& device,
 
         if (flags & RT_DepthSRV) {
             m_depthSRV = createShaderResourceView(device, m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, depthSRVFormat);
+        }
+    }
+}
+
+void RenderTarget::setName(std::string_view name)
+{
+    if (m_framebuffer) {
+        setObjectName(m_framebuffer, fmt::format("{}_fb_tex", name));
+        setObjectName(m_framebufferRTV, fmt::format("{}_fb_rtv", name));
+        setObjectName(m_framebufferSRV, fmt::format("{}_fb_srv", name));
+    }
+
+    if (m_depthTexture) {
+        setObjectName(m_depthTexture, fmt::format("{}_d_tex", name));
+        setObjectName(m_dsv, fmt::format("{}_d_dsv", name));
+
+        if (m_depthSRV) {
+            setObjectName(m_depthSRV, fmt::format("{}_d_srv", name));
         }
     }
 }

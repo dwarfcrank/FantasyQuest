@@ -5,6 +5,7 @@
 
 #include <wrl.h>
 #include <d3d11_1.h>
+#include <string_view>
 
 template<typename... Args>
 inline auto createTexture2D(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
@@ -111,4 +112,18 @@ inline auto createUnorderedAccessView(const Microsoft::WRL::ComPtr<ID3D11Device>
     }
 
     return uav;
+}
+
+inline void setObjectName(ID3D11DeviceChild* resource, std::string_view name)
+{
+    if constexpr (IsDebug) {
+        resource->SetPrivateData(WKPDID_D3DDebugObjectName, UINT(name.length()), name.data());
+    }
+}
+
+inline void setObjectName(const Microsoft::WRL::ComPtr<ID3D11DeviceChild>& resource, std::string_view name)
+{
+    if constexpr (IsDebug) {
+        resource->SetPrivateData(WKPDID_D3DDebugObjectName, UINT(name.length()), name.data());
+    }
 }

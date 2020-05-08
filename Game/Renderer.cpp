@@ -23,6 +23,9 @@
 #include <stdexcept>
 #include <array>
 #include <dxgi.h>
+#include <string_view>
+
+#define SET_OBJECT_NAME(obj) setObjectName(obj, #obj)
 
 class Renderable
 {
@@ -37,7 +40,7 @@ class Renderer : public IRenderer
 public:
     Renderer(SDL_Window* window);
 
-    virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
+    virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
 
     virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
@@ -60,9 +63,9 @@ public:
 private:
     void loadShaders();
 
-    ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
-    ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
-    ComPtr<ID3D11ComputeShader> loadComputeShader(const char* path);
+    ComPtr<ID3D11VertexShader> loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback = nullptr);
+    ComPtr<ID3D11PixelShader> loadPixelShader(const std::filesystem::path& path);
+    ComPtr<ID3D11ComputeShader> loadComputeShader(const std::filesystem::path& path);
 
     ComPtr<ID3D11Device1> m_device;
     ComPtr<ID3D11DeviceContext1> m_context;
@@ -175,12 +178,18 @@ Renderer::Renderer(SDL_Window* window)
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 
     m_backbufferRTV = createRenderTargetView(m_device, backbuffer.Get());
+    SET_OBJECT_NAME(m_backbufferRTV);
+
     m_backbufferUAV = createUnorderedAccessView(m_device, backbuffer.Get());
+    SET_OBJECT_NAME(m_backbufferUAV);
 
     loadShaders();
 
     m_cameraConstantBuffer.init(m_device);
     m_shadowCameraConstantBuffer.init(m_device);
+
+    m_cameraConstantBuffer.setName("CameraConstants");
+    m_shadowCameraConstantBuffer.setName("ShadowCameraConstants");
 
     {
         auto dirV = XMVector3Normalize(XMVectorSet(1.0f, -1.0f, 0.0f, 0.0f));
@@ -189,18 +198,22 @@ Renderer::Renderer(SDL_Window* window)
         m_psConstants.data.NumPointLights = 0;
 
         m_psConstants.init(m_device);
+        m_psConstants.setName("PSConstants");
     }
 
     {
         m_shadowRT.init(m_device, m_shadowWidth, m_shadowHeight, RT_Depth | RT_DepthSRV, DXGI_FORMAT_UNKNOWN,
             DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
+        m_shadowRT.setName("shadowRT");
 
         m_shadowSampler = createSamplerState(m_device, D3D11_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_LESS, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+        SET_OBJECT_NAME(m_shadowSampler);
 
         m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
+        SET_OBJECT_NAME(m_shadowRasterizerState);
     }
 
     {
@@ -210,6 +223,8 @@ Renderer::Renderer(SDL_Window* window)
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
 
+        SET_OBJECT_NAME(m_depthStencilState);
+
         m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
     }
 
@@ -218,22 +233,33 @@ Renderer::Renderer(SDL_Window* window)
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
 
+        SET_OBJECT_NAME(m_framebufferSampler);
+
         m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, DXGI_FORMAT_R8G8B8A8_UNORM,
             DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
+
+        m_mainRT.setName("mainRT");
     }
 
     {
         m_batchInstanceBuffer.init(m_device, 128);
+        m_batchInstanceBuffer.setName("batchInstanceBuffer");
     }
 }
 
-Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices)
+Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices)
 {
     auto renderable = std::make_unique<Renderable>();
+
+    const void* p = renderable.get();
     
     renderable->m_vertexBuffer.init(m_device, vertices);
     renderable->m_indexBuffer.init(m_device, indices);
     renderable->m_constantBuffer.init(m_device);
+
+    renderable->m_vertexBuffer.setName(fmt::format("{}_vb", name));
+    renderable->m_indexBuffer.setName(fmt::format("{}_ib", name));
+    renderable->m_constantBuffer.setName(fmt::format("{}_cb", name));
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -504,6 +530,7 @@ void Renderer::loadShaders()
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode.data(), bytecode.size(), &m_batchInputLayout);
+            setObjectName(m_batchInputLayout, "DefaultBatchInputLayout");
         });
 
     m_ps = loadPixelShader("shaders/PixelShader.ps.cso");
@@ -517,6 +544,7 @@ void Renderer::loadShaders()
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode.data(), bytecode.size(), &m_inputLayout);
+            setObjectName(m_inputLayout, "DefaultInputLayout");
         });
 
     m_shadowVS = loadVertexShader("shaders/Shadow.vs.cso");
@@ -531,17 +559,21 @@ void Renderer::loadShaders()
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode.data(), bytecode.size(), &m_debugInputLayout);
+            setObjectName(m_debugInputLayout, "DebugDrawInputLayout");
         });
 
     m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
 }
 
-ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback)
+ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback)
 {
     auto bytecode = loadFile(path);
 
     ComPtr<ID3D11VertexShader> shader;
     Hresult hr = m_device->CreateVertexShader(bytecode.data(), bytecode.size(), nullptr, &shader);
+
+    auto filename = path.filename().replace_extension().generic_string();
+    setObjectName(shader, filename);
 
     if (callback) {
         callback(bytecode);
@@ -550,22 +582,28 @@ ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::fun
     return shader;
 }
 
-ComPtr<ID3D11PixelShader> Renderer::loadPixelShader(const char* path)
+ComPtr<ID3D11PixelShader> Renderer::loadPixelShader(const std::filesystem::path& path)
 {
     auto bytecode = loadFile(path);
 
     ComPtr<ID3D11PixelShader> shader;
     Hresult hr = m_device->CreatePixelShader(bytecode.data(), bytecode.size(), nullptr, &shader);
 
+    auto filename = path.filename().replace_extension().generic_string();
+    setObjectName(shader, filename);
+
     return shader;
 }
 
-ComPtr<ID3D11ComputeShader> Renderer::loadComputeShader(const char* path)
+ComPtr<ID3D11ComputeShader> Renderer::loadComputeShader(const std::filesystem::path& path)
 {
     auto bytecode = loadFile(path);
 
     ComPtr<ID3D11ComputeShader> shader;
     Hresult hr = m_device->CreateComputeShader(bytecode.data(), bytecode.size(), nullptr, &shader);
+
+    auto filename = path.filename().replace_extension().generic_string();
+    setObjectName(shader, filename);
 
     return shader;
 }

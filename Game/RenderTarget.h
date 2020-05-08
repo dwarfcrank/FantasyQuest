@@ -4,6 +4,7 @@
 
 #include <d3d11_1.h>
 #include <wrl.h>
+#include <string_view>
 
 enum RenderTargetFlags : u32
 {
@@ -32,5 +33,7 @@ public:
         DXGI_FORMAT depthTextureFormat = DXGI_FORMAT_UNKNOWN,
         DXGI_FORMAT depthFormat = DXGI_FORMAT_UNKNOWN,
         DXGI_FORMAT depthSRVFormat = DXGI_FORMAT_UNKNOWN);
+
+    void setName(std::string_view);
 };
 

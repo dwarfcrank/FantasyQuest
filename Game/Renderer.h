@@ -17,6 +17,7 @@
 #include <memory>
 #include <tuple>
 #include <functional>
+#include <string_view>
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -59,7 +60,7 @@ public:
 
     virtual void postProcess() = 0;
 
-    virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
+    virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 
     virtual void initImgui() = 0;
 };

@@ -46,7 +46,7 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
             auto a = ArrayView(mesh.getVertices());
             auto b = a.byteSize();
 
-            auto renderable = r->createRenderable(mesh.getVertices(), mesh.getIndices());
+            auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
             models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
             renderables.emplace(mesh.getName(), renderable);
         }
