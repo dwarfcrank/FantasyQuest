@@ -96,3 +96,19 @@ auto createRasterizerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device,
     Hresult hr = m_device->CreateRasterizerState(&desc, &rs);
     return rs;
 }
+
+template<typename... Args>
+auto createUnorderedAccessView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
+{
+    Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> uav;
+    Hresult hr;
+
+    if constexpr (sizeof...(args) > 0) {
+        CD3D11_UNORDERED_ACCESS_VIEW_DESC desc(args...);
+        hr = m_device->CreateUnorderedAccessView(resource, &desc, &uav);
+    } else {
+        hr = m_device->CreateUnorderedAccessView(resource, nullptr, &uav);
+    }
+
+    return uav;
+}

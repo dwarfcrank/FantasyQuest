@@ -103,7 +103,7 @@ public:
     virtual void beginFrame() override;
     virtual void endFrame() override;
 
-    virtual void fullScreenPass() override;
+    virtual void postProcess() override;
 
     virtual void beginShadowPass() override;
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
@@ -116,6 +116,7 @@ private:
 
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
     ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
+    ComPtr<ID3D11ComputeShader> loadComputeShader(const char* path);
 
     ComPtr<ID3D11Device1> m_device;
     ComPtr<ID3D11DeviceContext1> m_context;
@@ -135,6 +136,9 @@ private:
 
     ComPtr<ID3D11VertexShader> m_fsvs;
     ComPtr<ID3D11PixelShader> m_fsps;
+
+    ComPtr<ID3D11ComputeShader> m_fscs;
+    ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
     ComPtr<ID3D11InputLayout> m_debugInputLayout;
     ComPtr<ID3D11VertexShader> m_debugVS;
@@ -215,7 +219,7 @@ Renderer::Renderer(SDL_Window* window)
     sd.SampleDesc.Count = 1;
     sd.SampleDesc.Quality = 0;
     sd.BufferCount = 1;
-    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_UNORDERED_ACCESS;
 
     auto hwnd = getWindowHandle(window);
     hr = dxgiFactory->CreateSwapChainForHwnd(m_device.Get(), hwnd, &sd, nullptr, nullptr, &m_swapChain);
@@ -224,6 +228,7 @@ Renderer::Renderer(SDL_Window* window)
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
 
     m_backbufferRTV = createRenderTargetView(m_device, backbuffer.Get());
+    m_backbufferUAV = createUnorderedAccessView(m_device, backbuffer.Get());
 
     loadShaders();
 
@@ -398,8 +403,9 @@ void Renderer::endFrame()
     m_swapChain->Present(0, 0);
 }
 
-void Renderer::fullScreenPass()
+void Renderer::postProcess()
 {
+    /*
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
@@ -418,6 +424,29 @@ void Renderer::fullScreenPass()
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
     m_context->Draw(4, 0);
+    */
+
+    m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
+
+    std::array resources{ m_mainRT.m_framebufferSRV.Get() };
+    std::array uavs{ m_backbufferUAV.Get() };
+
+    m_context->OMSetRenderTargets(0, nullptr, nullptr);
+    m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+    m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+
+    auto x = UINT(std::ceil(float(m_width) / float(TILE_SIZE)));
+    auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
+    m_context->Dispatch(x, y, 1);
+
+    std::memset(resources.data(), 0, sizeof(resources));
+    std::memset(uavs.data(), 0, sizeof(uavs));
+
+    m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+    m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+
+    auto rtv = m_backbufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, nullptr);
 }
 
 void Renderer::beginShadowPass()
@@ -515,6 +544,8 @@ void Renderer::loadShaders()
 
     m_fsvs = loadVertexShader("shaders/FullScreenPass.vs.cso");
     m_fsps = loadPixelShader("shaders/FullScreenPass.ps.cso");
+
+    m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
 }
 
 ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback)
@@ -537,6 +568,16 @@ ComPtr<ID3D11PixelShader> Renderer::loadPixelShader(const char* path)
 
     ComPtr<ID3D11PixelShader> shader;
     Hresult hr = m_device->CreatePixelShader(bytecode.data(), bytecode.size(), nullptr, &shader);
+
+    return shader;
+}
+
+ComPtr<ID3D11ComputeShader> Renderer::loadComputeShader(const char* path)
+{
+    auto bytecode = loadFile(path);
+
+    ComPtr<ID3D11ComputeShader> shader;
+    Hresult hr = m_device->CreateComputeShader(bytecode.data(), bytecode.size(), nullptr, &shader);
 
     return shader;
 }

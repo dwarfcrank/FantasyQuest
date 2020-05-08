@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
-                r->fullScreenPass();
+                r->postProcess();
 
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);

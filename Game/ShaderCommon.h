@@ -15,10 +15,13 @@ using uint = UINT;
 #define CB_STRUCT		struct alignas(16)
 #define SEMANTIC(s)
 
+#define CONSTANT        constexpr
+
 #else
 
 #define CB_STRUCT		struct
 #define SEMANTIC(s)		: s
+#define CONSTANT        static const
 
 #endif
 
@@ -54,5 +57,7 @@ struct PointLight
     float4 Position; // .w = linear attenuation
     float4 Color; // .w = quadratic attenuation
 };
+
+CONSTANT uint TILE_SIZE = 32;
 
 #endif
