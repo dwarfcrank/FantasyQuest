@@ -80,6 +80,10 @@ private:
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
 
+    ComPtr<ID3D11InputLayout> m_batchInputLayout;
+    ComPtr<ID3D11VertexShader> m_batchVS;
+    VertexBuffer<RenderableConstants> m_batchInstanceBuffer;
+
     ComPtr<ID3D11ComputeShader> m_fscs;
     ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
@@ -217,6 +221,10 @@ Renderer::Renderer(SDL_Window* window)
         m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, DXGI_FORMAT_R8G8B8A8_UNORM,
             DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
     }
+
+    {
+        m_batchInstanceBuffer.init(m_device, 128);
+    }
 }
 
 Renderable* Renderer::createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices)
@@ -296,28 +304,30 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
 void Renderer::draw(const RenderBatch& batch, const Camera& camera)
 {
+    m_batchInstanceBuffer.update(m_context, batch.instances);
+
     {
         m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
         m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
         m_cameraConstantBuffer.update(m_context);
     }
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(), batch.renderable->m_constantBuffer.bufferGet(),
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(),
         m_shadowCameraConstantBuffer.bufferGet() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.bufferGet(), m_psConstants.bufferGet() };
     std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get() };
 
-    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer() };
-    std::array strides{ UINT(sizeof(Vertex)) };
-    std::array offsets{ UINT(0) };
+    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
+    std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
+    std::array offsets{ UINT(0), UINT(0) };
 
     m_context->IASetVertexBuffers(0, UINT(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
     m_context->IASetIndexBuffer(batch.renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
     m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_inputLayout.Get());
+    m_context->IASetInputLayout(m_batchInputLayout.Get());
 
-    m_context->VSSetShader(m_vs.Get(), nullptr, 0);
+    m_context->VSSetShader(m_batchVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
 
     m_context->PSSetShader(m_ps.Get(), nullptr, 0);
@@ -325,11 +335,7 @@ void Renderer::draw(const RenderBatch& batch, const Camera& camera)
     m_context->PSSetShaderResources(0, UINT(psResources.size()), psResources.data());
     m_context->PSSetSamplers(0, UINT(psSamplers.size()), psSamplers.data());
 
-    for (const auto& instance : batch.instances) {
-        batch.renderable->m_constantBuffer.data = instance;
-        batch.renderable->m_constantBuffer.update(m_context);
-        m_context->DrawIndexed(batch.renderable->m_indexBuffer.getSize(), 0, 0);
-    }
+    m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
 }
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
@@ -475,6 +481,31 @@ void Renderer::initImgui()
 
 void Renderer::loadShaders()
 {
+    m_batchVS = loadVertexShader("shaders/BatchVertexShader.vs.cso",
+        [this](const std::vector<u8>& bytecode) {
+            std::array layout{
+                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 16, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 32, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 48, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD_IT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 64, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD_IT", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 80, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD_IT", 2, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 96, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "WORLD_IT", 3, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 112, D3D11_INPUT_PER_INSTANCE_DATA, 0 },
+            };
+
+            for (size_t i = 3; i < layout.size(); i++) {
+                layout[i].InstanceDataStepRate = 1;
+            }
+
+            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
+                bytecode.data(), bytecode.size(), &m_batchInputLayout);
+        });
+
     m_ps = loadPixelShader("shaders/PixelShader.ps.cso");
     m_vs = loadVertexShader("shaders/VertexShader.vs.cso",
         [this](const std::vector<u8>& bytecode) {

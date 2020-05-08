@@ -78,7 +78,7 @@ public:
         auto byteSize = static_cast<LONG>(m_size * sizeof(ElementType));
 
         CD3D11_BOX box(0, 0, 0, byteSize, 1, 1);
-        context->UpdateSubresource(m_buffer.Get(), 0, nullptr, contents.data, 0, 0);
+        context->UpdateSubresource(m_buffer.Get(), 0, &box, contents.data, 0, 0);
     }
 
 private:

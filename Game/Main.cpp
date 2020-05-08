@@ -216,14 +216,11 @@ int main(int argc, char* argv[])
             {
                 r->clear(0.1f, 0.2f, 0.3f);
 
-                /*
-                for (const auto& o : scene.objects) {
-                    r->draw(o.renderable, g->getCamera(), o.transform);
-                }
-                */
                 updateBatches();
                 for (const auto& [_, batch] : batches) {
-                    r->draw(batch, g->getCamera());
+                    if (!batch.instances.empty()) {
+                        r->draw(batch, g->getCamera());
+                    }
                 }
 
                 g->render(r.get());
