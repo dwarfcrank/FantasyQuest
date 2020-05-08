@@ -31,6 +31,16 @@ struct ArrayView
     {
         return size * sizeof(T);
     }
+
+    constexpr const T* begin() const
+    {
+        return data;
+    }
+
+    constexpr const T* end() const
+    {
+        return data + size;
+    }
 };
 
 template<typename T>

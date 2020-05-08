@@ -9,6 +9,28 @@
 
 static Assimp::Importer g_importer;
 
+template<typename T1, typename T2>
+static T1 min3(const T1& a, const T2& b)
+{
+    T1 r;
+    r.x = std::min(a.x, b.x);
+    r.y = std::min(a.y, b.y);
+    r.z = std::min(a.z, b.z);
+
+    return r;
+}
+
+template<typename T1, typename T2>
+static T1 max3(const T1& a, const T2& b)
+{
+    T1 r;
+    r.x = std::max(a.x, b.x);
+    r.y = std::max(a.y, b.y);
+    r.z = std::max(a.z, b.z);
+
+    return r;
+}
+
 Mesh::Mesh(const std::filesystem::path& path)
 {
     constexpr auto flags =
@@ -29,9 +51,8 @@ Mesh::Mesh(const std::filesystem::path& path)
 
     std::vector<aiColor3D> materialColors(scene->mNumMaterials);
 
-    for (auto matIdx = 0; matIdx < scene->mNumMaterials; matIdx++) {
-        const auto* material = scene->mMaterials[matIdx];
-        material->Get(AI_MATKEY_COLOR_DIFFUSE, materialColors[matIdx]);
+    for (u32 i = 0; i < scene->mNumMaterials; i++) {
+        scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, materialColors[i]);
     }
 
     auto aabbMin = scene->mMeshes[0]->mAABB.mMin;
@@ -39,17 +60,12 @@ Mesh::Mesh(const std::filesystem::path& path)
 
     // TODO: probably shouldn't just merge different meshes into one...
     u16 baseIdx = 0;
-    for (auto meshIdx = 0; meshIdx < scene->mNumMeshes; meshIdx++) {
-        const auto* mesh = scene->mMeshes[meshIdx];
 
-        aabbMin.x = std::min(aabbMin.x, mesh->mAABB.mMin.x);
-        aabbMin.y = std::min(aabbMin.y, mesh->mAABB.mMin.y);
-        aabbMin.z = std::min(aabbMin.z, mesh->mAABB.mMin.z);
-        aabbMax.x = std::max(aabbMax.x, mesh->mAABB.mMax.x);
-        aabbMax.y = std::max(aabbMax.y, mesh->mAABB.mMax.y);
-        aabbMax.z = std::max(aabbMax.z, mesh->mAABB.mMax.z);
+    for (ArrayView meshes(scene->mMeshes, scene->mNumMeshes); const auto* mesh : meshes) {
+        aabbMin = min3(aabbMin, mesh->mAABB.mMin);
+        aabbMax = max3(aabbMax, mesh->mAABB.mMax);
 
-        for (auto i = 0; i < mesh->mNumVertices; i++) {
+        for (u32 i = 0; i < mesh->mNumVertices; i++) {
             const auto& v = mesh->mVertices[i];
             const auto& n = mesh->mNormals[i];
             const auto& color = materialColors[mesh->mMaterialIndex];
@@ -61,11 +77,9 @@ Mesh::Mesh(const std::filesystem::path& path)
             });
         }
 
-        for (auto faceIdx = 0; faceIdx < mesh->mNumFaces; faceIdx++) {
-            const auto& f = mesh->mFaces[faceIdx];
-
-            for (auto i = 0; i < f.mNumIndices; i++) {
-                m_indices.push_back(baseIdx + static_cast<u16>(f.mIndices[i]));
+        for (ArrayView faces(mesh->mFaces, mesh->mNumFaces); const auto& f : faces) {
+            for (ArrayView indices(f.mIndices, f.mNumIndices); auto i : indices) {
+                m_indices.push_back(baseIdx + static_cast<u16>(i));
             }
         }
 
