@@ -42,6 +42,7 @@ public:
     virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
+    virtual void draw(const RenderBatch& batch, const Camera&) override;
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) override;
     virtual void clear(float r, float g, float b) override;
 
@@ -291,6 +292,44 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
     m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
 
     m_context->DrawIndexed(renderable->m_indexBuffer.getSize(), 0, 0);
+}
+
+void Renderer::draw(const RenderBatch& batch, const Camera& camera)
+{
+    {
+        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.update(m_context);
+    }
+
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.bufferGet(), batch.renderable->m_constantBuffer.bufferGet(),
+        m_shadowCameraConstantBuffer.bufferGet() };
+    std::array psConstantBuffers{ m_cameraConstantBuffer.bufferGet(), m_psConstants.bufferGet() };
+    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
+    std::array psSamplers{ m_shadowSampler.Get() };
+
+    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer() };
+    std::array strides{ UINT(sizeof(Vertex)) };
+    std::array offsets{ UINT(0) };
+
+    m_context->IASetVertexBuffers(0, UINT(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
+    m_context->IASetIndexBuffer(batch.renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
+    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    m_context->IASetInputLayout(m_inputLayout.Get());
+
+    m_context->VSSetShader(m_vs.Get(), nullptr, 0);
+    m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
+
+    m_context->PSSetShader(m_ps.Get(), nullptr, 0);
+    m_context->PSSetConstantBuffers(0, UINT(psConstantBuffers.size()), psConstantBuffers.data());
+    m_context->PSSetShaderResources(0, UINT(psResources.size()), psResources.data());
+    m_context->PSSetSamplers(0, UINT(psSamplers.size()), psSamplers.data());
+
+    for (const auto& instance : batch.instances) {
+        batch.renderable->m_constantBuffer.data = instance;
+        batch.renderable->m_constantBuffer.update(m_context);
+        m_context->DrawIndexed(batch.renderable->m_indexBuffer.getSize(), 0, 0);
+    }
 }
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
