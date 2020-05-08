@@ -7,7 +7,7 @@
 #include <d3d11_1.h>
 
 template<typename... Args>
-auto createTexture2D(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+inline auto createTexture2D(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
 {
     CD3D11_TEXTURE2D_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
@@ -16,7 +16,7 @@ auto createTexture2D(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args.
 }
 
 template<typename... Args>
-auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+inline auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
 {
     CD3D11_BUFFER_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11Buffer> buffer;
@@ -25,7 +25,7 @@ auto createBuffer(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... 
 }
 
 template<typename T, typename... Args>
-auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ArrayView<T> contents, Args... args)
+inline auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ArrayView<T> contents, Args... args)
 {
     CD3D11_BUFFER_DESC desc(contents.byteSize(), args...);
     D3D11_SUBRESOURCE_DATA sd = {};
@@ -37,7 +37,7 @@ auto createBufferWithData(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, 
 }
 
 template<typename... Args>
-auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
+inline auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {
     CD3D11_RENDER_TARGET_VIEW_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> rtv;
@@ -45,7 +45,7 @@ auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device
     return rtv;
 }
 
-auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource)
+inline auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource)
 {
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> rtv;
     Hresult hr = m_device->CreateRenderTargetView(resource, nullptr, &rtv);
@@ -53,7 +53,7 @@ auto createRenderTargetView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device
 }
 
 template<typename... Args>
-auto createShaderResourceView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
+inline auto createShaderResourceView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {
     CD3D11_SHADER_RESOURCE_VIEW_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -62,7 +62,7 @@ auto createShaderResourceView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_devi
 }
 
 template<typename... Args>
-auto createDepthStencilView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
+inline auto createDepthStencilView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {
     CD3D11_DEPTH_STENCIL_VIEW_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> dsv;
@@ -71,7 +71,7 @@ auto createDepthStencilView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device
 }
 
 template<typename... Args>
-auto createDepthStencilState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+inline auto createDepthStencilState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
 {
     CD3D11_DEPTH_STENCIL_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11DepthStencilState> dss;
@@ -80,7 +80,7 @@ auto createDepthStencilState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_devic
 }
 
 template<typename... Args>
-auto createSamplerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+inline auto createSamplerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
 {
     CD3D11_SAMPLER_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11SamplerState> ss;
@@ -89,7 +89,7 @@ auto createSamplerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Ar
 }
 
 template<typename... Args>
-auto createRasterizerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+inline auto createRasterizerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
 {
     CD3D11_RASTERIZER_DESC desc(args...);
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rs;
@@ -98,7 +98,7 @@ auto createRasterizerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device,
 }
 
 template<typename... Args>
-auto createUnorderedAccessView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
+inline auto createUnorderedAccessView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {
     Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> uav;
     Hresult hr;

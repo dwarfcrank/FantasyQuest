@@ -10,6 +10,7 @@
 #include "Buffer.h"
 #include "DebugDraw.h"
 #include "imgui_impl_dx11.h"
+#include "RenderTarget.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -22,62 +23,6 @@
 #include <stdexcept>
 #include <array>
 #include <dxgi.h>
-
-enum RenderTargetFlags : u32
-{
-    RT_Color = (1 << 0),
-    RT_Depth = (1 << 1),
-    RT_DepthSRV = (1 << 2),
-};
-
-class RenderTarget
-{
-public:
-    ComPtr<ID3D11Texture2D> m_framebuffer;
-    ComPtr<ID3D11Texture2D> m_depthTexture;
-
-    ComPtr<ID3D11RenderTargetView> m_framebufferRTV;
-    ComPtr<ID3D11ShaderResourceView> m_framebufferSRV;
-
-    ComPtr<ID3D11DepthStencilView> m_dsv;
-    ComPtr<ID3D11ShaderResourceView> m_depthSRV;
-
-    u32 m_width;
-    u32 m_height;
-
-    void init(const ComPtr<ID3D11Device1>& device, u32 width, u32 height, u32 flags,
-        DXGI_FORMAT colorFormat = DXGI_FORMAT_UNKNOWN,
-        DXGI_FORMAT depthTextureFormat = DXGI_FORMAT_UNKNOWN,
-        DXGI_FORMAT depthFormat = DXGI_FORMAT_UNKNOWN,
-        DXGI_FORMAT depthSRVFormat = DXGI_FORMAT_UNKNOWN)
-    {
-        m_width = width;
-        m_height = height;
-
-        if (flags & RT_Color) {
-            m_framebuffer = createTexture2D(device, colorFormat, m_width, m_height, 1, 1,
-                D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-            m_framebufferRTV = createRenderTargetView(device, m_framebuffer.Get());
-            m_framebufferSRV = createShaderResourceView(device, m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
-                colorFormat);
-        }
-
-        if (flags & RT_Depth) {
-            UINT depthFlags = D3D11_BIND_DEPTH_STENCIL;
-
-            if (flags & RT_DepthSRV) {
-                depthFlags |= D3D11_BIND_SHADER_RESOURCE;
-            }
-
-            m_depthTexture = createTexture2D(device, depthTextureFormat, m_width, m_height, 1, 1, depthFlags);
-            m_dsv = createDepthStencilView(device, m_depthTexture.Get(), D3D11_DSV_DIMENSION_TEXTURE2D, depthFormat);
-
-            if (flags & RT_DepthSRV) {
-                m_depthSRV = createShaderResourceView(device, m_depthTexture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D, depthSRVFormat);
-            }
-        }
-    }
-};
 
 class Renderable
 {
