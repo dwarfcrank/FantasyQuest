@@ -53,12 +53,7 @@ public:
 
     virtual Renderable* createRenderable(ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 
-    ID3D11Device1* getDevice() { return m_device.Get(); }
-    ID3D11DeviceContext1* getDeviceContext() { return m_context.Get(); }
-
-protected:
-    ComPtr<ID3D11Device1> m_device;
-    ComPtr<ID3D11DeviceContext1> m_context;
+    virtual void initImgui() = 0;
 };
 
 std::unique_ptr<IRenderer> createRenderer(SDL_Window*);

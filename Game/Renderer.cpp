@@ -9,6 +9,7 @@
 #include "RendererHelpers.h"
 #include "Buffer.h"
 #include "DebugDraw.h"
+#include "imgui_impl_dx11.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -108,11 +109,16 @@ public:
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
     virtual void endShadowPass() override;
 
+    virtual void initImgui() override;
+
 private:
     void loadShaders();
 
     ComPtr<ID3D11VertexShader> loadVertexShader(const char* path, std::function<void(const std::vector<u8>&)> callback = nullptr);
     ComPtr<ID3D11PixelShader> loadPixelShader(const char* path);
+
+    ComPtr<ID3D11Device1> m_device;
+    ComPtr<ID3D11DeviceContext1> m_context;
 
     UINT m_width = 0;
     UINT m_height = 0;
@@ -471,6 +477,11 @@ void Renderer::endShadowPass()
 {
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
     m_context->RSSetState(nullptr);
+}
+
+void Renderer::initImgui()
+{
+    ImGui_ImplDX11_Init(m_device.Get(), m_context.Get());
 }
 
 void Renderer::loadShaders()

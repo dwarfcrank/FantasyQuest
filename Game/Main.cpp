@@ -69,7 +69,6 @@ int main(int argc, char* argv[])
     }
 
     {
-        //Renderer r(window);
         auto r = createRenderer(window);
 
         std::vector<RModel> models;
@@ -83,7 +82,7 @@ int main(int argc, char* argv[])
         auto& io = ImGui::GetIO();
         ImGui::StyleColorsDark();
         ImGui_ImplSDL2_InitForD3D(window);
-        ImGui_ImplDX11_Init(r->getDevice(), r->getDeviceContext());
+        r->initImgui();
 
         loadAssets(r.get(), models, renderables);
         {
@@ -113,7 +112,7 @@ int main(int argc, char* argv[])
         SceneEditor editor(scene, inputs);
 
         std::array<GameBase*, 2> games{ &game, &editor };
-        size_t gameIdx = 0;
+        size_t gameIdx = 1;
         inputs.key(SDLK_F1).up([&] { gameIdx++; gameIdx %= games.size(); });
 
         GameTime gt;
@@ -156,9 +155,6 @@ int main(int argc, char* argv[])
 
         std::vector<DebugDrawVertex> debugVerts;
 
-
-        DebugDraw d;
-
         while (running) {
             auto g = games[gameIdx];
             float dt = gt.update();
@@ -169,13 +165,6 @@ int main(int argc, char* argv[])
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
-            /*
-            if (!game.update(dt)) {
-                break;
-            }
-
-            editor.update(dt);
-            */
             g->update(dt);
 
             if (showDemo) {
@@ -207,23 +196,11 @@ int main(int argc, char* argv[])
             r->beginFrame();
             {
                 r->clear(0.1f, 0.2f, 0.3f);
-                //game.render(r);
+
                 for (const auto& o : scene.objects) {
                     r->draw(o.renderable, g->getCamera(), o.transform);
                 }
 
-                /*
-                r->debugDraw(g->getCamera(), debugVerts);
-
-                {
-                    //d.clear();
-                    //d.drawAABB(Vector<World>(-10.0f, -10.0f, -10.0f), Vector<World>(10.0f, 10.0f, 10.0f));
-                    if (!editor.d.verts.empty()) {
-                        r->debugDraw(g->getCamera(), editor.d.verts);
-                    }
-                }
-                */
-                //editor.render(r.get());
                 g->render(r.get());
 
                 r->fullScreenPass();
