@@ -134,9 +134,6 @@ private:
     ComPtr<ID3D11VertexShader> m_vs;
     ComPtr<ID3D11PixelShader> m_ps;
 
-    ComPtr<ID3D11VertexShader> m_fsvs;
-    ComPtr<ID3D11PixelShader> m_fsps;
-
     ComPtr<ID3D11ComputeShader> m_fscs;
     ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
@@ -405,27 +402,6 @@ void Renderer::endFrame()
 
 void Renderer::postProcess()
 {
-    /*
-    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
-    m_context->RSSetViewports(1, &vp);
-
-    auto rtv = m_backbufferRTV.Get();
-    m_context->OMSetRenderTargets(1, &rtv, nullptr);
-
-    m_context->IASetVertexBuffers(0, 0, nullptr, nullptr, nullptr);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    m_context->VSSetShader(m_fsvs.Get(), nullptr, 0);
-    m_context->PSSetShader(m_fsps.Get(), nullptr, 0);
-
-    std::array psSamplers{ m_framebufferSampler.Get() };
-    std::array psResources{ m_mainRT.m_framebufferSRV.Get(), m_mainRT.m_depthSRV.Get() };
-
-    m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
-    m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
-
-    m_context->Draw(4, 0);
-    */
-
     m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
 
     std::array resources{ m_mainRT.m_framebufferSRV.Get() };
@@ -541,9 +517,6 @@ void Renderer::loadShaders()
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode.data(), bytecode.size(), &m_debugInputLayout);
         });
-
-    m_fsvs = loadVertexShader("shaders/FullScreenPass.vs.cso");
-    m_fsps = loadPixelShader("shaders/FullScreenPass.ps.cso");
 
     m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
 }
