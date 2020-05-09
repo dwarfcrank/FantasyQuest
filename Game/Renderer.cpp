@@ -25,7 +25,8 @@
 #include <dxgi.h>
 #include <string_view>
 
-#define SET_OBJECT_NAME(obj) setObjectName(obj, #obj)
+// ugh I hate wchar
+#include <stringapiset.h>
 
 class Renderable
 {
@@ -33,6 +34,7 @@ public:
     VertexBuffer<Vertex> m_vertexBuffer;
     IndexBuffer<u16> m_indexBuffer;
     ConstantBuffer<RenderableConstants> m_constantBuffer;
+    std::string m_name;
 };
 
 class Renderer : public IRenderer
@@ -59,6 +61,7 @@ public:
     virtual void endShadowPass() override;
 
     virtual void initImgui() override;
+    virtual void drawImgui() override;
 
 private:
     void loadShaders();
@@ -69,6 +72,7 @@ private:
 
     ComPtr<ID3D11Device1> m_device;
     ComPtr<ID3D11DeviceContext1> m_context;
+    ComPtr<ID3DUserDefinedAnnotation> m_annotation;
 
     UINT m_width = 0;
     UINT m_height = 0;
@@ -151,6 +155,8 @@ Renderer::Renderer(SDL_Window* window)
 
     hr = device->QueryInterface(m_device.GetAddressOf());
     hr = context->QueryInterface(m_context.GetAddressOf());
+    SET_OBJECT_NAME(m_context);
+    hr = context->QueryInterface(m_annotation.GetAddressOf());
 
     ComPtr<IDXGIFactory2> dxgiFactory;
     {
@@ -173,6 +179,10 @@ Renderer::Renderer(SDL_Window* window)
 
     auto hwnd = getWindowHandle(window);
     hr = dxgiFactory->CreateSwapChainForHwnd(m_device.Get(), hwnd, &sd, nullptr, nullptr, &m_swapChain);
+    {
+        std::string_view name("m_swapChain");
+        m_swapChain->SetPrivateData(WKPDID_D3DDebugObjectName, UINT(name.size()), name.data());
+    }
 
     ComPtr<ID3D11Texture2D> backbuffer;
     hr = m_swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(backbuffer.GetAddressOf()));
@@ -260,12 +270,15 @@ Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> 
     renderable->m_vertexBuffer.setName(fmt::format("{}_vb", name));
     renderable->m_indexBuffer.setName(fmt::format("{}_ib", name));
     renderable->m_constantBuffer.setName(fmt::format("{}_cb", name));
+    renderable->m_name = name;
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
 void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color)
 {
+    EVENT_SCOPE_FUNC();
+
     auto dir = XMVector3Normalize(XMLoadFloat3(&pos));
     XMStoreFloat3(&m_psConstants.data.LightDir, dir);
     m_psConstants.data.DirectionalColor = color;
@@ -276,6 +289,8 @@ void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color)
 
 void Renderer::setPointLights(ArrayView<PointLight> lights)
 {
+    EVENT_SCOPE_FUNC();
+
     if (lights.size > m_pointLights.getCapacity()) {
         m_pointLights.init(m_device, lights.size);
         m_pointLightBufferSRV = createShaderResourceView(m_device, m_pointLights.getBuffer(),
@@ -289,6 +304,8 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
 
 void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
+    EVENT_SCOPE("Object {}", renderable->m_name);
+
     {
         m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
         m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
@@ -330,6 +347,8 @@ void Renderer::draw(Renderable* renderable, const Camera& camera, const Transfor
 
 void Renderer::draw(const RenderBatch& batch, const Camera& camera)
 {
+    EVENT_SCOPE("Batch {} x{}", batch.renderable->m_name, batch.instances.size());
+
     m_batchInstanceBuffer.update(m_context, batch.instances);
 
     {
@@ -366,6 +385,8 @@ void Renderer::draw(const RenderBatch& batch, const Camera& camera)
 
 void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
 {
+    EVENT_SCOPE_FUNC();
+
     if (vertices.size > m_debugVertexBuffer.getCapacity()) {
         m_debugVertexBuffer.init(m_device, vertices);
     } else {
@@ -397,6 +418,8 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
 
 void Renderer::clear(float r, float g, float b)
 {
+    EVENT_SCOPE_FUNC();
+
     float color[4] = { r, g, b, 1.0f };
     m_context->ClearRenderTargetView(m_mainRT.m_framebufferRTV.Get(), color);
     m_context->ClearDepthStencilView(m_mainRT.m_dsv.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
@@ -404,6 +427,8 @@ void Renderer::clear(float r, float g, float b)
 
 void Renderer::beginFrame()
 {
+    m_annotation->BeginEvent(L"Main pass");
+
     CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
     m_context->RSSetViewports(1, &vp);
 
@@ -413,11 +438,14 @@ void Renderer::beginFrame()
 
 void Renderer::endFrame()
 {
+    m_annotation->EndEvent();
     m_swapChain->Present(0, 0);
 }
 
 void Renderer::postProcess()
 {
+    EVENT_SCOPE_FUNC();
+
     m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
 
     std::array resources{ m_mainRT.m_framebufferSRV.Get() };
@@ -443,6 +471,8 @@ void Renderer::postProcess()
 
 void Renderer::beginShadowPass()
 {
+    m_annotation->BeginEvent(L"Shadow pass");
+
     // Make sure the shadow stuff isn't bound
     std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> srvs;
     std::memset(srvs.data(), 0, sizeof(srvs));
@@ -460,6 +490,8 @@ void Renderer::beginShadowPass()
 
 void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
 {
+    EVENT_SCOPE_FUNC();
+
     {
         m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
         m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
@@ -498,11 +530,22 @@ void Renderer::endShadowPass()
 {
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
     m_context->RSSetState(nullptr);
+    
+    m_annotation->EndEvent();
 }
 
 void Renderer::initImgui()
 {
     ImGui_ImplDX11_Init(m_device.Get(), m_context.Get());
+}
+
+void Renderer::drawImgui()
+{
+    EVENT_SCOPE_FUNC();
+
+    if (auto drawData = ImGui::GetDrawData()) {
+        ImGui_ImplDX11_RenderDrawData(drawData);
+    }
 }
 
 void Renderer::loadShaders()

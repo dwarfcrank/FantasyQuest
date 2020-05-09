@@ -63,6 +63,7 @@ public:
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 
     virtual void initImgui() = 0;
+    virtual void drawImgui() = 0;
 };
 
 std::unique_ptr<IRenderer> createRenderer(SDL_Window*);

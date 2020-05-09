@@ -227,9 +227,12 @@ int main(int argc, char* argv[])
 
                 r->postProcess();
 
+                /*
                 if (auto drawData = ImGui::GetDrawData()) {
                     ImGui_ImplDX11_RenderDrawData(drawData);
                 }
+                */
+                r->drawImgui();
             }
             r->endFrame();
         }
