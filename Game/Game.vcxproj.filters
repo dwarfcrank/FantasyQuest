@@ -221,6 +221,9 @@
     <FxCompile Include="Blur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="BrightPassDownscale.cs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli">
