@@ -121,10 +121,13 @@ private:
     ComPtr<ID3D11VertexShader> m_shadowBatchVS;
     ComPtr<ID3D11PixelShader> m_shadowPS;
 
-    ComPtr<ID3D11SamplerState> m_framebufferSampler;
-
     RenderTarget m_shadowRT;
     RenderTarget m_mainRT;
+
+    std::array<RenderTarget, 3> m_blurRTs;
+    ComPtr<ID3D11SamplerState> m_framebufferSampler;
+    ComPtr<ID3D11ComputeShader> m_blurCS;
+    ConstantBuffer<BlurConstants> m_blurConstants;
 };
 
 using namespace DirectX;
@@ -248,7 +251,6 @@ Renderer::Renderer(SDL_Window* window)
         m_framebufferSampler = createSamplerState(m_device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
-
         SET_OBJECT_NAME(m_framebufferSampler);
 
         m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -260,6 +262,19 @@ Renderer::Renderer(SDL_Window* window)
     {
         m_batchInstanceBuffer.init(m_device, 128);
         m_batchInstanceBuffer.setName("batchInstanceBuffer");
+    }
+
+    {
+        auto w = m_width / 2;
+        auto h = m_height / 2;
+
+        for (auto&& rt : m_blurRTs) {
+            rt.init(m_device, w, h, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R8G8B8A8_UNORM);
+            rt.setName(fmt::format("blurRT_{}x{}", w, h));
+        }
+        
+        m_blurConstants.init(m_device);
+        m_blurConstants.setName("Blur constants");
     }
 }
 
@@ -452,24 +467,85 @@ void Renderer::postProcess()
 {
     EVENT_SCOPE_FUNC();
 
-    m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
-
-    std::array resources{ m_mainRT.m_framebufferSRV.Get() };
-    std::array uavs{ m_backbufferUAV.Get() };
-
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
-    m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
-    m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
 
-    auto x = UINT(std::ceil(float(m_width) / float(TILE_SIZE)));
-    auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
-    m_context->Dispatch(x, y, 1);
+    {
+        m_context->CSSetShader(m_blurCS.Get(), nullptr, 0);
 
-    std::memset(resources.data(), 0, sizeof(resources));
-    std::memset(uavs.data(), 0, sizeof(uavs));
+        auto cb = m_blurConstants.getBuffer();
+        m_context->CSSetConstantBuffers(0, 1, &cb);
 
-    m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
-    m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+        auto sampler = m_framebufferSampler.Get();
+        m_context->CSSetSamplers(0, 1, &sampler);
+
+        std::array resources{
+            m_mainRT.m_framebufferSRV.Get(),
+            m_blurRTs[0].m_framebufferSRV.Get(), 
+            m_blurRTs[1].m_framebufferSRV.Get(), 
+            m_blurRTs[2].m_framebufferSRV.Get(), 
+            m_blurRTs[0].m_framebufferSRV.Get(), 
+        };
+
+        std::array uavs{
+            m_blurRTs[0].m_framebufferUAV.Get(), 
+            m_blurRTs[1].m_framebufferUAV.Get(), 
+            m_blurRTs[2].m_framebufferUAV.Get(), 
+            m_blurRTs[0].m_framebufferUAV.Get(), 
+            m_blurRTs[1].m_framebufferUAV.Get(), 
+        };
+
+        std::array kernelSizes{ 0.0f, 1.0f, 2.0f, 2.0f, 3.0f };
+
+        int numPasses = int(kernelSizes.size());
+
+        for (int i = 0; i < numPasses; i++) {
+            auto srv = resources[i];
+            auto uav = uavs[i];
+
+            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+            m_context->CSSetShaderResources(0, 1, &srv);
+
+            auto w = float(m_mainRT.m_width) * ((i == 0) ? 1.0f : 0.5f);
+            auto h = float(m_mainRT.m_height) * ((i == 0) ? 1.0f : 0.5f);
+
+            m_blurConstants.data.ScreenSize.x = w;
+            m_blurConstants.data.ScreenSize.y = h;
+            m_blurConstants.data.KernelSize = kernelSizes[i];
+            m_blurConstants.data.TexcoordScale = (i == 0) ? 2.0f : 1.0f;
+            m_blurConstants.update(m_context);
+
+            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
+            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
+
+            m_context->Dispatch(x, y, 1);
+        }
+
+        std::memset(resources.data(), 0, sizeof(resources));
+        std::memset(uavs.data(), 0, sizeof(uavs));
+
+        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+    }
+
+    {
+        m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
+
+        std::array resources{ m_mainRT.m_framebufferSRV.Get() };
+        std::array uavs{ m_backbufferUAV.Get() };
+
+        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+
+        auto x = UINT(std::ceil(float(m_width) / float(TILE_SIZE)));
+        auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
+        m_context->Dispatch(x, y, 1);
+
+        std::memset(resources.data(), 0, sizeof(resources));
+        std::memset(uavs.data(), 0, sizeof(uavs));
+
+        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+    }
 
     auto rtv = m_backbufferRTV.Get();
     m_context->OMSetRenderTargets(1, &rtv, nullptr);
@@ -707,6 +783,7 @@ void Renderer::loadShaders()
         });
 
     m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
+    m_blurCS = loadComputeShader("shaders/Blur.cs.cso");
 }
 
 ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback)

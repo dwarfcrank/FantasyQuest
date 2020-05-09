@@ -14,9 +14,27 @@ void RenderTarget::init(const Microsoft::WRL::ComPtr<ID3D11Device1>& device,
     m_height = height;
 
     if (flags & RT_Color) {
+        UINT colorFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+
+        if (flags & RT_ColorUAV) {
+            colorFlags |= D3D11_BIND_UNORDERED_ACCESS;
+        }
+
+        if (flags & RT_ColorUAVOnly) {
+            colorFlags &= ~D3D11_BIND_RENDER_TARGET;
+        }
+
         m_framebuffer = createTexture2D(device, colorFormat, m_width, m_height, 1, 1,
-            D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
-        m_framebufferRTV = createRenderTargetView(device, m_framebuffer.Get());
+            colorFlags);
+
+        if (colorFlags & D3D11_BIND_RENDER_TARGET) {
+            m_framebufferRTV = createRenderTargetView(device, m_framebuffer.Get());
+        }
+
+        if (flags & RT_ColorUAV) {
+            m_framebufferUAV = createUnorderedAccessView(device, m_framebuffer.Get());
+        }
+
         m_framebufferSRV = createShaderResourceView(device, m_framebuffer.Get(), D3D11_SRV_DIMENSION_TEXTURE2D,
             colorFormat);
     }
@@ -41,7 +59,15 @@ void RenderTarget::setName(std::string_view name)
 {
     if (m_framebuffer) {
         setObjectName(m_framebuffer, fmt::format("{}_fb_tex", name));
-        setObjectName(m_framebufferRTV, fmt::format("{}_fb_rtv", name));
+
+        if (m_framebufferRTV) {
+            setObjectName(m_framebufferRTV, fmt::format("{}_fb_rtv", name));
+        }
+
+        if (m_framebufferUAV) {
+            setObjectName(m_framebufferUAV, fmt::format("{}_fb_uav", name));
+        }
+
         setObjectName(m_framebufferSRV, fmt::format("{}_fb_srv", name));
     }
 

@@ -11,6 +11,7 @@ using float4 = DirectX::XMFLOAT4;
 using matrix = DirectX::XMMATRIX;
 
 using uint = UINT;
+using uint2 = DirectX::XMUINT2;
 
 #define CB_STRUCT		struct alignas(16)
 #define SEMANTIC(s)
@@ -43,6 +44,15 @@ CB_STRUCT PSConstants
     uint NumPointLights;
     float3 DirectionalColor;
     float DepthBias;
+};
+
+CB_STRUCT BlurConstants
+{
+    float2 ScreenSize;
+    float KernelSize;
+
+    // TODO: remove this, we need a separate shader for the first blur pass anyway
+    float TexcoordScale;
 };
 
 struct Vertex
