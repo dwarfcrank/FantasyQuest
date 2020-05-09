@@ -22,7 +22,7 @@ public:
         context->UpdateSubresource(buffer.Get(), 0, nullptr, &data, 0, 0);
     }
 
-    auto bufferGet() { return buffer.Get(); }
+    auto getBuffer() { return buffer.Get(); }
 
     void setName(std::string_view name)
     {

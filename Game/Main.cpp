@@ -204,22 +204,25 @@ int main(int argc, char* argv[])
                 r->setPointLights(scene.lights);
             }
 
-            r->beginShadowPass();
+            updateBatches();
+
+            r->beginShadowPass(shadowCam);
             {
-                for (const auto& o : scene.objects) {
-                    r->drawShadow(o.renderable, shadowCam, o.transform);
+                for (const auto& [_, batch] : batches) {
+                    if (!batch.instances.empty()) {
+                        r->drawShadow(batch);
+                    }
                 }
             }
             r->endShadowPass();
 
-            r->beginFrame();
+            r->beginFrame(g->getCamera());
             {
                 r->clear(0.1f, 0.2f, 0.3f);
 
-                updateBatches();
                 for (const auto& [_, batch] : batches) {
                     if (!batch.instances.empty()) {
-                        r->draw(batch, g->getCamera());
+                        r->draw(batch);
                     }
                 }
 
@@ -227,11 +230,6 @@ int main(int argc, char* argv[])
 
                 r->postProcess();
 
-                /*
-                if (auto drawData = ImGui::GetDrawData()) {
-                    ImGui_ImplDX11_RenderDrawData(drawData);
-                }
-                */
                 r->drawImgui();
             }
             r->endFrame();

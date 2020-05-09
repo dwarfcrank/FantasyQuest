@@ -51,11 +51,18 @@ public:
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) = 0;
     virtual void clear(float r, float g, float b) = 0;
 
+    virtual void draw(const RenderBatch& batch) = 0;
+    virtual void drawShadow(const RenderBatch& batch) = 0;
+
     virtual void beginFrame() = 0;
+
+    virtual void beginFrame(const Camera&) = 0;
     virtual void endFrame() = 0;
 
     virtual void beginShadowPass() = 0;
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) = 0;
+
+    virtual void beginShadowPass(const Camera&) = 0;
     virtual void endShadowPass() = 0;
 
     virtual void postProcess() = 0;
