@@ -33,7 +33,7 @@ float repeatAxis(float p, float c)
 float Sphere(const glm::vec3& worldPosition, const glm::vec3& origin, float radius)
 {
 	float val = glm::length(worldPosition - origin) - radius; // non repeating
-	return std::clamp(val, -1.f, 1.f);
+	return val;
 }
 
 float Box(const glm::vec3& p, const glm::vec3& size)
@@ -47,38 +47,19 @@ float Box(const glm::vec3& p, const glm::vec3& size)
 	return glm::length(maxed) + std::min(std::max(d.x, std::max(d.y, d.z)), 0.f);
 }
 
-float ensureZeroCrossing(float originalValue, const glm::vec3& worldPosition, unsigned int size)
-{
-	float maxLen = size / 2;
-	glm::vec3 center(maxLen, maxLen, maxLen);
-	float fraction = glm::length(center - worldPosition) / maxLen;
-	fraction = fraction > 1 ? 1 : fraction;
-
-	float invBorderDistance = 1 - fraction;
-
-	float target = 2000.1;
-	float targetSign = originalValue > 0 ? -target : target; // target a little past zero so we don't hit zero crossing exactly at border but a bit before
-
-	targetSign *= fraction;
-
-	float result = originalValue * invBorderDistance + targetSign;
-	return result;
-}
-
 float BumpySphere(const glm::vec3& worldPosition, const glm::vec3& origin, float radius, unsigned int size)
 {
-	glm::vec3 noisePos = glm::vec3(worldPosition.x, worldPosition.y * 6, worldPosition.z);
-	float val = glm::length(worldPosition - origin) - radius + 4 * Noise(noisePos); 
-	val = std::clamp(val, -1.f, 1.f);
+	glm::vec3 modPos = glm::vec3(worldPosition.x, worldPosition.y * 2, worldPosition.z);
+	float noiseVal = 3.5f * Noise(modPos); 
 
-	val = ensureZeroCrossing(val, worldPosition, size);
+	float val = glm::length(modPos - origin) - radius + noiseVal;
 	return val;
 }
 
 float Noise(const glm::vec3& p)
 {
 	static noise::module::Perlin noiseModule;
-	double epsilon = 0.500f;
+	double epsilon = 0.500f; // add epsilon offset because perlin noise is always 0 at integer values
 	float divider = 13.f;
 	float value = (float)noiseModule.GetValue(p.x / divider  + epsilon, p.y / divider + epsilon, p.z / divider + epsilon);
 
@@ -98,7 +79,7 @@ float Noise(const glm::vec3& p)
 	//{
 	//	value += 1.5f;
 	//}
-	return value;
+	return value / 3; // normalize since sum of three octaves of -1 to 1 noise
 }
 
 float Waves(const glm::vec3& p)
@@ -214,7 +195,8 @@ float Density(const glm::vec3 pos, const unsigned int size)
 
 	//return glm::length(pos - origin) - radius; // repeating
 	//return Noise(pos, noiseModule);
-	return BumpySphere(pos, glm::vec3(8, 8, 8), 4.0, size);
+	float radius = 4; // for size 16 means there is 3 of space on both sides since 16/2 - 4 = 4
+	return BumpySphere(pos, glm::vec3(size / 2, size / 2, size / 2), radius, size);
 
 	//return Box(pos - glm::vec3(16,16,16), glm::vec3(128, 8, 8));
 	//return Box(repeatPos - glm::vec3(0,0,0), glm::vec3(5, 5, 5));
