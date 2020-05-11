@@ -65,7 +65,7 @@ public:
     virtual void beginShadowPass(const Camera&) = 0;
     virtual void endShadowPass() = 0;
 
-    virtual void postProcess() = 0;
+    virtual void postProcess(const std::array<float, 6>&) = 0;
 
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 

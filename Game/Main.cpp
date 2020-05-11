@@ -174,6 +174,8 @@ int main(int argc, char* argv[])
             }
         };
 
+        std::array<float, 6> kernels{ 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, };
+
         while (running) {
             auto g = games[gameIdx];
             float dt = gt.update();
@@ -188,6 +190,15 @@ int main(int argc, char* argv[])
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
+            }
+
+            {
+                ImGui::Begin("bloom");
+                for (int i = 0; i < 6; i++) {
+                    auto name = fmt::format("kernel {}", i);
+                    ImGui::InputFloat(name.c_str(), &kernels[i]);
+                }
+                ImGui::End();
             }
 
             ImGui::Render();
@@ -228,7 +239,7 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
-                r->postProcess();
+                r->postProcess(kernels);
 
                 r->drawImgui();
             }
