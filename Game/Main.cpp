@@ -21,6 +21,7 @@
 #include <type_traits>
 #include <DirectXMath.h>
 #include <chrono>
+#include <entt/entt.hpp>
 
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
@@ -98,11 +99,13 @@ int main(int argc, char* argv[])
 
         {
             scene.load("../scene.json");
+            scene.objects.clear();
 
-            for (auto& o : scene.objects) {
-                o.renderable = renderables[o.modelName];
-                o.bounds = bounds[o.modelName];
-            }
+            scene.reg.view<components::Renderable>()
+                .each([&scene, &renderables, &bounds](auto entity, components::Renderable& rc) {
+					rc.renderable = renderables[rc.name];
+					rc.bounds = bounds[rc.name];
+				});
 
             r->setDirectionalLight(scene.directionalLight, scene.directionalLightColor);
             r->setPointLights(scene.lights);
@@ -166,15 +169,15 @@ int main(int argc, char* argv[])
                 batch.instances.clear();
             }
 
-            for (const auto& o : scene.objects) {
-                auto wm = o.transform.getMatrix();
-                auto& instance = batches[o.renderable].instances.emplace_back();
-                instance.World = XMMatrixTranspose(wm);
-                instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
-            }
+            scene.reg.view<components::Transform, components::Renderable>()
+                .each([&](const components::Transform& t, const components::Renderable& rc) {
+					auto wm = t.getMatrix();
+					auto& instance = batches[rc.renderable].instances.emplace_back();
+					instance.World = XMMatrixTranspose(wm);
+					instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
+				});
         };
 
-        //std::array<float, 6> kernels{ 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, };
         PostProcessParams params;
 
         while (running) {

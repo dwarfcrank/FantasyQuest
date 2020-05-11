@@ -3,6 +3,8 @@
 #include "DebugDraw.h"
 #include "Game.h"
 
+#include <entt/entt.hpp>
+
 struct Scene;
 
 class SceneEditor : public GameBase
@@ -28,6 +30,7 @@ private:
 
     XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
 
+    entt::entity m_currentEntity = entt::null;
     int m_currentObjectIdx = -1;
 
     void objectList();

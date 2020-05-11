@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <entt/entt.hpp>
 
 #include "Transform.h"
 #include "Renderer.h"
@@ -42,6 +43,42 @@ struct Object
     DirectX::XMFLOAT3 scale;
 };
 
+namespace components
+{
+    struct Misc
+    {
+        std::string name;
+    };
+
+    struct Renderable
+    {
+        std::string name;
+        ::Renderable* renderable = nullptr;
+		Bounds bounds;
+    };
+
+    struct Transform
+    {
+        DirectX::XMFLOAT3 position{ 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 rotation{ 0.0f, 0.0f, 0.0f };
+		DirectX::XMFLOAT3 scale{ 1.0f, 1.0f, 1.0f };
+
+		XMMATRIX getMatrix() const
+		{
+			auto t = XMMatrixTranslationFromVector(XMLoadFloat3(&position));
+			auto r = XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&rotation));
+			auto s = XMMatrixScalingFromVector(XMLoadFloat3(&scale));
+
+			return s * r * t;
+		}
+
+		Matrix<Model, World> getMatrix2() const
+		{
+			return Matrix<Model, World>{ getMatrix() };
+		}
+    };
+}
+
 struct Scene
 {
     Scene() = default;
@@ -55,4 +92,6 @@ struct Scene
 
     std::vector<Object> objects;
     std::vector<PointLight> lights;
+
+    entt::registry reg;
 };

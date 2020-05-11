@@ -47,20 +47,13 @@ bool SceneEditor::update(float dt)
     float changed = (v.x != 0.0f) || (v.y != 0.0f) || (v.z != 0.0f) || (angle != 0.0f);
     float a = angle * dt;
 
-    if (m_currentObjectIdx >= 0 && m_currentObjectIdx < static_cast<int>(m_scene.objects.size())) {
-        auto& obj = m_scene.objects[m_currentObjectIdx];
-        if (!moveCamera && changed) {
-            /*
-            obj.transform.move(v.x, v.y, v.z);
-            obj.transform.rotate(0.0f, angle * dt, 0.0f);
-            */
-            obj.position.x += v.x;
-            obj.position.y += v.y;
-            obj.position.z += v.z;
-            obj.rotation.y += a;
-            obj.update();
-        }
-        d.drawBounds(obj.bounds.min, obj.bounds.max, obj.transform);
+    if (m_scene.reg.valid(m_currentEntity) && !moveCamera) {
+        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
+
+		t.position.x += v.x;
+		t.position.y += v.y;
+		t.position.z += v.z;
+		t.rotation.y += a;
     }
 
     if (moveCamera) {
@@ -88,41 +81,41 @@ const Camera& SceneEditor::getCamera() const
 
 void SceneEditor::objectList()
 {
-    int i = 0;
+    entt::entity e = entt::null;
 
     if (ImGui::BeginChild("##objects", ImVec2(-1.0f, -1.0f))) {
-        for (const auto& obj : m_scene.objects) {
-            if (ImGui::Selectable(obj.name.c_str(), i == m_currentObjectIdx)) {
-                m_currentObjectIdx = i;
-            }
-
-            i++;
-        }
+        m_scene.reg.view<components::Misc>()
+            .each([&](entt::entity entity, const components::Misc& m) {
+				if (ImGui::Selectable(m.name.c_str(), entity == m_currentEntity)) {
+					m_currentEntity = entity;
+				}
+			});
     }
+
     ImGui::EndChild();
 }
 
 void SceneEditor::objectPropertiesWindow()
 {
     if (ImGui::Begin("Object")) {
-        if (m_currentObjectIdx < 0 || m_currentObjectIdx >= static_cast<int>(m_scene.objects.size())) {
+        if (!m_scene.reg.valid(m_currentEntity)) {
             ImGui::Text("No object selected");
             ImGui::End();
             return;
         }
 
-        auto& obj = m_scene.objects[m_currentObjectIdx];
+        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
         bool changed = false;
 
-        changed |= ImGui::InputFloat3("Position", &obj.position.x);
-        changed |= ImGui::SliderAngle("X", &obj.rotation.x, -180.0f, 180.0f);
-        changed |= ImGui::SliderAngle("Y", &obj.rotation.y, -180.0f, 180.0f);
-        changed |= ImGui::SliderAngle("Z", &obj.rotation.z, -180.0f, 180.0f);
-        changed |= ImGui::InputFloat3("Scale", &obj.scale.x);
+        changed |= ImGui::InputFloat3("Position", &t.position.x);
+        changed |= ImGui::SliderAngle("X", &t.rotation.x, -180.0f, 180.0f);
+        changed |= ImGui::SliderAngle("Y", &t.rotation.y, -180.0f, 180.0f);
+        changed |= ImGui::SliderAngle("Z", &t.rotation.z, -180.0f, 180.0f);
+        changed |= ImGui::InputFloat3("Scale", &t.scale.x);
 
         if (changed) {
-            obj.update();
+            // hmmm
         }
     }
 
@@ -196,35 +189,5 @@ void SceneEditor::drawGrid()
         d.drawLine({ float(i) * -5.0f, 0.0f, 100.0f, 1.0f }, { float(i) * -5.0f, 0.0f, -100.0f, 1.0f }, gridColor);
         d.drawLine({ 100.0f, 0.0f, float(i) * 5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * 5.0f, 1.0f }, gridColor);
         d.drawLine({ 100.0f, 0.0f, float(i) * -5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * -5.0f, 1.0f }, gridColor);
-        /*
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
-
-        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-        */
     }
-
-    /*
-    debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
-    debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, 0.0f }, .Color = gridAxisColor });
-    debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, -100.0f }, .Color = gridAxisColor });
-    debugVerts.push_back(DebugDrawVertex{ .Position{ 0.0f, 0.0f, 100.0f }, .Color = gridAxisColor });
-
-    for (auto i = 1; i < 20; i++) {
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, 100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * 5.0f, 0.0f, -100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, 100.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ float(i) * -5.0f, 0.0f, -100.0f }, .Color = gridColor });
-
-        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * 5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ 100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-        debugVerts.push_back(DebugDrawVertex{ .Position{ -100.0f, 0.0f, float(i) * -5.0f }, .Color = gridColor });
-    }
-    */
 }

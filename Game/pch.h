@@ -29,5 +29,6 @@
 #include <unordered_map>
 #include <vector>
 #include <wrl.h>
+#include <entt/entt.hpp>
 
 #include "imgui.h"

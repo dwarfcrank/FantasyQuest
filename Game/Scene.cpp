@@ -120,6 +120,22 @@ void Scene::load(const std::filesystem::path& path)
 
     auto d = loadFile(path);
     nlohmann::json::parse(d).get_to(*this);
+
+    for (const auto& obj : objects) {
+        auto entity = reg.create();
+
+        reg.emplace<components::Transform>(entity, components::Transform{
+            .position = obj.position,
+            .rotation = obj.rotation,
+            .scale = obj.scale,
+		});
+
+        reg.emplace<components::Renderable>(entity, components::Renderable{
+            .name = obj.modelName,
+		});
+
+        reg.emplace<components::Misc>(entity, obj.name);
+    }
 }
 
 void Scene::save(const std::filesystem::path& path) const
