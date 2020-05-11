@@ -174,7 +174,8 @@ int main(int argc, char* argv[])
             }
         };
 
-        std::array<float, 6> kernels{ 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, };
+        //std::array<float, 6> kernels{ 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, };
+        PostProcessParams params;
 
         while (running) {
             auto g = games[gameIdx];
@@ -193,11 +194,19 @@ int main(int argc, char* argv[])
             }
 
             {
-                ImGui::Begin("bloom");
-                for (int i = 0; i < 6; i++) {
-                    auto name = fmt::format("kernel {}", i);
-                    ImGui::InputFloat(name.c_str(), &kernels[i]);
+                ImGui::Begin("post processing");
+
+                ImGui::Checkbox("Gaussian blur", &params.gaussianBlur);
+
+                if (params.gaussianBlur) {
+
+                } else {
+                    for (int i = 0; i < 6; i++) {
+                        auto name = fmt::format("kernel {}", i);
+                        ImGui::InputFloat(name.c_str(), &params.kernelSizes[i]);
+                    }
                 }
+
                 ImGui::End();
             }
 
@@ -239,7 +248,7 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
-                r->postProcess(kernels);
+                r->postProcess(params);
 
                 r->drawImgui();
             }

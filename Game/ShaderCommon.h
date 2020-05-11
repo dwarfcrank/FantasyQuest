@@ -53,6 +53,7 @@ CB_STRUCT BlurConstants
 
     // TODO: remove this, we need a separate shader for the first blur pass anyway
     float TexcoordScale;
+    uint BlurPass; // 0 = horizontal, 1 = vertical
 };
 
 struct Vertex

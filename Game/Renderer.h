@@ -39,6 +39,12 @@ struct RenderBatch
     std::vector<RenderableConstants> instances;
 };
 
+struct PostProcessParams
+{
+    std::array<float, 6> kernelSizes{ 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f };
+    bool gaussianBlur = false;
+};
+
 class IRenderer
 {
 public:
@@ -65,7 +71,7 @@ public:
     virtual void beginShadowPass(const Camera&) = 0;
     virtual void endShadowPass() = 0;
 
-    virtual void postProcess(const std::array<float, 6>&) = 0;
+    virtual void postProcess(const PostProcessParams&) = 0;
 
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
 

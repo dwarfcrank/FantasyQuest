@@ -56,7 +56,7 @@ public:
     virtual void beginFrame() override;
     virtual void endFrame() override;
 
-    virtual void postProcess(const std::array<float, 6>&) override;
+    virtual void postProcess(const PostProcessParams&) override;
 
     virtual void beginShadowPass() override;
     virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
@@ -131,6 +131,7 @@ private:
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
     ComPtr<ID3D11ComputeShader> m_blurCS;
+    ComPtr<ID3D11ComputeShader> m_gaussianCS;
     ComPtr<ID3D11ComputeShader> m_brightPassDownscaleCS;
     ConstantBuffer<BlurConstants> m_blurConstants;
 };
@@ -481,23 +482,66 @@ void Renderer::endFrame()
     m_swapChain->Present(0, 0);
 }
 
-void Renderer::postProcess(const std::array<float, 6>& kernelSizes)
+void Renderer::postProcess(const PostProcessParams& params)
 {
     EVENT_SCOPE_FUNC();
 
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
 
-    ID3D11ShaderResourceView* blurSRV = nullptr;
+    ID3D11ShaderResourceView* bloomSRV = nullptr;
 
-    {
+    if (params.gaussianBlur) {
         auto cb = m_blurConstants.getBuffer();
         m_context->CSSetConstantBuffers(0, 1, &cb);
 
         auto sampler = m_framebufferSampler.Get();
         m_context->CSSetSamplers(0, 1, &sampler);
 
-        //std::array kernelSizes{ 0.0f, 1.0f, 2.0f, 2.0f, 3.0f, 5.0f, };
-        //std::array kernelSizes{ 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, };
+        m_context->CSSetShader(m_gaussianCS.Get(), nullptr, 0);
+
+        auto runPass = [&](const RenderTarget& input, const RenderTarget& output, UINT passType) {
+            auto srv = input.m_framebufferSRV.Get();
+            auto uav = output.m_framebufferUAV.Get();
+
+            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+            m_context->CSSetShaderResources(0, 1, &srv);
+
+            auto w = float(input.m_width);
+            auto h = float(input.m_height);
+
+            auto scale = ((w / float(output.m_width)) + (h / float(output.m_height))) / 2.0f;
+
+            m_blurConstants.data.ScreenSize.x = w;
+            m_blurConstants.data.ScreenSize.y = h;
+            m_blurConstants.data.BlurPass = passType;
+            m_blurConstants.data.TexcoordScale = scale;
+            m_blurConstants.update(m_context);
+
+            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
+            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
+
+            m_context->Dispatch(x, y, 1);
+        };
+
+        runPass(m_mainRT,       m_blurRTs[0],   2);
+        runPass(m_blurRTs[0],   m_blurRTs2[0],  1);
+
+        runPass(m_blurRTs2[0],  m_blurRTs[1],   0);
+        runPass(m_blurRTs[1],   m_blurRTs2[1],  1);
+
+        runPass(m_blurRTs2[1],  m_blurRTs[2],   0);
+        runPass(m_blurRTs[2],   m_blurRTs2[2],  1);
+
+        runPass(m_blurRTs2[2],  m_blurRTs[3],   0);
+        runPass(m_blurRTs[3],   m_blurRTs2[3],  1);
+
+        bloomSRV = m_blurRTs2[3].m_framebufferSRV.Get();
+    } else {
+        auto cb = m_blurConstants.getBuffer();
+        m_context->CSSetConstantBuffers(0, 1, &cb);
+
+        auto sampler = m_framebufferSampler.Get();
+        m_context->CSSetSamplers(0, 1, &sampler);
 
         auto runPass = [&](const RenderTarget& input, const RenderTarget& output, float kernelSize) {
             auto srv = input.m_framebufferSRV.Get();
@@ -524,74 +568,23 @@ void Renderer::postProcess(const std::array<float, 6>& kernelSizes)
         };
 
         m_context->CSSetShader(m_brightPassDownscaleCS.Get(), nullptr, 0);
-        runPass(m_mainRT,       m_blurRTs[0],   kernelSizes[0]);  // brightpass + downscale
+        runPass(m_mainRT,       m_blurRTs[0],   params.kernelSizes[0]);  // brightpass + downscale
 
         m_context->CSSetShader(m_blurCS.Get(), nullptr, 0);
-        runPass(m_blurRTs[0],   m_blurRTs2[0],  kernelSizes[1]);  // blur
-        runPass(m_blurRTs2[0],  m_blurRTs[1],   kernelSizes[2]);  // downscale
-        runPass(m_blurRTs[1],   m_blurRTs2[1],  kernelSizes[3]);  // blur
-        runPass(m_blurRTs2[1],  m_blurRTs[2],   kernelSizes[4]);  // downscale
-        runPass(m_blurRTs[2],   m_blurRTs2[2],  kernelSizes[5]);  // blur
+        runPass(m_blurRTs[0],   m_blurRTs2[0],  params.kernelSizes[1]);  // blur
+        runPass(m_blurRTs2[0],  m_blurRTs[1],   params.kernelSizes[2]);  // downscale
+        runPass(m_blurRTs[1],   m_blurRTs2[1],  params.kernelSizes[3]);  // blur
+        runPass(m_blurRTs2[1],  m_blurRTs[2],   params.kernelSizes[4]);  // downscale
+        runPass(m_blurRTs[2],   m_blurRTs2[2],  params.kernelSizes[5]);  // blur
 
-        blurSRV = m_blurRTs2[2].m_framebufferSRV.Get();
+        bloomSRV = m_blurRTs2[2].m_framebufferSRV.Get();
+    }
 
-        /*
-        auto srv = m_mainRT.m_framebufferSRV.Get();
-        auto uav = m_blurRTs[0].m_framebufferUAV.Get();
-
-        {
-            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
-            m_context->CSSetShaderResources(0, 1, &srv);
-
-            auto w = float(m_mainRT.m_width);
-            auto h = float(m_mainRT.m_height);
-
-            m_blurConstants.data.ScreenSize.x = w;
-            m_blurConstants.data.ScreenSize.y = h;
-            m_blurConstants.data.KernelSize = kernelSizes[0];
-            m_blurConstants.data.TexcoordScale = 2.0f;
-            m_blurConstants.update(m_context);
-
-            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
-            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
-
-            m_context->Dispatch(x, y, 1);
-        }
-
-        srv = m_blurRTs[0].m_framebufferSRV.Get();
-        uav = m_blurRTs[1].m_framebufferUAV.Get();
-
-        m_context->CSSetShader(m_blurCS.Get(), nullptr, 0);
-
-        for (int i = 1; i < NUM_BLUR_PASSES; i++) {
-            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
-            m_context->CSSetShaderResources(0, 1, &srv);
-
-            auto w = float(m_mainRT.m_width) * ((i == 0) ? 1.0f : 0.5f);
-            auto h = float(m_mainRT.m_height) * ((i == 0) ? 1.0f : 0.5f);
-
-            m_blurConstants.data.ScreenSize.x = w;
-            m_blurConstants.data.ScreenSize.y = h;
-            m_blurConstants.data.KernelSize = kernelSizes[i];
-            m_blurConstants.data.TexcoordScale = (i == 0) ? 2.0f : 1.0f;
-            m_blurConstants.update(m_context);
-
-            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
-            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
-
-            m_context->Dispatch(x, y, 1);
-
-            srv = m_blurRTs[i % m_blurRTs.size()].m_framebufferSRV.Get();
-            uav = m_blurRTs[(i + 1) % m_blurRTs.size()].m_framebufferUAV.Get();
-        }
-        */
-
-        {
-            ID3D11UnorderedAccessView* tempUAV = nullptr;
-            ID3D11ShaderResourceView* tempSRV = nullptr;
-            m_context->CSSetUnorderedAccessViews(0, 1, &tempUAV, nullptr);
-            m_context->CSSetShaderResources(0, 1, &tempSRV);
-        }
+    {
+        ID3D11UnorderedAccessView* tempUAV = nullptr;
+        ID3D11ShaderResourceView* tempSRV = nullptr;
+        m_context->CSSetUnorderedAccessViews(0, 1, &tempUAV, nullptr);
+        m_context->CSSetShaderResources(0, 1, &tempSRV);
     }
 
     {
@@ -602,8 +595,7 @@ void Renderer::postProcess(const std::array<float, 6>& kernelSizes)
 
         std::array resources{
             m_mainRT.m_framebufferSRV.Get(),
-            //m_blurRTs.back().m_framebufferSRV.Get(),
-            blurSRV,
+            bloomSRV,
         };
 
         std::array uavs{ m_backbufferUAV.Get() };
@@ -859,6 +851,7 @@ void Renderer::loadShaders()
 
     m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
     m_blurCS = loadComputeShader("shaders/Blur.cs.cso");
+    m_gaussianCS = loadComputeShader("shaders/GaussianBlur.cs.cso");
     m_brightPassDownscaleCS = loadComputeShader("shaders/BrightPassDownscale.cs.cso");
 }
 
