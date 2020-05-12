@@ -227,6 +227,15 @@
     <FxCompile Include="GaussianBlur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="BrightPassDownscale2.cs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="GaussianUpsample.cs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="KawaseBlur.cs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli">

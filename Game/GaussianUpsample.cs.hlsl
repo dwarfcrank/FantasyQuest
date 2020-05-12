@@ -43,19 +43,12 @@ void main(uint3 dtid : SV_DispatchThreadID)
 
     float4 result = framebuffer.SampleLevel(fbSampler, uv, 0) * g_kernel[0];
 
-    for (int i = 1; i < 5; i++) {
-    //for (int i = 1; i < 3; i++) {
+    //for (int i = 1; i < 5; i++) {
+    for (int i = 1; i < 3; i++) {
         float2 off = float(i) * offset;
         result += framebuffer.SampleLevel(fbSampler, uv + off, 0) * g_kernel[i];
         result += framebuffer.SampleLevel(fbSampler, uv - off, 0) * g_kernel[i];
     }
 
-    if (gc.Upsampling == 0) {
-		output[dtid.xy] = result;
-    } else {
-		output[dtid.xy] += result;
-    }
-    /*
-		output[dtid.xy] = result;
-    */
+    output[dtid.xy] += result;
 }

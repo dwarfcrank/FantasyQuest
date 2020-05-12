@@ -41,9 +41,33 @@ CB_STRUCT RenderableConstants
 CB_STRUCT PSConstants
 {
 	float3 LightDir;
+	float LightIntensity;
     uint NumPointLights;
     float3 DirectionalColor;
     float DepthBias;
+};
+
+CB_STRUCT GaussianConstants
+{
+    float2 InputSize;
+    float2 OutputSize;
+    uint Direction; // 0 = horizontal, 1 = vertical
+    uint Upsampling;
+};
+
+CB_STRUCT BrightPassConstants
+{
+    float2 InputSize;
+    float2 OutputSize;
+    float Threshold;
+};
+
+CB_STRUCT KawaseConstants
+{
+    float2 InputSize;
+    float2 OutputSize;
+    float KernelSize;
+    uint Upsampling;
 };
 
 CB_STRUCT BlurConstants
@@ -54,6 +78,13 @@ CB_STRUCT BlurConstants
     // TODO: remove this, we need a separate shader for the first blur pass anyway
     float TexcoordScale;
     uint BlurPass; // 0 = horizontal, 1 = vertical
+};
+
+CB_STRUCT PostProcessConstants
+{
+    float2 ScreenSize;
+	float Exposure;
+    uint GammaCorrection;
 };
 
 struct Vertex
@@ -67,6 +98,7 @@ struct PointLight
 {
     float4 Position; // .w = linear attenuation
     float4 Color; // .w = quadratic attenuation
+    float Intensity;
 };
 
 CONSTANT uint TILE_SIZE = 32;

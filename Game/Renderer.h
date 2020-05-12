@@ -41,8 +41,8 @@ struct RenderBatch
 
 struct PostProcessParams
 {
-    std::array<float, 6> kernelSizes{ 2.0f, 2.0f, 2.0f, 2.0f, 2.0f, 2.0f };
-    bool gaussianBlur = false;
+    float exposure = 1.0f;
+    bool gammaCorrection = false;
 };
 
 class IRenderer
@@ -50,7 +50,7 @@ class IRenderer
 public:
     virtual ~IRenderer() = default;
 
-    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) = 0;
+    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity) = 0;
     virtual void setPointLights(ArrayView<PointLight> lights) = 0;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void draw(const RenderBatch& batch, const Camera&) = 0;

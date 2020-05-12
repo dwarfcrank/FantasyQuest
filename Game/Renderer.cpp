@@ -28,7 +28,7 @@
 // ugh I hate wchar
 #include <stringapiset.h>
 
-static constexpr auto NUM_BLUR_PASSES = 4;
+static constexpr auto NUM_BLUR_PASSES = 5;
 
 class Renderable
 {
@@ -46,7 +46,7 @@ public:
 
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
 
-    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color) override;
+    virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
     virtual void draw(const RenderBatch& batch, const Camera&) override;
@@ -113,6 +113,7 @@ private:
     ConstantBuffer<CameraConstants> m_cameraConstantBuffer;
     ConstantBuffer<CameraConstants> m_shadowCameraConstantBuffer;
     ConstantBuffer<PSConstants> m_psConstants;
+    ConstantBuffer<PostProcessConstants> m_postProcessConstants;
 
     StructuredBuffer<PointLight> m_pointLights;
     ComPtr<ID3D11ShaderResourceView> m_pointLightBufferSRV;
@@ -130,10 +131,13 @@ private:
     std::array<RenderTarget, NUM_BLUR_PASSES> m_blurRTs2;
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
-    ComPtr<ID3D11ComputeShader> m_blurCS;
-    ComPtr<ID3D11ComputeShader> m_gaussianCS;
+
     ComPtr<ID3D11ComputeShader> m_brightPassDownscaleCS;
-    ConstantBuffer<BlurConstants> m_blurConstants;
+    ComPtr<ID3D11ComputeShader> m_brightPassDownscale2CS;
+    ConstantBuffer<BrightPassConstants> m_bpc;
+
+    ComPtr<ID3D11ComputeShader> m_gaussianCS;
+    ConstantBuffer<GaussianConstants> m_gc;
 };
 
 using namespace DirectX;
@@ -216,6 +220,19 @@ Renderer::Renderer(SDL_Window* window)
     m_cameraConstantBuffer.setName("CameraConstants");
     m_shadowCameraConstantBuffer.setName("ShadowCameraConstants");
 
+    m_postProcessConstants.data.Exposure = 1.0f;
+    m_postProcessConstants.data.ScreenSize.x = float(m_width);
+    m_postProcessConstants.data.ScreenSize.y = float(m_height);
+    m_postProcessConstants.init(m_device);
+    m_postProcessConstants.setName("PostProcessConstants");
+
+    m_bpc.data.Threshold = 1.0f;
+    m_bpc.init(m_device);
+    m_bpc.setName("BrightPassConstants");
+
+    m_gc.init(m_device);
+    m_gc.setName("GaussianConstants");
+
     {
         auto dirV = XMVector3Normalize(XMVectorSet(1.0f, -1.0f, 0.0f, 0.0f));
 
@@ -253,13 +270,15 @@ Renderer::Renderer(SDL_Window* window)
         m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
     }
 
+    auto hdrFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
     {
         m_framebufferSampler = createSamplerState(m_device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
             D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP, D3D11_TEXTURE_ADDRESS_CLAMP,
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
         SET_OBJECT_NAME(m_framebufferSampler);
 
-        m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, DXGI_FORMAT_R8G8B8A8_UNORM,
+        m_mainRT.init(m_device, m_width, m_height, RT_Color | RT_Depth | RT_DepthSRV, hdrFormat,
             DXGI_FORMAT_R32_TYPELESS, DXGI_FORMAT_D32_FLOAT, DXGI_FORMAT_R32_FLOAT);
 
         m_mainRT.setName("mainRT");
@@ -275,25 +294,15 @@ Renderer::Renderer(SDL_Window* window)
         auto h = m_height / 2;
 
         for (int i = 0; i < NUM_BLUR_PASSES; i++) {
-            m_blurRTs[i].init(m_device, w, h, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R8G8B8A8_UNORM);
+            m_blurRTs[i].init(m_device, w, h, RT_Color | RT_ColorUAVOnly, hdrFormat);
             m_blurRTs[i].setName(fmt::format("blurRT_{}x{}", w, h));
 
-            m_blurRTs2[i].init(m_device, w, h, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R8G8B8A8_UNORM);
+            m_blurRTs2[i].init(m_device, w, h, RT_Color | RT_ColorUAVOnly, hdrFormat);
             m_blurRTs2[i].setName(fmt::format("blurRT2_{}x{}", w, h));
 
             w /= 2;
             h /= 2;
         }
-
-        /*
-        for (auto&& rt : m_blurRTs) {
-            rt.init(m_device, w, h, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R8G8B8A8_UNORM);
-            rt.setName(fmt::format("blurRT_{}x{}", w, h));
-        }
-        */
-        
-        m_blurConstants.init(m_device);
-        m_blurConstants.setName("Blur constants");
     }
 }
 
@@ -315,7 +324,7 @@ Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
 
-void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color)
+void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity)
 {
     EVENT_SCOPE_FUNC();
 
@@ -323,6 +332,7 @@ void Renderer::setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color)
     XMStoreFloat3(&m_psConstants.data.LightDir, dir);
     m_psConstants.data.DirectionalColor = color;
     m_psConstants.data.DepthBias = 0.005f;
+    m_psConstants.data.LightIntensity = intensity;
 
     m_psConstants.update(m_context);
 }
@@ -490,94 +500,94 @@ void Renderer::postProcess(const PostProcessParams& params)
 
     ID3D11ShaderResourceView* bloomSRV = nullptr;
 
-    if (params.gaussianBlur) {
-        auto cb = m_blurConstants.getBuffer();
-        m_context->CSSetConstantBuffers(0, 1, &cb);
-
+    if constexpr (true) {
         auto sampler = m_framebufferSampler.Get();
         m_context->CSSetSamplers(0, 1, &sampler);
 
-        m_context->CSSetShader(m_gaussianCS.Get(), nullptr, 0);
+        auto brightPass = [&](const RenderTarget& input, const RenderTarget& output) {
+            auto srv = input.m_framebufferSRV.Get();
+            auto uav = output.m_framebufferUAV.Get();
 
-        auto runPass = [&](const RenderTarget& input, const RenderTarget& output, UINT passType) {
+            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
+            m_context->CSSetShaderResources(0, 1, &srv);
+            
+            m_bpc.data.InputSize.x = float(input.m_width);
+            m_bpc.data.InputSize.y = float(input.m_height);
+
+            m_bpc.data.OutputSize.x = float(output.m_width);
+            m_bpc.data.OutputSize.y = float(output.m_height);
+
+            m_bpc.update(m_context);
+
+            auto x = UINT(std::ceil(float(output.m_width) / float(TILE_SIZE)));
+            auto y = UINT(std::ceil(float(output.m_height) / float(TILE_SIZE)));
+
+            m_context->Dispatch(x, y, 1);
+        };
+
+        auto blurPass = [&](const RenderTarget& input, const RenderTarget& output, UINT direction, bool upsample) {
             auto srv = input.m_framebufferSRV.Get();
             auto uav = output.m_framebufferUAV.Get();
 
             m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
             m_context->CSSetShaderResources(0, 1, &srv);
 
-            auto w = float(input.m_width);
-            auto h = float(input.m_height);
+            m_gc.data.Direction = direction;
 
-            auto scale = ((w / float(output.m_width)) + (h / float(output.m_height))) / 2.0f;
+            m_gc.data.InputSize.x = float(input.m_width);
+            m_gc.data.InputSize.y = float(input.m_height);
 
-            m_blurConstants.data.ScreenSize.x = w;
-            m_blurConstants.data.ScreenSize.y = h;
-            m_blurConstants.data.BlurPass = passType;
-            m_blurConstants.data.TexcoordScale = scale;
-            m_blurConstants.update(m_context);
+            m_gc.data.OutputSize.x = float(output.m_width);
+            m_gc.data.OutputSize.y = float(output.m_height);
+            m_gc.data.Upsampling = upsample ? 1 : 0;
 
-            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
-            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
+            m_gc.update(m_context);
 
-            m_context->Dispatch(x, y, 1);
-        };
-
-        runPass(m_mainRT,       m_blurRTs[0],   2);
-        runPass(m_blurRTs[0],   m_blurRTs2[0],  1);
-
-        runPass(m_blurRTs2[0],  m_blurRTs[1],   0);
-        runPass(m_blurRTs[1],   m_blurRTs2[1],  1);
-
-        runPass(m_blurRTs2[1],  m_blurRTs[2],   0);
-        runPass(m_blurRTs[2],   m_blurRTs2[2],  1);
-
-        runPass(m_blurRTs2[2],  m_blurRTs[3],   0);
-        runPass(m_blurRTs[3],   m_blurRTs2[3],  1);
-
-        bloomSRV = m_blurRTs2[3].m_framebufferSRV.Get();
-    } else {
-        auto cb = m_blurConstants.getBuffer();
-        m_context->CSSetConstantBuffers(0, 1, &cb);
-
-        auto sampler = m_framebufferSampler.Get();
-        m_context->CSSetSamplers(0, 1, &sampler);
-
-        auto runPass = [&](const RenderTarget& input, const RenderTarget& output, float kernelSize) {
-            auto srv = input.m_framebufferSRV.Get();
-            auto uav = output.m_framebufferUAV.Get();
-
-            m_context->CSSetUnorderedAccessViews(0, 1, &uav, nullptr);
-            m_context->CSSetShaderResources(0, 1, &srv);
-
-            auto w = float(input.m_width);
-            auto h = float(input.m_height);
-
-            auto scale = ((w / float(output.m_width)) + (h / float(output.m_height))) / 2.0f;
-
-            m_blurConstants.data.ScreenSize.x = w;
-            m_blurConstants.data.ScreenSize.y = h;
-            m_blurConstants.data.KernelSize = kernelSize;
-            m_blurConstants.data.TexcoordScale = scale;
-            m_blurConstants.update(m_context);
-
-            auto x = UINT(std::ceil(w / float(TILE_SIZE)));
-            auto y = UINT(std::ceil(h / float(TILE_SIZE)));
+            auto x = UINT(std::ceil(float(output.m_width) / float(TILE_SIZE)));
+            auto y = UINT(std::ceil(float(output.m_height) / float(TILE_SIZE)));
 
             m_context->Dispatch(x, y, 1);
         };
 
-        m_context->CSSetShader(m_brightPassDownscaleCS.Get(), nullptr, 0);
-        runPass(m_mainRT,       m_blurRTs[0],   params.kernelSizes[0]);  // brightpass + downscale
+        {
+			auto cb = m_bpc.getBuffer();
+			m_context->CSSetConstantBuffers(0, 1, &cb);
+			m_context->CSSetShader(m_brightPassDownscale2CS.Get(), nullptr, 0);
 
-        m_context->CSSetShader(m_blurCS.Get(), nullptr, 0);
-        runPass(m_blurRTs[0],   m_blurRTs2[0],  params.kernelSizes[1]);  // blur
-        runPass(m_blurRTs2[0],  m_blurRTs[1],   params.kernelSizes[2]);  // downscale
-        runPass(m_blurRTs[1],   m_blurRTs2[1],  params.kernelSizes[3]);  // blur
-        runPass(m_blurRTs2[1],  m_blurRTs[2],   params.kernelSizes[4]);  // downscale
-        runPass(m_blurRTs[2],   m_blurRTs2[2],  params.kernelSizes[5]);  // blur
+			brightPass(m_mainRT, m_blurRTs[0]);
+        }
 
-        bloomSRV = m_blurRTs2[2].m_framebufferSRV.Get();
+        {
+			auto cb = m_gc.getBuffer();
+			m_context->CSSetConstantBuffers(0, 1, &cb);
+			m_context->CSSetShader(m_gaussianCS.Get(), nullptr, 0);
+
+			blurPass(m_blurRTs[0], m_blurRTs2[0], 0, false);
+			blurPass(m_blurRTs2[0], m_blurRTs[1], 1, false);
+
+			blurPass(m_blurRTs[1], m_blurRTs2[1], 0, false);
+			blurPass(m_blurRTs2[1], m_blurRTs[2], 1, false);
+
+			blurPass(m_blurRTs[2], m_blurRTs2[2], 0, false);
+			blurPass(m_blurRTs2[2], m_blurRTs[3], 1, false);
+
+			blurPass(m_blurRTs[3], m_blurRTs2[3], 0, false);
+			blurPass(m_blurRTs2[3], m_blurRTs[4], 1, false);
+
+			blurPass(m_blurRTs[4], m_blurRTs2[4], 0, false);
+			blurPass(m_blurRTs2[4], m_blurRTs[3], 1, true);
+
+			blurPass(m_blurRTs[3], m_blurRTs2[3], 0, false);
+			blurPass(m_blurRTs2[3], m_blurRTs[2], 1, true);
+
+			blurPass(m_blurRTs[2], m_blurRTs2[2], 0, false);
+			blurPass(m_blurRTs2[2], m_blurRTs[1], 1, true);
+
+			blurPass(m_blurRTs[1], m_blurRTs2[1], 0, false);
+			blurPass(m_blurRTs2[1], m_blurRTs[0], 1, true);
+        }
+
+        bloomSRV = m_blurRTs[0].m_framebufferSRV.Get();
     }
 
     {
@@ -598,10 +608,19 @@ void Renderer::postProcess(const PostProcessParams& params)
             bloomSRV,
         };
 
+        std::array constants{
+            m_postProcessConstants.getBuffer(),
+        };
+
         std::array uavs{ m_backbufferUAV.Get() };
+
+        m_postProcessConstants.data.Exposure = params.exposure;
+        m_postProcessConstants.data.GammaCorrection = params.gammaCorrection ? 1 : 0;
+        m_postProcessConstants.update(m_context);
 
         m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
         m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+        m_context->CSSetConstantBuffers(0, UINT(constants.size()), constants.data());
 
         auto x = UINT(std::ceil(float(m_width) / float(TILE_SIZE)));
         auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
@@ -850,9 +869,10 @@ void Renderer::loadShaders()
         });
 
     m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
-    m_blurCS = loadComputeShader("shaders/Blur.cs.cso");
     m_gaussianCS = loadComputeShader("shaders/GaussianBlur.cs.cso");
     m_brightPassDownscaleCS = loadComputeShader("shaders/BrightPassDownscale.cs.cso");
+
+    m_brightPassDownscale2CS = loadComputeShader("shaders/BrightPassDownscale2.cs.cso");
 }
 
 ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback)

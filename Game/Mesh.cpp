@@ -37,6 +37,8 @@ Mesh::Mesh(const std::filesystem::path& path)
         aiProcess_CalcTangentSpace
         | aiProcess_GenBoundingBoxes
         | aiProcess_Triangulate
+        //| aiProcess_GenSmoothNormals
+        //| aiProcess_ForceGenNormals
         | aiProcess_ConvertToLeftHanded
         | aiProcess_SortByPType
         | aiProcess_FixInfacingNormals

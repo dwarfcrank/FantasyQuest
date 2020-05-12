@@ -17,7 +17,8 @@ void main(uint3 dtid : SV_DispatchThreadID)
 
     float offset = bc.KernelSize;
     //float2 uv = (float2(dtid.xy) * bc.TexcoordScale) + float2(0.5f, 0.5f);
-    float2 uv = (float2(dtid.xy) * bc.TexcoordScale) + (bc.TexcoordScale - 1.0f) + float2(0.5f, 0.5f);
+    //float2 uv = (float2(dtid.xy) * bc.TexcoordScale) + (bc.TexcoordScale - 1.0f) + float2(0.5f, 0.5f);
+    float2 uv = (float2(dtid.xy) * bc.TexcoordScale) + (bc.TexcoordScale - 1.0f);
 
     result += framebuffer.SampleLevel(fbSampler, ((uv + float2( offset,  offset)) / bc.ScreenSize), 0);
     result += framebuffer.SampleLevel(fbSampler, ((uv + float2( offset, -offset)) / bc.ScreenSize), 0);

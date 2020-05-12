@@ -88,6 +88,7 @@ struct Scene
 
     XMFLOAT3 directionalLight{ 1.0f, 1.0f, -1.0f };
     XMFLOAT3 directionalLightColor{ 1.0f, 1.0f, 1.0f };
+    float directionalLightIntensity = 1.0f;
     float depthBias = 0.005f;
 
     std::vector<Object> objects;

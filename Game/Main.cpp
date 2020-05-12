@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 					rc.bounds = bounds[rc.name];
 				});
 
-            r->setDirectionalLight(scene.directionalLight, scene.directionalLightColor);
+            r->setDirectionalLight(scene.directionalLight, scene.directionalLightColor, scene.directionalLightIntensity);
             r->setPointLights(scene.lights);
         }
 
@@ -197,18 +197,10 @@ int main(int argc, char* argv[])
             }
 
             {
-                ImGui::Begin("post processing");
+                ImGui::Begin("Post processing");
 
-                ImGui::Checkbox("Gaussian blur", &params.gaussianBlur);
-
-                if (params.gaussianBlur) {
-
-                } else {
-                    for (int i = 0; i < 6; i++) {
-                        auto name = fmt::format("kernel {}", i);
-                        ImGui::InputFloat(name.c_str(), &params.kernelSizes[i]);
-                    }
-                }
+                ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
+                ImGui::Checkbox("Gamma correction", &params.gammaCorrection);
 
                 ImGui::End();
             }
@@ -222,7 +214,7 @@ int main(int argc, char* argv[])
                 auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
                 XMFLOAT3 d;
                 XMStoreFloat3(&d, direction);
-                r->setDirectionalLight(d, scene.directionalLightColor);
+                r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
 
                 r->setPointLights(scene.lights);
             }

@@ -136,6 +136,10 @@ void Scene::load(const std::filesystem::path& path)
 
         reg.emplace<components::Misc>(entity, obj.name);
     }
+
+    for (auto& light : lights) {
+        light.Intensity = 1.0f;
+    }
 }
 
 void Scene::save(const std::filesystem::path& path) const

@@ -132,6 +132,7 @@ void SceneEditor::lightList()
         changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
         changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
         changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
+		changed |= ImGui::SliderFloat("Intensity", &m_scene.directionalLightIntensity, 0.0f, 10.0f, "%.5f");
 
         ImGui::TreePop();
     }
@@ -147,6 +148,7 @@ void SceneEditor::lightList()
             changed |= ImGui::ColorEdit3("Color", &light.Color.x);
             changed |= ImGui::SliderFloat("Linear", &light.Position.w, 0.0f, 1.0f, "%.5f");
             changed |= ImGui::SliderFloat("Quadratic", &light.Color.w, 0.0f, 1.0f, "%.5f");
+			changed |= ImGui::SliderFloat("Intensity", &light.Intensity, 0.0f, 10.0f, "%.5f");
 
             if (changed) {
 

@@ -20,19 +20,13 @@ float3 ComputePointLight(PointLight light, float3 position, float3 normal)
     float attenuation = 1.0f / (light.Position.w * distance + light.Color.w * distance * distance);
 	float ndotl = max(0.0f, dot(normal, l));
 
-    return light.Color.rgb * ndotl * attenuation;
+    return light.Color.rgb * ndotl * attenuation * light.Intensity;
 }
-
-// TODO: implement color for directional light
-/*
-static const float3 DirectionalColor = float3(0.5f, 0.5f, 0.5f);
-static const float DepthBias = 0.005f;
-*/
 
 float3 ComputeDirectionalLight(float3 light, float3 normal)
 {
     float ndotl = max(0.0f, dot(normal, light.xyz));
-    return ndotl * pc.DirectionalColor;
+    return ndotl * pc.DirectionalColor * pc.LightIntensity;
 }
 
 static const float2 PoissonDisk[4] = {
@@ -42,13 +36,14 @@ static const float2 PoissonDisk[4] = {
     float2(0.34495938f, 0.29387760f)
 };
 
-
 float4 main(VS_Output v) : SV_TARGET
 {
-    float3 total = ComputeDirectionalLight(pc.LightDir, v.Normal);
+    float3 n = normalize(v.Normal);
+
+    float3 total = ComputeDirectionalLight(pc.LightDir, n);
 
     for (uint i = 0; i < pc.NumPointLights; i++) {
-        total += ComputePointLight(PointLights[i], v.PositionWS.xyz, v.Normal);
+        total += ComputePointLight(PointLights[i], v.PositionWS.xyz, n);
     }
 
     float2 texcoord = v.ShadowPos.xy;
