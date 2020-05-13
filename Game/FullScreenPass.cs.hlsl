@@ -2,6 +2,7 @@
 
 Texture2D<float4> framebuffer : register(t0);
 Texture2D<float4> bloomTexture : register(t1);
+Texture2D<float> averageLuminance : register(t2);
 
 SamplerState bloomSampler : register(s0);
 
@@ -30,7 +31,8 @@ float3 Uncharted2ToneMapping(float3 color)
 	float F = 0.30;
 	float W = 11.2;
 	//float exposure = 3.;
-	color *= ppc.Exposure;
+	//color *= ppc.Exposure;
+    color *= 1.0f / averageLuminance[uint2(0, 0)];
 	color = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
 	float white = ((W * (A * W + C * B) + D * E) / (W * (A * W + B) + D * F)) - E / F;
 	color /= white;
@@ -70,6 +72,6 @@ void main(uint3 dtid : SV_DispatchThreadID)
 
     //output[dtid.xy] = framebuffer[dtid.xy] + bl;
     //output[dtid.xy] = computeToneMapping(framebuffer[dtid.xy] + bl);
-    output[dtid.xy] = computeToneMapping(lerp(framebuffer[dtid.xy], bl, 0.05f));
+    output[dtid.xy] = computeToneMapping(lerp(framebuffer[dtid.xy], bl, 0.04f));
     //output[dtid.xy] = computeToneMapping(framebuffer[dtid.xy]);
 }

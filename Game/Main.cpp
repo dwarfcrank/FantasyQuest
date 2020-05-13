@@ -233,7 +233,8 @@ int main(int argc, char* argv[])
 
             r->beginFrame(g->getCamera());
             {
-                r->clear(0.1f, 0.2f, 0.3f);
+                //r->clear(0.1f, 0.2f, 0.3f);
+                r->clear(0.0f, 0.0f, 0.0f);
 
                 for (const auto& [_, batch] : batches) {
                     if (!batch.instances.empty()) {
@@ -243,6 +244,7 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
+                params.deltaTime = dt;
                 r->postProcess(params);
 
                 r->drawImgui();

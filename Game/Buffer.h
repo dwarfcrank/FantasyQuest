@@ -5,6 +5,7 @@
 
 #include <d3d11_1.h>
 #include <wrl.h>
+#include <type_traits>
 
 template<typename T>
 class ConstantBuffer
@@ -51,9 +52,13 @@ public:
 
         CD3D11_BUFFER_DESC bd(sizeof(ElementType) * capacity, BindFlags);
 
-        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0) {
+        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0 && !std::is_integral_v<ElementType>) {
             bd.StructureByteStride = sizeof(ElementType);
-            bd.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+            bd.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        }
+
+        if constexpr ((BindFlags & D3D11_BIND_UNORDERED_ACCESS) != 0) {
+            bd.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
         }
 
         m_buffer = createBuffer(device, bd);
@@ -64,13 +69,18 @@ public:
         m_capacity = contents.size;
         m_size = contents.size;
 
-        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0) {
-            m_buffer = createBufferWithData(device, contents, BindFlags,
-                D3D11_USAGE_DEFAULT, 0, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED, sizeof(ElementType));
-        } else {
-            m_buffer = createBufferWithData(device, contents, BindFlags);
+        UINT miscFlags = 0;
+
+        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0 && !std::is_integral_v<ElementType>) {
+            miscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+        } 
+
+        if constexpr ((BindFlags & D3D11_BIND_UNORDERED_ACCESS) != 0) {
+            miscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
         }
 
+        m_buffer = createBufferWithData(device, contents, BindFlags, D3D11_USAGE_DEFAULT,
+            0, miscFlags, UINT(sizeof(ElementType)));
     }
 
     void update(const ComPtr<ID3D11DeviceContext>& context, ArrayView<T> contents)
@@ -105,3 +115,6 @@ using IndexBuffer = Buffer<T, D3D11_BIND_INDEX_BUFFER>;
 
 template<typename T>
 using StructuredBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE>;
+
+template<typename T>
+using RWByteAddressBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS>;

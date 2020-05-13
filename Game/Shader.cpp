@@ -33,6 +33,9 @@ ComPtr<ID3D11ComputeShader> compileComputeShader(const ComPtr<ID3D11Device>& dev
     auto bytecode = compileShader(filename, "cs_5_0", entryPoint);
     Hresult hr = device->CreateComputeShader(bytecode->GetBufferPointer(), bytecode->GetBufferSize(), nullptr, &shader);
 
+    auto name = filename.filename().replace_extension();
+    setObjectName(shader, name.string());
+
     return shader;
 }
 
@@ -42,6 +45,9 @@ ComPtr<ID3D11VertexShader> compileVertexShader(const ComPtr<ID3D11Device>& devic
     ComPtr<ID3D11VertexShader> shader;
     auto bytecode = compileShader(filename, "vs_5_0", entryPoint);
     Hresult hr = device->CreateVertexShader(bytecode->GetBufferPointer(), bytecode->GetBufferSize(), nullptr, &shader);
+
+    auto name = filename.filename().replace_extension();
+    setObjectName(shader, name.string());
 
     return shader;
 }
@@ -55,6 +61,9 @@ ComPtr<ID3D11VertexShader> compileVertexShader(const ComPtr<ID3D11Device>& devic
 
     callback(bytecode.Get());
 
+    auto name = filename.filename().replace_extension();
+    setObjectName(shader, name.string());
+
     return shader;
 }
 
@@ -64,6 +73,9 @@ ComPtr<ID3D11PixelShader> compilePixelShader(const ComPtr<ID3D11Device>& device,
     ComPtr<ID3D11PixelShader> shader;
     auto bytecode = compileShader(filename, "ps_5_0", entryPoint);
     Hresult hr = device->CreatePixelShader(bytecode->GetBufferPointer(), bytecode->GetBufferSize(), nullptr, &shader);
+
+    auto name = filename.filename().replace_extension();
+    setObjectName(shader, name.string());
 
     return shader;
 }

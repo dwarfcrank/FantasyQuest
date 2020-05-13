@@ -43,6 +43,7 @@ struct PostProcessParams
 {
     float exposure = 1.0f;
     bool gammaCorrection = false;
+    float deltaTime = 0.0f;
 };
 
 class IRenderer

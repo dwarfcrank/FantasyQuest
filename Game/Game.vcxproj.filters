@@ -239,6 +239,9 @@
     <FxCompile Include="DebugDraw.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="LuminanceHistogram.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli">

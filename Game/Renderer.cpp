@@ -40,6 +40,16 @@ public:
     std::string m_name;
 };
 
+CB_STRUCT LuminanceHistogramConstants
+{
+    uint2 inputSize;
+    float minLogLuminance = -10.0f;
+    float logLuminanceRange;
+    float invLogLuminanceRange;
+    float deltaTime = 0.0f;
+    float tau = 1.1f;
+};
+
 class Renderer : public IRenderer
 {
 public:
@@ -136,6 +146,14 @@ private:
 
     ComPtr<ID3D11ComputeShader> m_gaussianCS;
     ConstantBuffer<GaussianConstants> m_gc;
+
+    ComPtr<ID3D11ComputeShader> m_luminanceHistogramCS;
+    ComPtr<ID3D11ComputeShader> m_luminanceAverageCS;
+    ConstantBuffer<LuminanceHistogramConstants> m_luminanceHistogramCB;
+    RWByteAddressBuffer<uint> m_luminanceHistogram;
+    ComPtr<ID3D11UnorderedAccessView> m_luminanceHistogramUAV;
+    ComPtr<ID3D11ShaderResourceView> m_luminanceHistogramSRV;
+    RenderTarget m_averageLuminance;
 };
 
 using namespace DirectX;
@@ -302,6 +320,33 @@ Renderer::Renderer(SDL_Window* window)
             h /= 2;
         }
     }
+
+    float minLogLuminance = -10.0f;
+    float maxLogLuminance = 2.0f;
+
+    m_luminanceHistogramCB.data.inputSize.x = m_mainRT.m_width;
+    m_luminanceHistogramCB.data.inputSize.y = m_mainRT.m_height;
+    m_luminanceHistogramCB.data.minLogLuminance = minLogLuminance;
+    m_luminanceHistogramCB.data.logLuminanceRange = maxLogLuminance - minLogLuminance;
+    m_luminanceHistogramCB.data.invLogLuminanceRange = 1.0f / (maxLogLuminance - minLogLuminance);
+    m_luminanceHistogramCB.init(m_device);
+    m_luminanceHistogramCB.setName("luminance histogram CB");
+
+    {
+        std::vector<UINT> tmp(256, 0);
+        m_luminanceHistogram.init(m_device, tmp);
+        m_luminanceHistogram.setName("luminance histogram");
+    }
+
+    m_luminanceHistogramSRV = createShaderResourceView(m_device, m_luminanceHistogram.getBuffer(),
+        m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_UINT, 0, m_luminanceHistogram.getCapacity());
+
+    m_luminanceHistogramUAV = createUnorderedAccessView(m_device, m_luminanceHistogram.getBuffer(),
+        m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_TYPELESS, 0, m_luminanceHistogram.getCapacity(),
+        D3D11_BUFFER_UAV_FLAG_RAW);
+
+    m_averageLuminance.init(m_device, 1, 1, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R32_FLOAT);
+    m_averageLuminance.setName("average luminance");
 }
 
 Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices)
@@ -589,12 +634,40 @@ void Renderer::postProcess(const PostProcessParams& params)
 
     m_context->OMSetRenderTargets(0, nullptr, nullptr);
 
+    {
+        {
+            std::array<UINT, 256> tmp;
+            std::memset(&tmp, 0, sizeof(tmp));
+            m_luminanceHistogram.update(m_context, tmp);
+
+            m_luminanceHistogramCB.data.deltaTime = params.deltaTime;
+            m_luminanceHistogramCB.update(m_context);
+        }
+
+        std::array resources{ m_mainRT.m_framebufferSRV.Get(), };
+        std::array constants{ m_luminanceHistogramCB.getBuffer(), };
+        std::array uavs{ m_luminanceHistogramUAV.Get(), m_averageLuminance.m_framebufferUAV.Get(), };
+
+        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
+        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+        m_context->CSSetConstantBuffers(0, UINT(constants.size()), constants.data());
+        m_context->CSSetShader(m_luminanceHistogramCS.Get(), nullptr, 0);
+
+        auto x = UINT(std::ceil(float(m_mainRT.m_width) / 16.0f));
+        auto y = UINT(std::ceil(float(m_mainRT.m_height) / 16.0f));
+
+        m_context->Dispatch(x, y, 1);
+
+        m_context->CSSetShader(m_luminanceAverageCS.Get(), nullptr, 0);
+        m_context->Dispatch(1, 1, 1);
+    }
+
     ID3D11ShaderResourceView* bloomSRV = computeBloom();
 
     {
-        ID3D11UnorderedAccessView* tempUAV = nullptr;
+        ID3D11UnorderedAccessView* tempUAV[2] = { nullptr, nullptr, };
         ID3D11ShaderResourceView* tempSRV = nullptr;
-        m_context->CSSetUnorderedAccessViews(0, 1, &tempUAV, nullptr);
+        m_context->CSSetUnorderedAccessViews(0, 2, tempUAV, nullptr);
         m_context->CSSetShaderResources(0, 1, &tempSRV);
     }
 
@@ -607,6 +680,7 @@ void Renderer::postProcess(const PostProcessParams& params)
         std::array resources{
             m_mainRT.m_framebufferSRV.Get(),
             bloomSRV,
+            m_averageLuminance.m_framebufferSRV.Get(),
         };
 
         std::array constants{
@@ -875,6 +949,9 @@ void Renderer::loadShaders()
 
     m_brightPassDownscaleCS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale.cs.hlsl", "main");
     m_brightPassDownscale2CS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale2.cs.hlsl", "main");
+
+    m_luminanceHistogramCS = compileComputeShader(m_device, shaderDir / "LuminanceHistogram.hlsl", "computeHistogram");
+    m_luminanceAverageCS = compileComputeShader(m_device, shaderDir / "LuminanceHistogram.hlsl", "computeAverage");
 }
 
 std::unique_ptr<IRenderer> createRenderer(SDL_Window* window)
