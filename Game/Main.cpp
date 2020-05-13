@@ -23,6 +23,8 @@
 #include <chrono>
 #include <entt/entt.hpp>
 
+#include <bullet/btBulletDynamicsCommon.h>
+
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
 template<typename... TArgs>
@@ -54,6 +56,154 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
     }
 }
 
+struct PhysicsWorld
+{
+    PhysicsWorld()
+    {
+        collisionConfiguration.reset(new btDefaultCollisionConfiguration());
+        dispatcher.reset(new btCollisionDispatcher(collisionConfiguration.get()));
+        overlappingPairCache.reset(new btDbvtBroadphase());
+        solver.reset(new btSequentialImpulseConstraintSolver());
+        dynamicsWorld.reset(new btDiscreteDynamicsWorld(
+            dispatcher.get(), overlappingPairCache.get(), solver.get(), collisionConfiguration.get()));
+
+        dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
+    }
+
+    void addBox(float hw, float hh, float hd, float mass, float x, float y, float z)
+    {
+        auto shape = collisionShapes.emplace_back(new btBoxShape(btVector3(hw, hh, hd))).get();
+
+        btTransform t;
+        t.setIdentity();
+        t.setOrigin(btVector3(x, y, z));
+
+        auto motionState = new btDefaultMotionState(t);
+        btRigidBody::btRigidBodyConstructionInfo info(mass, motionState, shape);
+        auto body = new btRigidBody(info);
+
+        dynamicsWorld->addRigidBody(body);
+    }
+
+    void addSphere(float radius, float mass, float x, float y, float z)
+    {
+        auto shape = collisionShapes.emplace_back(new btSphereShape(radius)).get();
+
+        btTransform t;
+        t.setIdentity();
+        t.setOrigin(btVector3(x, y, z));
+
+        btVector3 localInertia(0.0f, 0.0f, 0.0f);
+        shape->calculateLocalInertia(mass, localInertia);
+
+        auto motionState = new btDefaultMotionState(t);
+        btRigidBody::btRigidBodyConstructionInfo info(mass, motionState, shape, localInertia);
+        auto body = new btRigidBody(info);
+
+        body->setUserIndex(sphereIdx);
+        sphereIdx++;
+
+        dynamicsWorld->addRigidBody(body);
+    }
+
+    void update(float dt)
+    {
+        time += dt;
+
+        if (time < TIMESTEP) {
+            return;
+        }
+
+        time -= TIMESTEP;
+
+        dynamicsWorld->stepSimulation(TIMESTEP, 10);
+    }
+
+    /*
+    dynamicsWorld->stepSimulation(1.f / 60.f, 10);
+
+		//print positions of all objects
+		for (int j = dynamicsWorld->getNumCollisionObjects() - 1; j >= 0; j--)
+		{
+			btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[j];
+			btRigidBody* body = btRigidBody::upcast(obj);
+			btTransform trans;
+			if (body && body->getMotionState())
+			{
+				body->getMotionState()->getWorldTransform(trans);
+			}
+			else
+			{
+				trans = obj->getWorldTransform();
+			}
+			printf("world pos object %d = %f,%f,%f\n", j, float(trans.getOrigin().getX()), float(trans.getOrigin().getY()), float(trans.getOrigin().getZ()));
+		}
+    */
+
+    void render(IRenderer* r)
+    {
+        d.clear();
+
+        Transform tt;
+        btTransform ft;
+
+        auto n = dynamicsWorld->getNumCollisionObjects();
+        const auto& collisionObjects = dynamicsWorld->getCollisionObjectArray();
+
+        for (int i = 0; i < n; i++) {
+            auto obj = collisionObjects[i];
+
+            if (auto body = btRigidBody::upcast(obj)) {
+                if (auto motionState = body->getMotionState()) {
+                    motionState->getWorldTransform(ft);
+                }
+            } else {
+                ft = obj->getWorldTransform();
+            }
+
+            const auto& origin = ft.getOrigin();
+            XMFLOAT3 position(origin.x(), origin.y(), origin.z());
+
+            XMFLOAT3 rotation;
+            ft.getRotation().getEulerZYX(rotation.z, rotation.y, rotation.x);
+            
+            tt.Position = XMLoadFloat3(&position);
+            tt.Rotation = XMLoadFloat3(&rotation);
+
+            btVector3 aabbMin, aabbMax;
+            {
+                btTransform t2;
+                t2.setIdentity();
+                obj->getCollisionShape()->getAabb(t2, aabbMin, aabbMax);
+            }
+
+            d.drawBounds(
+                Vector<Model>{ aabbMin.x(), aabbMin.y(), aabbMin.z(), 1.0f },
+                Vector<Model>{ aabbMax.x(), aabbMax.y(), aabbMax.z(), 1.0f },
+                tt
+            );
+        }
+    }
+
+    //btAlignedObjectArray<btCollisionShape*> collisionShapes;
+
+    std::unique_ptr<btDefaultCollisionConfiguration> collisionConfiguration;
+    std::unique_ptr<btCollisionDispatcher> dispatcher;
+    std::unique_ptr<btBroadphaseInterface> overlappingPairCache;
+    std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
+    std::unique_ptr<btDiscreteDynamicsWorld> dynamicsWorld;
+
+    std::vector<std::unique_ptr<btCollisionShape>> collisionShapes;
+
+    DebugDraw d;
+
+    float time = 0.0f;
+    static constexpr auto TICKS_PER_SECOND = 60;
+    static constexpr auto TIMESTEP = 1.0f / float(TICKS_PER_SECOND);
+
+    int sphereIdx = 0;
+};
+
 int main(int argc, char* argv[])
 {
     if (auto ret = SDL_Init(SDL_INIT_VIDEO); ret < 0) {
@@ -61,7 +211,6 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    //auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 900, SDL_WINDOW_SHOWN);
     auto window = SDL_CreateWindow("ebin", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1920, 1080, SDL_WINDOW_SHOWN);
     if (!window) {
         reportError("SDL_CreateWindow returned nullptr");
@@ -152,6 +301,15 @@ int main(int argc, char* argv[])
             }
         };
 
+        PhysicsWorld pw;
+        pw.addBox(20.0f, 1.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+
+        float radius = 1.0f;
+        inputs.key(SDLK_SPACE).up([&] () mutable {
+            pw.addSphere(radius, radius * 1.5f, 0.0f, 15.0f, 0.0f);
+            radius += 0.1f;
+        });
+
         Camera shadowCam = Camera::ortho();
 
         XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
@@ -193,6 +351,7 @@ int main(int argc, char* argv[])
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
+            pw.update(dt);
             g->update(dt);
 
             if (showDemo) {
@@ -258,6 +417,9 @@ int main(int argc, char* argv[])
                 }
 
                 g->render(r.get());
+
+                pw.render(r.get());
+                r->debugDraw(g->getCamera(), pw.d.verts);
 
                 params.deltaTime = dt;
                 r->postProcess(params);
