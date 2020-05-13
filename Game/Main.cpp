@@ -180,9 +180,12 @@ int main(int argc, char* argv[])
 
         PostProcessParams params;
 
+        float t = 0.0f;
+
         while (running) {
             auto g = games[gameIdx];
             float dt = gt.update();
+            t += dt;
 
             handleEvents();
 
@@ -216,7 +219,19 @@ int main(int argc, char* argv[])
                 XMStoreFloat3(&d, direction);
                 r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
 
-                r->setPointLights(scene.lights);
+                auto lights = scene.lights;
+
+                if (t >= 5.0f) {
+                    lights[0].Intensity = scene.lights[0].Intensity;
+                } else {
+                    lights[0].Intensity = 0.0f;
+                }
+
+                if (t >= 10.0f) {
+                    t = 0.0f;
+                }
+
+                r->setPointLights(lights);
             }
 
             updateBatches();

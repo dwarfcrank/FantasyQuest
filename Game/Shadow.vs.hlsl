@@ -15,5 +15,7 @@ ShadowVS_Output main(Vertex v)
 	o.Position = mul(o.Position, camera.View);
 	o.Position = mul(o.Position, camera.Projection);
 
+	o.Position.z *= o.Position.w;
+
 	return o;
 }

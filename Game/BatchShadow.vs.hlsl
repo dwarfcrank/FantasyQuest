@@ -9,5 +9,7 @@ float4 main(Vertex v, matrix World : WORLD) : SV_POSITION
 	position = mul(position, camera.View);
 	position = mul(position, camera.Projection);
 
+	position.z *= position.w;
+
 	return position;
 }
