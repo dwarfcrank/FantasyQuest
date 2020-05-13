@@ -11,6 +11,7 @@
 #include "DebugDraw.h"
 #include "imgui_impl_dx11.h"
 #include "RenderTarget.h"
+#include "Shader.h"
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
@@ -73,10 +74,6 @@ public:
 private:
     void loadShaders();
     ID3D11ShaderResourceView* computeBloom();
-
-    ComPtr<ID3D11VertexShader> loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback = nullptr);
-    ComPtr<ID3D11PixelShader> loadPixelShader(const std::filesystem::path& path);
-    ComPtr<ID3D11ComputeShader> loadComputeShader(const std::filesystem::path& path);
 
     ComPtr<ID3D11Device1> m_device;
     ComPtr<ID3D11DeviceContext1> m_context;
@@ -815,8 +812,10 @@ void Renderer::drawImgui()
 
 void Renderer::loadShaders()
 {
-    m_batchVS = loadVertexShader("shaders/BatchVertexShader.vs.cso",
-        [this](const std::vector<u8>& bytecode) {
+    const std::filesystem::path shaderDir("../Game");
+
+    m_batchVS = compileVertexShader(m_device, shaderDir / "BatchVertexShader.vs.hlsl", "main",
+        [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
                 D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -837,15 +836,16 @@ void Renderer::loadShaders()
             }
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
-                bytecode.data(), bytecode.size(), &m_batchInputLayout);
+                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_batchInputLayout);
             setObjectName(m_batchInputLayout, "DefaultBatchInputLayout");
         });
 
-    m_shadowBatchVS = loadVertexShader("shaders/BatchShadow.vs.cso");
+    m_shadowBatchVS = compileVertexShader(m_device, shaderDir / "BatchShadow.vs.hlsl", "main");
+    m_shadowVS = compileVertexShader(m_device, shaderDir / "Shadow.vs.hlsl", "main");
 
-    m_ps = loadPixelShader("shaders/PixelShader.ps.cso");
-    m_vs = loadVertexShader("shaders/VertexShader.vs.cso",
-        [this](const std::vector<u8>& bytecode) {
+    m_ps = compilePixelShader(m_device, shaderDir / "PixelShader.ps.hlsl", "main");
+    m_vs = compileVertexShader(m_device, shaderDir / "VertexShader.vs.hlsl", "main",
+        [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
                 D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -853,73 +853,28 @@ void Renderer::loadShaders()
             };
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
-                bytecode.data(), bytecode.size(), &m_inputLayout);
+                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_inputLayout);
             setObjectName(m_inputLayout, "DefaultInputLayout");
         });
 
-    m_shadowVS = loadVertexShader("shaders/Shadow.vs.cso");
-
-    m_debugPS = loadPixelShader("shaders/DebugDraw.ps.cso");
-    m_debugVS = loadVertexShader("shaders/DebugDraw.vs.cso",
-        [this](const std::vector<u8>& bytecode) {
+    m_debugPS = compilePixelShader(m_device, shaderDir / "DebugDraw.ps.hlsl", "main");
+    m_debugVS = compileVertexShader(m_device, shaderDir / "DebugDraw.vs.hlsl", "main",
+        [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
                 D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             };
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
-                bytecode.data(), bytecode.size(), &m_debugInputLayout);
+                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_debugInputLayout);
             setObjectName(m_debugInputLayout, "DebugDrawInputLayout");
         });
 
-    m_fscs = loadComputeShader("shaders/FullScreenPass.cs.cso");
-    m_gaussianCS = loadComputeShader("shaders/GaussianBlur.cs.cso");
-    m_brightPassDownscaleCS = loadComputeShader("shaders/BrightPassDownscale.cs.cso");
+    m_gaussianCS = compileComputeShader(m_device, shaderDir / "GaussianBlur.cs.hlsl", "main");
+    m_fscs = compileComputeShader(m_device, shaderDir / "FullScreenPass.cs.hlsl", "main");
 
-    m_brightPassDownscale2CS = loadComputeShader("shaders/BrightPassDownscale2.cs.cso");
-}
-
-ComPtr<ID3D11VertexShader> Renderer::loadVertexShader(const std::filesystem::path& path, std::function<void(const std::vector<u8>&)> callback)
-{
-    auto bytecode = loadFile(path);
-
-    ComPtr<ID3D11VertexShader> shader;
-    Hresult hr = m_device->CreateVertexShader(bytecode.data(), bytecode.size(), nullptr, &shader);
-
-    auto filename = path.filename().replace_extension().generic_string();
-    setObjectName(shader, filename);
-
-    if (callback) {
-        callback(bytecode);
-    }
-
-    return shader;
-}
-
-ComPtr<ID3D11PixelShader> Renderer::loadPixelShader(const std::filesystem::path& path)
-{
-    auto bytecode = loadFile(path);
-
-    ComPtr<ID3D11PixelShader> shader;
-    Hresult hr = m_device->CreatePixelShader(bytecode.data(), bytecode.size(), nullptr, &shader);
-
-    auto filename = path.filename().replace_extension().generic_string();
-    setObjectName(shader, filename);
-
-    return shader;
-}
-
-ComPtr<ID3D11ComputeShader> Renderer::loadComputeShader(const std::filesystem::path& path)
-{
-    auto bytecode = loadFile(path);
-
-    ComPtr<ID3D11ComputeShader> shader;
-    Hresult hr = m_device->CreateComputeShader(bytecode.data(), bytecode.size(), nullptr, &shader);
-
-    auto filename = path.filename().replace_extension().generic_string();
-    setObjectName(shader, filename);
-
-    return shader;
+    m_brightPassDownscaleCS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale.cs.hlsl", "main");
+    m_brightPassDownscale2CS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale2.cs.hlsl", "main");
 }
 
 std::unique_ptr<IRenderer> createRenderer(SDL_Window* window)
