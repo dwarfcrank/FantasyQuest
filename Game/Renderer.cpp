@@ -857,8 +857,8 @@ void Renderer::loadShaders()
             setObjectName(m_inputLayout, "DefaultInputLayout");
         });
 
-    m_debugPS = compilePixelShader(m_device, shaderDir / "DebugDraw.ps.hlsl", "main");
-    m_debugVS = compileVertexShader(m_device, shaderDir / "DebugDraw.vs.hlsl", "main",
+    m_debugPS = compilePixelShader(m_device, shaderDir / "DebugDraw.hlsl", "psMain");
+    m_debugVS = compileVertexShader(m_device, shaderDir / "DebugDraw.hlsl", "vsMain",
         [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },

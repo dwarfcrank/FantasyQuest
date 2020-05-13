@@ -200,12 +200,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="DebugDraw.ps.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="DebugDraw.vs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="PixelShader.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -240,6 +234,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="KawaseBlur.cs.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="DebugDraw.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
