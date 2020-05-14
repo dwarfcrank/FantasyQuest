@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include "DebugDraw.h"
 #include "InputMap.h"
+#include "imgui_stdlib.h"
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables) :
     GameBase(inputs), m_scene(scene), m_renderables(renderables.begin(), renderables.end())
@@ -140,9 +141,16 @@ void SceneEditor::objectPropertiesWindow()
             return;
         }
 
-        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
-
         bool changed = false;
+
+        auto& m = m_scene.reg.get<components::Misc>(m_currentEntity);
+        if (ImGui::InputText("Name", &m.name)) {
+            // TODO: one day I will need to handle this...
+        }
+
+        ImGui::Separator();
+
+        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
         changed |= ImGui::InputFloat3("Position", &t.position.x);
         changed |= ImGui::SliderAngle("X", &t.rotation.x, -180.0f, 180.0f);
