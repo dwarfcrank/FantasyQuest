@@ -130,9 +130,7 @@ void Scene::load(const std::filesystem::path& path)
             .scale = obj.scale,
 		});
 
-        reg.emplace<components::Renderable>(entity, components::Renderable{
-            .name = obj.modelName,
-		});
+        reg.emplace<components::Renderable>(entity, obj.modelName, nullptr);
 
         reg.emplace<components::Misc>(entity, obj.name);
     }

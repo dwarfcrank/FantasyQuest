@@ -47,11 +47,17 @@ namespace components
 {
     struct Misc
     {
+        Misc(std::string name) :
+            name{ std::move(name) } {}
+
         std::string name;
     };
 
     struct Renderable
     {
+        Renderable(std::string name, ::Renderable* renderable) :
+            name{ std::move(name) }, renderable{ renderable } {}
+
         std::string name;
         ::Renderable* renderable = nullptr;
 		Bounds bounds;

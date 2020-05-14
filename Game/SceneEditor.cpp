@@ -167,9 +167,22 @@ void SceneEditor::entityPropertiesWindow()
             // hmmm
         }
 
-        if (auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
-            ImGui::Separator();
+        ImGui::Separator();
 
+        auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
+        bool render = (rc != nullptr);
+
+        if (ImGui::Checkbox("Render", &render)) {
+            if (!render) {
+                m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
+                rc = nullptr;
+            } else if (render && !rc) {
+                const auto& [name, renderable] = m_renderables.front();
+                m_scene.reg.emplace<components::Renderable>(m_currentEntity, name, renderable);
+            }
+        }
+
+        if (rc) {
             int selected = 0;
 
             for (size_t i = 0; i < m_renderables.size(); i++) {
@@ -243,13 +256,22 @@ void SceneEditor::lightList()
 void SceneEditor::sceneWindow()
 {
     if (ImGui::Begin("Scene")) {
+        if (ImGui::Button("New entity")) {
+            auto e = m_scene.reg.create();
+
+            m_scene.reg.emplace<components::Misc>(e, fmt::format("entity{}", m_scene.reg.size()));
+            m_scene.reg.emplace<components::Transform>(e);
+        }
+
+        ImGui::Separator();
+
         if (ImGui::CollapsingHeader("Lights")) {
             lightList();
         }
 
         ImGui::Separator();
 
-        if (ImGui::CollapsingHeader("Objects")) {
+        if (ImGui::CollapsingHeader("Entities")) {
             entityList();
         }
 
@@ -257,6 +279,10 @@ void SceneEditor::sceneWindow()
     }
 
     ImGui::End();
+}
+
+void SceneEditor::mainMenu()
+{
 }
 
 void SceneEditor::drawGrid()

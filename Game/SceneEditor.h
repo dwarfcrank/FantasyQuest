@@ -42,10 +42,13 @@ private:
     int m_currentObjectIdx = -1;
 
     void renderableList();
+
     void entityList();
     void entityPropertiesWindow();
     void lightList();
     void sceneWindow();
+
+    void mainMenu();
 
     void drawGrid();
 };
