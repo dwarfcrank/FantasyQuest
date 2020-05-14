@@ -28,6 +28,7 @@ private:
     Scene& m_scene;
 
     std::vector<std::tuple<std::string, Renderable*>> m_renderables;
+    size_t m_lastUsedRenderable = 0;
 
     Camera m_camera = Camera::perspective();
 
@@ -47,6 +48,8 @@ private:
     void entityPropertiesWindow();
     void lightList();
     void sceneWindow();
+
+    entt::entity createEntity();
 
     void mainMenu();
 

@@ -12,7 +12,7 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_ma
 {
     auto doBind = [this](SDL_Keycode k, float& target, float value) {
         m_inputs.key(k)
-            .down([&target,  value] { target = value; })
+            .down([&target, value] { target = value; })
             .up([&target] { target = 0.0f; });
     };
 
@@ -26,6 +26,8 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_ma
 
     doBind(SDLK_r, velocity.y, moveSpeed);
     doBind(SDLK_f, velocity.y, -moveSpeed);
+
+    m_inputs.key(SDLK_c).up([&] { m_currentEntity = createEntity(); });
 
     m_inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
         if ((event.state & SDL_BUTTON_RMASK) || (moveCamera)) {
@@ -69,7 +71,6 @@ bool SceneEditor::update(float dt)
 
     sceneWindow();
     entityPropertiesWindow();
-    //renderableList();
     
     return true;
 }
@@ -211,6 +212,7 @@ void SceneEditor::entityPropertiesWindow()
                     m_scene.reg.patch<components::Renderable>(m_currentEntity,
                         [&](components::Renderable& r) {
                             std::tie(r.name, r.renderable) = m_renderables[newSelection];
+                            m_lastUsedRenderable = newSelection;
                         });
                 }
             }
@@ -289,10 +291,7 @@ void SceneEditor::sceneWindow()
 {
     if (ImGui::Begin("Scene")) {
         if (ImGui::Button("New entity")) {
-            auto e = m_scene.reg.create();
-
-            m_scene.reg.emplace<components::Misc>(e, fmt::format("entity{}", m_scene.reg.size()));
-            m_scene.reg.emplace<components::Transform>(e);
+            m_currentEntity = createEntity();
         }
 
         ImGui::Separator();
@@ -311,6 +310,25 @@ void SceneEditor::sceneWindow()
     }
 
     ImGui::End();
+}
+
+entt::entity SceneEditor::createEntity()
+{
+    auto e = m_scene.reg.create();
+
+    components::Transform t;
+
+    if (m_scene.reg.valid(m_currentEntity)) {
+        t = m_scene.reg.get<components::Transform>(m_currentEntity);
+    }
+
+    m_scene.reg.emplace<components::Misc>(e, fmt::format("entity{}", m_scene.reg.size()));
+    m_scene.reg.emplace<components::Transform>(e, t);
+
+    const auto& [name, renderable] = m_renderables[m_lastUsedRenderable];
+    m_scene.reg.emplace<components::Renderable>(e, name, renderable);
+
+    return e;
 }
 
 void SceneEditor::mainMenu()
