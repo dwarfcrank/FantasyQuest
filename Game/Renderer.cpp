@@ -390,7 +390,10 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
             m_pointLights.getBuffer(), DXGI_FORMAT_UNKNOWN, 0, m_pointLights.getCapacity());
     }
 
-    m_pointLights.update(m_context, lights);
+    if (lights.size > 0) {
+        m_pointLights.update(m_context, lights);
+    }
+
     m_psConstants.data.NumPointLights = lights.size;
     m_psConstants.update(m_context);
 }

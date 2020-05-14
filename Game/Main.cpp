@@ -354,6 +354,29 @@ int main(int argc, char* argv[])
 				});
         };
 
+        std::vector<PointLight> lights;
+
+        auto updateLights = [&] {
+            lights.clear();
+            scene.reg.view<components::Transform, components::PointLight>()
+                .each([&](const components::Transform& tc, const components::PointLight& plc) {
+                    PointLight l;
+
+                    l.Color.x = plc.color.x;
+                    l.Color.y = plc.color.y;
+                    l.Color.z = plc.color.z;
+                    l.Color.w = plc.quadraticAttenuation;
+
+                    l.Position.x = tc.position.x;
+                    l.Position.y = tc.position.y;
+                    l.Position.z = tc.position.z;
+                    l.Position.w = plc.linearAttenuation;
+
+                    l.Intensity = plc.intensity;
+                    lights.push_back(l);
+                });
+        };
+
         PostProcessParams params;
 
         float t = 0.0f;
@@ -396,6 +419,7 @@ int main(int argc, char* argv[])
                 XMStoreFloat3(&d, direction);
                 r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
 
+                /*
                 auto lights = scene.lights;
 
                 if (t >= 5.0f) {
@@ -407,6 +431,9 @@ int main(int argc, char* argv[])
                 if (t >= 10.0f) {
                     t = 0.0f;
                 }
+                */
+
+                updateLights();
 
                 r->setPointLights(lights);
             }

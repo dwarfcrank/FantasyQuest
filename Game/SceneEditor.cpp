@@ -146,69 +146,101 @@ void SceneEditor::entityPropertiesWindow()
             return;
         }
 
-        bool changed = false;
+        {
+            bool changed = false;
 
-        auto& m = m_scene.reg.get<components::Misc>(m_currentEntity);
-        if (ImGui::InputText("Name", &m.name)) {
-            // TODO: one day I will need to handle this...
-        }
+            auto& m = m_scene.reg.get<components::Misc>(m_currentEntity);
+            if (ImGui::InputText("Name", &m.name)) {
+                // TODO: one day I will need to handle this...
+            }
 
-        ImGui::Separator();
+            ImGui::Separator();
 
-        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
+            auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
-        changed |= ImGui::InputFloat3("Position", &t.position.x);
-        changed |= ImGui::SliderAngle("X", &t.rotation.x, -180.0f, 180.0f);
-        changed |= ImGui::SliderAngle("Y", &t.rotation.y, -180.0f, 180.0f);
-        changed |= ImGui::SliderAngle("Z", &t.rotation.z, -180.0f, 180.0f);
-        changed |= ImGui::InputFloat3("Scale", &t.scale.x);
+            changed |= ImGui::InputFloat3("Position", &t.position.x);
+            changed |= ImGui::SliderAngle("X", &t.rotation.x, -180.0f, 180.0f);
+            changed |= ImGui::SliderAngle("Y", &t.rotation.y, -180.0f, 180.0f);
+            changed |= ImGui::SliderAngle("Z", &t.rotation.z, -180.0f, 180.0f);
+            changed |= ImGui::InputFloat3("Scale", &t.scale.x);
 
-        if (changed) {
-            // hmmm
-        }
-
-        ImGui::Separator();
-
-        auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
-        bool render = (rc != nullptr);
-
-        if (ImGui::Checkbox("Render", &render)) {
-            if (!render) {
-                m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
-                rc = nullptr;
-            } else if (render && !rc) {
-                const auto& [name, renderable] = m_renderables.front();
-                m_scene.reg.emplace<components::Renderable>(m_currentEntity, name, renderable);
+            if (changed) {
+                // hmmm
             }
         }
 
-        if (rc) {
-            int selected = 0;
+        ImGui::Separator();
 
-            for (size_t i = 0; i < m_renderables.size(); i++) {
-                if (rc->name == std::get<0>(m_renderables[i])) {
-                    selected = int(i);
-                    break;
+        {
+            auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
+            bool render = (rc != nullptr);
+
+            if (ImGui::Checkbox("Render", &render)) {
+                if (!render) {
+                    m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
+                    rc = nullptr;
+                } else if (render && !rc) {
+                    const auto& [name, renderable] = m_renderables.front();
+                    m_scene.reg.emplace<components::Renderable>(m_currentEntity, name, renderable);
                 }
             }
 
-            int newSelection = selected;
+            if (rc) {
+                int selected = 0;
 
-            auto getter = [](void* data, int idx, const char** out) {
-                const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
+                for (size_t i = 0; i < m_renderables.size(); i++) {
+                    if (rc->name == std::get<0>(m_renderables[i])) {
+                        selected = int(i);
+                        break;
+                    }
+                }
 
-                const auto& [name, _] = items[idx];
-                *out = name.c_str();
+                int newSelection = selected;
 
-                return true;
-            };
+                auto getter = [](void* data, int idx, const char** out) {
+                    const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
 
-            ImGui::Combo("Mesh", &newSelection, getter, &m_renderables, int(m_renderables.size()));
-            if (newSelection != selected) {
-                m_scene.reg.patch<components::Renderable>(m_currentEntity,
-                    [&](components::Renderable& r) {
-                        std::tie(r.name, r.renderable) = m_renderables[newSelection];
-                    });
+                    const auto& [name, _] = items[idx];
+                    *out = name.c_str();
+
+                    return true;
+                };
+
+                ImGui::Combo("Mesh", &newSelection, getter, &m_renderables, int(m_renderables.size()));
+                if (newSelection != selected) {
+                    m_scene.reg.patch<components::Renderable>(m_currentEntity,
+                        [&](components::Renderable& r) {
+                            std::tie(r.name, r.renderable) = m_renderables[newSelection];
+                        });
+                }
+            }
+        }
+
+        ImGui::Separator();
+
+        {
+            auto plc = m_scene.reg.try_get<components::PointLight>(m_currentEntity);
+            bool hasLight = (plc != nullptr);
+
+            if (ImGui::Checkbox("Point light", &hasLight)) {
+                if (!hasLight) {
+                    m_scene.reg.remove_if_exists<components::PointLight>(m_currentEntity);
+                    plc = nullptr;
+                } else if (hasLight && !plc) {
+                    m_scene.reg.emplace<components::PointLight>(m_currentEntity);
+                }
+            }
+
+            if (plc) {
+                bool changed = false;
+
+                changed |= ImGui::ColorEdit3("Color", &plc->color.x);
+                changed |= ImGui::SliderFloat("Linear", &plc->linearAttenuation, 0.0f, 5.0f, "%.5f");
+                changed |= ImGui::SliderFloat("Quadratic", &plc->quadraticAttenuation, 0.0f, 5.0f, "%.5f");
+                changed |= ImGui::SliderFloat("Intensity", &plc->intensity, 0.0f, 100.0f, "%.5f");
+
+                if (changed) {
+                }
             }
         }
     }
