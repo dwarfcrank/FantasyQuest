@@ -63,7 +63,7 @@ bool SceneEditor::update(float dt)
     }
 
     sceneWindow();
-    objectPropertiesWindow();
+    entityPropertiesWindow();
     //renderableList();
     
     return true;
@@ -116,11 +116,11 @@ void SceneEditor::renderableList()
     ImGui::End();
 }
 
-void SceneEditor::objectList()
+void SceneEditor::entityList()
 {
     entt::entity e = entt::null;
 
-    if (ImGui::BeginChild("##objects", ImVec2(-1.0f, -1.0f))) {
+    if (ImGui::BeginChild("##entities", ImVec2(-1.0f, -1.0f))) {
         m_scene.reg.view<components::Misc>()
             .each([&](entt::entity entity, const components::Misc& m) {
 				if (ImGui::Selectable(m.name.c_str(), entity == m_currentEntity)) {
@@ -132,11 +132,11 @@ void SceneEditor::objectList()
     ImGui::EndChild();
 }
 
-void SceneEditor::objectPropertiesWindow()
+void SceneEditor::entityPropertiesWindow()
 {
-    if (ImGui::Begin("Object")) {
+    if (ImGui::Begin("Entitiy")) {
         if (!m_scene.reg.valid(m_currentEntity)) {
-            ImGui::Text("No object selected");
+            ImGui::Text("No entity selected");
             ImGui::End();
             return;
         }
@@ -245,7 +245,7 @@ void SceneEditor::sceneWindow()
         ImGui::Separator();
 
         if (ImGui::CollapsingHeader("Objects")) {
-            objectList();
+            entityList();
         }
 
         ImGui::Separator();

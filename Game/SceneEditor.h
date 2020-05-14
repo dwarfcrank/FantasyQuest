@@ -42,8 +42,8 @@ private:
     int m_currentObjectIdx = -1;
 
     void renderableList();
-    void objectList();
-    void objectPropertiesWindow();
+    void entityList();
+    void entityPropertiesWindow();
     void lightList();
     void sceneWindow();
 
