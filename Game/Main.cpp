@@ -251,6 +251,8 @@ int main(int argc, char* argv[])
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         auto& io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+        io.ConfigWindowsMoveFromTitleBarOnly = true;
         ImGui::StyleColorsDark();
         ImGui_ImplSDL2_InitForD3D(window);
         r->initImgui();
