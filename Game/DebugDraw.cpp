@@ -80,3 +80,50 @@ void DebugDraw::drawBounds(Vector<Model> min, Vector<Model> max, const Transform
     drawLine(transformed[6], transformed[7], color);
     drawLine(transformed[7], transformed[3], color);
 }
+
+void DebugDraw::drawSphere(float radius, const Transform& transform, const DirectX::XMFLOAT4& color)
+{
+    constexpr int segments = 20;
+
+    static std::vector<Vector<Model>> sphereVerts;
+    static std::vector<Vector<World>> transformed;
+    
+    if (sphereVerts.empty()) {
+        constexpr float step = XM_2PI / float(segments);
+
+        float t = 0.0f;
+
+        sphereVerts.resize(segments * 3);
+
+        for (int i = 0; i < segments; i++) {
+            float x = std::cos(t);
+            float y = std::sin(t);
+
+            sphereVerts[i * 3 + 0] = Vector<Model>{ x, y, 0.0f, 1.0f };
+            sphereVerts[i * 3 + 1] = Vector<Model>{ x, 0.0f, y, 1.0f };
+            sphereVerts[i * 3 + 2] = Vector<Model>{ 0.0f, x, y, 1.0f };
+
+            t += step;
+        }
+    }
+
+    Transform t2(transform);
+    t2.Scale = XMVectorReplicate(radius);
+
+    auto matrix = t2.getMatrix2();
+
+    transformed.clear();
+
+    for (const auto& v : sphereVerts) {
+        transformed.push_back(v * matrix);
+    }
+
+    for (int i = 0; i < segments; i++) {
+        int from = (i % segments) * 3;
+        int to = ((i + 1) % segments) * 3;
+
+        drawLine(transformed[from + 0], transformed[to + 0]);
+        drawLine(transformed[from + 1], transformed[to + 1]);
+        drawLine(transformed[from + 2], transformed[to + 2]);
+    }
+}

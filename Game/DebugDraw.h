@@ -22,5 +22,8 @@ struct DebugDraw
     void drawBounds(Vector<Model> min, Vector<Model> max, const Transform& transform,
         const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
 
+    void drawSphere(float radius, const Transform& transform,
+        const DirectX::XMFLOAT4& color = { 1.0f, 1.0f, 1.0f, 1.0f });
+
     std::vector<DebugDrawVertex> verts;
 };

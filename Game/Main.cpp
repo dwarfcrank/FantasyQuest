@@ -100,9 +100,6 @@ struct PhysicsWorld
         btRigidBody::btRigidBodyConstructionInfo info(mass, motionState, shape, localInertia);
         auto body = new btRigidBody(info);
 
-        body->setUserIndex(sphereIdx);
-        sphereIdx++;
-
         dynamicsWorld->addRigidBody(body);
     }
 
@@ -118,27 +115,6 @@ struct PhysicsWorld
 
         dynamicsWorld->stepSimulation(TIMESTEP, 10);
     }
-
-    /*
-    dynamicsWorld->stepSimulation(1.f / 60.f, 10);
-
-		//print positions of all objects
-		for (int j = dynamicsWorld->getNumCollisionObjects() - 1; j >= 0; j--)
-		{
-			btCollisionObject* obj = dynamicsWorld->getCollisionObjectArray()[j];
-			btRigidBody* body = btRigidBody::upcast(obj);
-			btTransform trans;
-			if (body && body->getMotionState())
-			{
-				body->getMotionState()->getWorldTransform(trans);
-			}
-			else
-			{
-				trans = obj->getWorldTransform();
-			}
-			printf("world pos object %d = %f,%f,%f\n", j, float(trans.getOrigin().getX()), float(trans.getOrigin().getY()), float(trans.getOrigin().getZ()));
-		}
-    */
 
     void render(IRenderer* r)
     {
@@ -170,22 +146,23 @@ struct PhysicsWorld
             tt.Position = XMLoadFloat3(&position);
             tt.Rotation = XMLoadFloat3(&rotation);
 
-            btVector3 aabbMin, aabbMax;
-            {
-                btTransform t2;
-                t2.setIdentity();
-                obj->getCollisionShape()->getAabb(t2, aabbMin, aabbMax);
-            }
+            const auto* shape = obj->getCollisionShape();
 
-            d.drawBounds(
-                Vector<Model>{ aabbMin.x(), aabbMin.y(), aabbMin.z(), 1.0f },
-                Vector<Model>{ aabbMax.x(), aabbMax.y(), aabbMax.z(), 1.0f },
-                tt
-            );
+            if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
+                const auto* box = static_cast<const btBoxShape*>(shape);
+                const auto halfExtents = box->getHalfExtentsWithoutMargin();
+
+                d.drawBounds(
+                    Vector<Model>{ -halfExtents.x(), -halfExtents.y(), -halfExtents.z(), 1.0f },
+                    Vector<Model>{ halfExtents.x(), halfExtents.y(), halfExtents.z(), 1.0f },
+                    tt
+                );
+            } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
+                const auto* sphere = static_cast<const btSphereShape*>(shape);
+                d.drawSphere(sphere->getRadius(), tt);
+            }
         }
     }
-
-    //btAlignedObjectArray<btCollisionShape*> collisionShapes;
 
     std::unique_ptr<btDefaultCollisionConfiguration> collisionConfiguration;
     std::unique_ptr<btCollisionDispatcher> dispatcher;
@@ -200,8 +177,6 @@ struct PhysicsWorld
     float time = 0.0f;
     static constexpr auto TICKS_PER_SECOND = 60;
     static constexpr auto TIMESTEP = 1.0f / float(TICKS_PER_SECOND);
-
-    int sphereIdx = 0;
 };
 
 int main(int argc, char* argv[])
