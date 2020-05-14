@@ -6,8 +6,8 @@
 #include "DebugDraw.h"
 #include "InputMap.h"
 
-SceneEditor::SceneEditor(Scene& scene, InputMap& inputs) :
-    GameBase(inputs), m_scene(scene)
+SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables) :
+    GameBase(inputs), m_scene(scene), m_renderables(renderables.begin(), renderables.end())
 {
     auto doBind = [this](SDL_Keycode k, float& target, float value) {
         m_inputs.key(k)
@@ -63,6 +63,7 @@ bool SceneEditor::update(float dt)
 
     sceneWindow();
     objectPropertiesWindow();
+    //renderableList();
     
     return true;
 }
@@ -77,6 +78,41 @@ void SceneEditor::render(IRenderer* r)
 const Camera& SceneEditor::getCamera() const
 {
     return m_camera;
+}
+
+void SceneEditor::renderableList()
+{
+    auto opened = ImGui::Begin("Model"); 
+
+    if (opened && m_scene.reg.valid(m_currentEntity)) {
+        if (auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
+            int selected = 0;
+
+            for (size_t i = 0; i < m_renderables.size(); i++) {
+                if (rc->name == std::get<0>(m_renderables[i])) {
+                    selected = int(i);
+                    break;
+                }
+            }
+
+            auto getter = [](void* data, int idx, const char** out) {
+                const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
+
+                const auto& [name, _] = items[idx];
+                *out = name.c_str();
+
+                return true;
+            };
+
+            ImGui::Combo("Mesh", &selected, getter, &m_renderables, int(m_renderables.size()));
+        } else {
+            ImGui::Text("No renderable entity selected.");
+        }
+    } else if (opened) {
+        ImGui::Text("No entity selected.");
+    }
+
+    ImGui::End();
 }
 
 void SceneEditor::objectList()
@@ -116,6 +152,38 @@ void SceneEditor::objectPropertiesWindow()
 
         if (changed) {
             // hmmm
+        }
+
+        if (auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
+            ImGui::Separator();
+
+            int selected = 0;
+
+            for (size_t i = 0; i < m_renderables.size(); i++) {
+                if (rc->name == std::get<0>(m_renderables[i])) {
+                    selected = int(i);
+                    break;
+                }
+            }
+
+            int newSelection = selected;
+
+            auto getter = [](void* data, int idx, const char** out) {
+                const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
+
+                const auto& [name, _] = items[idx];
+                *out = name.c_str();
+
+                return true;
+            };
+
+            ImGui::Combo("Mesh", &newSelection, getter, &m_renderables, int(m_renderables.size()));
+            if (newSelection != selected) {
+                m_scene.reg.patch<components::Renderable>(m_currentEntity,
+                    [&](components::Renderable& r) {
+                        std::tie(r.name, r.renderable) = m_renderables[newSelection];
+                    });
+            }
         }
     }
 

@@ -37,14 +37,16 @@ void reportError(const char* message, TArgs&&... args)
 void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
 {
     std::filesystem::directory_iterator end;
-    for (auto it = std::filesystem::directory_iterator("../Assets"); it != end; ++it) {
+
+    for (auto it = std::filesystem::directory_iterator("./content"); it != end; ++it) {
         if (!it->is_regular_file()) {
             continue;
         }
 
         const auto p = it->path();
-        if (p.extension() == ".fbx") {
-            Mesh mesh(p);
+
+        if (p.extension() == ".mesh") {
+            auto mesh = Mesh::load(p);
 
             auto a = ArrayView(mesh.getVertices());
             auto b = a.byteSize();
@@ -52,6 +54,29 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
             auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
             models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
             renderables.emplace(mesh.getName(), renderable);
+        }
+    }
+}
+
+void convertAssets(const std::filesystem::path& in, const std::filesystem::path& out)
+{
+    std::filesystem::directory_iterator end;
+
+    std::filesystem::create_directories(out);
+
+    for (auto it = std::filesystem::directory_iterator(in); it != end; ++it) {
+        if (!it->is_regular_file()) {
+            continue;
+        }
+
+        const auto p = it->path();
+        if (p.extension() == ".fbx") {
+            auto mesh = Mesh::import(p);
+
+            auto pOut = p.filename();
+            pOut.replace_extension(".mesh");
+
+            Mesh::save(out/pOut, mesh);
         }
     }
 }
@@ -179,8 +204,26 @@ struct PhysicsWorld
     static constexpr auto TIMESTEP = 1.0f / float(TICKS_PER_SECOND);
 };
 
+std::vector<std::string_view> getArgs(int argc, char* argv[])
+{
+    std::vector<std::string_view> args;
+
+    for (int i = 0; i < argc; i++) {
+        args.emplace_back(argv[i]);
+    }
+
+    return args;
+}
+
 int main(int argc, char* argv[])
 {
+    auto args = getArgs(argc, argv);
+
+    if (args.size() == 4 && args[1] == "convert") {
+        convertAssets(args[2], args[3]);
+        return 0;
+    }
+
     if (auto ret = SDL_Init(SDL_INIT_VIDEO); ret < 0) {
         reportError("SDL_Init returned {}", ret);
         return 0;
@@ -236,7 +279,7 @@ int main(int argc, char* argv[])
         }
 
         Game game(scene, inputs);
-        SceneEditor editor(scene, inputs);
+        SceneEditor editor(scene, inputs, renderables);
 
         std::array<GameBase*, 2> games{ &game, &editor };
         size_t gameIdx = 1;

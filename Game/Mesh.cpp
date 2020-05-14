@@ -1,6 +1,8 @@
 #include "pch.h"
 #include "Mesh.h"
 
+#include "File.h"
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
@@ -31,8 +33,10 @@ static T1 max3(const T1& a, const T2& b)
     return r;
 }
 
-Mesh::Mesh(const std::filesystem::path& path)
+Mesh Mesh::import(const std::filesystem::path& path)
 {
+    Mesh result;
+
     constexpr auto flags =
         aiProcess_CalcTangentSpace
         | aiProcess_GenBoundingBoxes
@@ -72,7 +76,7 @@ Mesh::Mesh(const std::filesystem::path& path)
             const auto& n = mesh->mNormals[i];
             const auto& color = materialColors[mesh->mMaterialIndex];
 
-            m_vertices.push_back(Vertex{
+            result.m_vertices.push_back(Vertex{
                 .Position{v.x, v.y, v.z},
                 .Normal{n.x, n.y, n.z},
                 .Color{color.r, color.g, color.b, 1.0f}
@@ -81,21 +85,68 @@ Mesh::Mesh(const std::filesystem::path& path)
 
         for (ArrayView faces(mesh->mFaces, mesh->mNumFaces); const auto& f : faces) {
             for (ArrayView indices(f.mIndices, f.mNumIndices); auto i : indices) {
-                m_indices.push_back(baseIdx + static_cast<u16>(i));
+                result.m_indices.push_back(baseIdx + static_cast<u16>(i));
             }
         }
 
-        baseIdx = static_cast<u16>(m_indices.size());
+        baseIdx = static_cast<u16>(result.m_indices.size());
     }
 
-    m_bounds.min = Vector<Model>(aabbMin.x, aabbMin.y, aabbMin.z, 1.0f);
-    m_bounds.max = Vector<Model>(aabbMax.x, aabbMax.y, aabbMax.z, 1.0f);
+    result.m_bounds.min = Vector<Model>(aabbMin.x, aabbMin.y, aabbMin.z, 1.0f);
+    result.m_bounds.max = Vector<Model>(aabbMax.x, aabbMax.y, aabbMax.z, 1.0f);
 
     if (const auto& meshName = scene->mMeshes[0]->mName; meshName.length > 0) {
-        m_name = scene->mMeshes[0]->mName.C_Str();
+        result.m_name = scene->mMeshes[0]->mName.C_Str();
     } else {
-        m_name = path.filename().generic_string();
+        result.m_name = path.filename().generic_string();
     }
 
     g_importer.FreeScene();
+
+    return Mesh();
 }
+
+Mesh Mesh::load(const std::filesystem::path& path)
+{
+    auto data = loadFile(path);
+
+    std::size_t offset = 0;
+    MeshFileHeader header;
+
+    std::memcpy(&header, &data[offset], sizeof(header));
+
+    assert(header.magic == MeshFileHeader::MAGIC);
+    offset += sizeof(header);
+
+    Mesh result;
+
+    result.m_name.assign(&data[offset], &data[offset + header.nameLength]);
+    offset += header.nameLength;
+
+    result.m_vertices.resize(header.numVertices);
+    std::memcpy(result.m_vertices.data(), &data[offset], header.numVertices * sizeof(Vertex));
+    offset += header.numVertices * sizeof(Vertex);
+
+    result.m_indices.resize(header.numIndices);
+    std::memcpy(result.m_indices.data(), &data[offset], header.numIndices * sizeof(u16));
+    offset += header.numIndices * sizeof(u16);
+
+    return result;
+}
+
+void Mesh::save(const std::filesystem::path& path, const Mesh& mesh)
+{
+    MeshFileHeader header{
+        .magic = MeshFileHeader::MAGIC,
+        .nameLength = u32(mesh.m_name.length()),
+        .numVertices = u32(mesh.m_vertices.size()),
+        .numIndices = u32(mesh.m_indices.size()),
+    };
+
+    std::ofstream o{ path, std::ios::binary };
+    o.write(reinterpret_cast<const char*>(&header), sizeof(header));
+    o.write(mesh.m_name.data(), header.nameLength);
+    o.write(reinterpret_cast<const char*>(mesh.m_vertices.data()), header.numVertices * sizeof(Vertex));
+    o.write(reinterpret_cast<const char*>(mesh.m_indices.data()), header.numIndices * sizeof(u16));
+}
+

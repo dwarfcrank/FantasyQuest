@@ -4,13 +4,19 @@
 #include "Game.h"
 
 #include <entt/entt.hpp>
+#include <unordered_map>
+#include <string>
+#include <vector>
+#include <tuple>
 
 struct Scene;
+
+class Renderable;
 
 class SceneEditor : public GameBase
 {
 public:
-    SceneEditor(Scene& scene, InputMap& inputs);
+    SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables);
 
     virtual bool update(float dt) override;
     virtual void render(class IRenderer*) override;
@@ -20,6 +26,8 @@ public:
 
 private:
     Scene& m_scene;
+
+    std::vector<std::tuple<std::string, Renderable*>> m_renderables;
 
     Camera m_camera = Camera::perspective();
 
@@ -33,6 +41,7 @@ private:
     entt::entity m_currentEntity = entt::null;
     int m_currentObjectIdx = -1;
 
+    void renderableList();
     void objectList();
     void objectPropertiesWindow();
     void lightList();

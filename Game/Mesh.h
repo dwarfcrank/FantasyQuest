@@ -8,10 +8,20 @@
 #include <vector>
 #include <string>
 
+struct MeshFileHeader
+{
+    u32 magic;
+    u32 nameLength;
+    u32 numVertices;
+    u32 numIndices;
+
+    static constexpr u32 MAGIC = 0x214d5146; // little endian "FQM!"
+};
+
 class Mesh
 {
 public:
-    Mesh(const std::filesystem::path& filename);
+    Mesh() = default;
 
     const std::vector<Vertex>& getVertices() const
     {
@@ -32,6 +42,11 @@ public:
     {
         return m_bounds;
     }
+
+    static Mesh import(const std::filesystem::path& path);
+
+    static Mesh load(const std::filesystem::path& path);
+    static void save(const std::filesystem::path& path, const Mesh& mesh);
 
 private:
     Bounds m_bounds;
