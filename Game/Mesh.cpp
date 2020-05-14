@@ -45,9 +45,11 @@ Mesh Mesh::import(const std::filesystem::path& path)
         //| aiProcess_ForceGenNormals
         | aiProcess_ConvertToLeftHanded
         | aiProcess_SortByPType
-        | aiProcess_FixInfacingNormals
+        //| aiProcess_FixInfacingNormals
+        | aiProcess_GenNormals
         | aiProcess_OptimizeMeshes
-        | aiProcess_PreTransformVertices;
+        //| aiProcess_PreTransformVertices
+        ;
 
     auto scene = g_importer.ReadFile(path.generic_string(), flags);
 
@@ -103,7 +105,7 @@ Mesh Mesh::import(const std::filesystem::path& path)
 
     g_importer.FreeScene();
 
-    return Mesh();
+    return result;
 }
 
 Mesh Mesh::load(const std::filesystem::path& path)

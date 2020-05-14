@@ -219,8 +219,11 @@ int main(int argc, char* argv[])
 {
     auto args = getArgs(argc, argv);
 
-    if (args.size() == 4 && args[1] == "convert") {
-        convertAssets(args[2], args[3]);
+    if (args.size() > 2 && args[1] == "convert") {
+        for (int i = 2; i < argc; i++) {
+            convertAssets(args[i], "./content");
+        }
+
         return 0;
     }
 
