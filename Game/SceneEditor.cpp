@@ -34,6 +34,11 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_ma
             m_camera.rotate(y, x);
         }
     });
+
+    std::sort(m_renderables.begin(), m_renderables.end(),
+        [](const auto& a, const auto& b) {
+            return std::get<0>(a) < std::get<0>(b);
+        });
 }
 
 bool SceneEditor::update(float dt)
