@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Game.h"
+#include "Renderer.h"
 
 #include <entt/entt.hpp>
 #include <unordered_map>
@@ -10,12 +11,22 @@
 
 struct Scene;
 
-class Renderable;
+struct ModelAsset
+{
+    ModelAsset(const std::string& name, Renderable* renderable, Bounds bounds) :
+        name(name), renderable(renderable), bounds(bounds) {}
+
+    ModelAsset() = default;
+
+    std::string name;
+    Renderable* renderable = nullptr;
+    Bounds bounds;
+};
 
 class SceneEditor : public GameBase
 {
 public:
-    SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables);
+    SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& renderables);
 
     virtual bool update(float dt) override;
     virtual void render(class IRenderer*) override;
@@ -24,7 +35,7 @@ public:
 private:
     Scene& m_scene;
 
-    std::vector<std::tuple<std::string, Renderable*>> m_renderables;
+    std::vector<ModelAsset> m_renderables;
     size_t m_currentModelIdx = 0;
 
     Camera m_camera = Camera::perspective();

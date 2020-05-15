@@ -59,6 +59,29 @@ void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<st
     }
 }
 
+std::vector<ModelAsset> loadModels(IRenderer* r)
+{
+    std::filesystem::directory_iterator end;
+
+    std::vector<ModelAsset> models;
+
+    for (auto it = std::filesystem::directory_iterator("./content"); it != end; ++it) {
+        if (!it->is_regular_file()) {
+            continue;
+        }
+
+        const auto p = it->path();
+
+        if (p.extension() == ".mesh") {
+            auto mesh = Mesh::load(p);
+            auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
+            models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
+        }
+    }
+
+    return models;
+}
+
 void convertAssets(const std::filesystem::path& in, const std::filesystem::path& out)
 {
     std::filesystem::directory_iterator end;
@@ -243,10 +266,6 @@ int main(int argc, char* argv[])
     {
         auto r = createRenderer(window);
 
-        std::vector<RModel> models;
-        std::unordered_map<std::string, Renderable*> renderables;
-        std::unordered_map<std::string, Bounds> bounds;
-
         Scene scene;
 
         IMGUI_CHECKVERSION();
@@ -258,34 +277,15 @@ int main(int argc, char* argv[])
         ImGui_ImplSDL2_InitForD3D(window);
         r->initImgui();
 
-        loadAssets(r.get(), models, renderables);
-        {
-            for (const auto& model : models) {
-                bounds[model.name] = model.bounds;
-            }
-        }
-
         InputMap inputs;
 
         bool running = true;
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
-        if constexpr (false) {
-            scene.load("../scene.json");
-            scene.objects.clear();
-
-            scene.reg.view<components::Renderable>()
-                .each([&scene, &renderables, &bounds](auto entity, components::Renderable& rc) {
-					rc.renderable = renderables[rc.name];
-					rc.bounds = bounds[rc.name];
-				});
-
-            r->setDirectionalLight(scene.directionalLight, scene.directionalLightColor, scene.directionalLightIntensity);
-            r->setPointLights(scene.lights);
-        }
+        auto models = loadModels(r.get());
 
         Game game(scene, inputs);
-        SceneEditor editor(scene, inputs, renderables);
+        SceneEditor editor(scene, inputs, models);
 
         std::array<GameBase*, 2> games{ &game, &editor };
         size_t gameIdx = 1;
@@ -340,8 +340,13 @@ int main(int argc, char* argv[])
 
         std::unordered_map<Renderable*, RenderBatch> batches;
 
+        /*
         for (const auto& [k, v] : renderables) {
             batches[v].renderable = v;
+        }
+        */
+        for (const auto& model : models) {
+            batches[model.renderable].renderable = model.renderable;
         }
 
         auto updateBatches = [&] {

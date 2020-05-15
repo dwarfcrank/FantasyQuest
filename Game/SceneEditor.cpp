@@ -7,7 +7,7 @@
 #include "imgui_stdlib.h"
 #include "im3d.h"
 
-SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables) :
+SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& renderables) :
     GameBase(inputs), m_scene(scene), m_renderables(renderables.begin(), renderables.end())
 {
     auto doBind = [this](SDL_Keycode k, float& target, float value) {
@@ -39,7 +39,7 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_ma
 
     std::sort(m_renderables.begin(), m_renderables.end(),
         [](const auto& a, const auto& b) {
-            return std::get<0>(a) < std::get<0>(b);
+            return a.name < b.name;
         });
 }
 
@@ -87,7 +87,7 @@ void SceneEditor::modelList()
 {
     if (ImGui::Begin("Models")) {
         for (size_t i = 0; i < m_renderables.size(); i++) {
-            if (ImGui::Selectable(std::get<0>(m_renderables[i]).c_str(), i == m_currentModelIdx)) {
+            if (ImGui::Selectable(m_renderables[i].name.c_str(), i == m_currentModelIdx)) {
                 m_currentModelIdx = i;
             }
         }
@@ -155,8 +155,8 @@ void SceneEditor::entityPropertiesWindow()
                     m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
                     rc = nullptr;
                 } else if (render && !rc) {
-                    const auto& [name, renderable] = m_renderables.front();
-                    m_scene.reg.emplace<components::Renderable>(m_currentEntity, name, renderable);
+                    const auto& model = m_renderables.front();
+                    m_scene.reg.emplace<components::Renderable>(m_currentEntity, model.name, model.renderable);
                 }
             }
 
@@ -164,7 +164,7 @@ void SceneEditor::entityPropertiesWindow()
                 int selected = 0;
 
                 for (size_t i = 0; i < m_renderables.size(); i++) {
-                    if (rc->name == std::get<0>(m_renderables[i])) {
+                    if (rc->name == m_renderables[i].name) {
                         selected = int(i);
                         break;
                     }
@@ -173,10 +173,10 @@ void SceneEditor::entityPropertiesWindow()
                 int newSelection = selected;
 
                 auto getter = [](void* data, int idx, const char** out) {
-                    const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
+                    //const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
+                    const auto& items = *reinterpret_cast<const decltype(m_renderables)*>(data);
 
-                    const auto& [name, _] = items[idx];
-                    *out = name.c_str();
+                    *out = items[idx].name.c_str();
 
                     return true;
                 };
@@ -190,7 +190,9 @@ void SceneEditor::entityPropertiesWindow()
                 if (newSelection != selected) {
                     m_scene.reg.patch<components::Renderable>(m_currentEntity,
                         [&](components::Renderable& r) {
-                            std::tie(r.name, r.renderable) = m_renderables[newSelection];
+                            const auto& model = m_renderables[newSelection];
+                            r.name = model.name;
+                            r.renderable = model.renderable;
                         });
                 }
             }
@@ -300,12 +302,12 @@ entt::entity SceneEditor::createEntity()
         t = m_scene.reg.get<components::Transform>(m_currentEntity);
     }
 
-    const auto& [renderableName, renderable] = m_renderables[m_currentModelIdx];
+    const auto& model = m_renderables[m_currentModelIdx];
 
-    m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", renderableName, m_scene.reg.size()));
+    m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", model.name, m_scene.reg.size()));
     m_scene.reg.emplace<components::Transform>(e, t);
 
-    m_scene.reg.emplace<components::Renderable>(e, renderableName, renderable);
+    m_scene.reg.emplace<components::Renderable>(e, model.name, model.renderable);
 
     return e;
 }
