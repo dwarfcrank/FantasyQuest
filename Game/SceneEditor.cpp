@@ -59,9 +59,25 @@ bool SceneEditor::update(float dt)
         auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
         if (!moveCamera) {
-            t.position.x += v.x;
-            t.position.y += v.y;
-            t.position.z += v.z;
+            if (velocity.x != 0.0f || velocity.z != 0.0f) {
+                auto ivm = m_camera.getInverseViewMatrix();
+                auto dir = Vector<View>(velocity.x, 0.0f, velocity.z) * ivm;
+
+                if (!XMVector3Equal(dir.vec, XMVectorZero())) {
+                    dir.vec = XMVector3NormalizeEst(dir.vec);
+                    dir.vec = XMVectorSetY(dir.vec, 0.0f);
+
+                    auto m = XMVectorReplicate(dt * 3);
+
+                    XMFLOAT3A d;
+                    XMStoreFloat3A(&d, XMVectorMultiply(dir.vec, m));
+
+                    t.position.x += d.x;
+                    t.position.y += d.y;
+                    t.position.z += d.z;
+                }
+            }
+
             t.rotation.y += a;
         }
 
