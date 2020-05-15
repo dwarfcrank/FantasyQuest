@@ -133,7 +133,11 @@ void SceneEditor::entityList()
         m_scene.reg.view<components::Misc>()
             .each([&](entt::entity entity, const components::Misc& m) {
 				if (ImGui::Selectable(m.name.c_str(), entity == m_currentEntity)) {
-					m_currentEntity = entity;
+                    if (m_currentEntity == entity) {
+                        m_currentEntity = entt::null;
+                    } else {
+                        m_currentEntity = entity;
+                    }
 				}
 			});
     }
