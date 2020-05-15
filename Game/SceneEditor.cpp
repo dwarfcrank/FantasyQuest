@@ -55,7 +55,7 @@ bool SceneEditor::update(float dt)
     float changed = (v.x != 0.0f) || (v.y != 0.0f) || (v.z != 0.0f) || (angle != 0.0f);
     float a = angle * dt;
 
-    if (m_scene.reg.valid(m_currentEntity)) {
+    if (entitySelected()) {
         auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
         if (!moveCamera) {
@@ -87,6 +87,11 @@ void SceneEditor::render(IRenderer* r)
 const Camera& SceneEditor::getCamera() const
 {
     return m_camera;
+}
+
+bool SceneEditor::entitySelected() const
+{
+    return m_scene.reg.valid(m_currentEntity);
 }
 
 void SceneEditor::modelList()
@@ -121,7 +126,7 @@ void SceneEditor::entityList()
 void SceneEditor::entityPropertiesWindow()
 {
     if (ImGui::Begin("Entitiy")) {
-        if (!m_scene.reg.valid(m_currentEntity)) {
+        if (!entitySelected()) {
             ImGui::Text("No entity selected");
             ImGui::End();
             return;
@@ -305,7 +310,7 @@ entt::entity SceneEditor::createEntity()
 
     components::Transform t;
 
-    if (m_scene.reg.valid(m_currentEntity)) {
+    if (entitySelected()) {
         t = m_scene.reg.get<components::Transform>(m_currentEntity);
     }
 

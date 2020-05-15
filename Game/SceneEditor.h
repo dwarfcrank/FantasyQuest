@@ -47,6 +47,8 @@ private:
 
     XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
 
+    bool entitySelected() const;
+
     entt::entity m_currentEntity = entt::null;
 
     void modelList();
