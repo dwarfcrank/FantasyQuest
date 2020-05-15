@@ -1018,7 +1018,6 @@ void Renderer::loadShaders()
     m_gaussianCS = compileComputeShader(m_device, shaderDir / "GaussianBlur.cs.hlsl", "main");
     m_fscs = compileComputeShader(m_device, shaderDir / "FullScreenPass.cs.hlsl", "main");
 
-    m_brightPassDownscaleCS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale.cs.hlsl", "main");
     m_brightPassDownscale2CS = compileComputeShader(m_device, shaderDir / "BrightPassDownscale2.cs.hlsl", "main");
 
     m_luminanceHistogramCS = compileComputeShader(m_device, shaderDir / "LuminanceHistogram.hlsl", "computeHistogram");

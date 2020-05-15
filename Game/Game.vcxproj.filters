@@ -230,22 +230,10 @@
     <FxCompile Include="BatchShadow.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Blur.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="BrightPassDownscale.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="GaussianBlur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="BrightPassDownscale2.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="GaussianUpsample.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="KawaseBlur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="LuminanceHistogram.hlsl">
