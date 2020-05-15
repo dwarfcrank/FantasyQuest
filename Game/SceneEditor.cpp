@@ -147,7 +147,7 @@ void SceneEditor::entityList()
 
 void SceneEditor::entityPropertiesWindow()
 {
-    if (ImGui::Begin("Entitiy")) {
+    if (ImGui::Begin("Entity")) {
         if (!entitySelected()) {
             ImGui::Text("No entity selected");
             ImGui::End();
@@ -354,15 +354,11 @@ void SceneEditor::drawEntityBounds(entt::entity e)
         return;
     }
 
-    const auto [t, rc] = std::as_const(m_scene.reg).try_get<components::Transform, components::Renderable>(e);
+    const auto t = std::as_const(m_scene.reg).try_get<components::Transform>(e);
 
-    if (!t || !rc) {
+    if (!t) {
         return;
     }
-
-    XMFLOAT3 bMin, bMax;
-    XMStoreFloat3(&bMin, rc->bounds.min.vec);
-    XMStoreFloat3(&bMax, rc->bounds.max.vec);
 
     XMFLOAT4X4A wm;
     XMStoreFloat4x4A(&wm, t->getMatrix());
@@ -370,8 +366,22 @@ void SceneEditor::drawEntityBounds(entt::entity e)
     Im3d::Mat4 wm2;
     std::memcpy(&wm2, &wm, sizeof(wm));
 
+    Im3d::PushDrawState();
     Im3d::PushMatrix();
     Im3d::SetMatrix(wm2);
-    Im3d::DrawAlignedBox(Im3d::Vec3(bMin.x, bMin.y, bMin.z), Im3d::Vec3(bMax.x, bMax.y, bMax.z));
+    Im3d::SetSize(3.0f);
+
+    if (const auto rc = std::as_const(m_scene.reg).try_get<components::Renderable>(e)) {
+        XMFLOAT3 bMin, bMax;
+        XMStoreFloat3(&bMin, rc->bounds.min.vec);
+        XMStoreFloat3(&bMax, rc->bounds.max.vec);
+
+        Im3d::DrawAlignedBox(Im3d::Vec3(bMin.x, bMin.y, bMin.z), Im3d::Vec3(bMax.x, bMax.y, bMax.z));
+    } else if (const auto plc = std::as_const(m_scene.reg).try_get<components::PointLight>(e)) {
+        // TODO: figure out how to calculate the radius
+        Im3d::DrawSphere(Im3d::Vec3(0.0f), std::min(plc->intensity, 5.0f));
+    }
+
     Im3d::PopMatrix();
+    Im3d::PopDrawState();
 }
