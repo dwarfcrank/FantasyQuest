@@ -48,7 +48,7 @@ Mesh Mesh::import(const std::filesystem::path& path)
         //| aiProcess_FixInfacingNormals
         | aiProcess_GenNormals
         | aiProcess_OptimizeMeshes
-        //| aiProcess_PreTransformVertices
+        | aiProcess_PreTransformVertices
         ;
 
     auto scene = g_importer.ReadFile(path.generic_string(), flags);
@@ -118,9 +118,14 @@ Mesh Mesh::load(const std::filesystem::path& path)
     std::memcpy(&header, &data[offset], sizeof(header));
 
     assert(header.magic == MeshFileHeader::MAGIC);
+    assert(header.headerSize == sizeof(MeshFileHeader));
+
     offset += sizeof(header);
 
     Mesh result;
+
+    result.m_bounds.min = Vector<Model>(header.minBounds[0], header.minBounds[1], header.minBounds[2], 1.0f);
+    result.m_bounds.max = Vector<Model>(header.maxBounds[0], header.maxBounds[1], header.maxBounds[2], 1.0f);
 
     result.m_name.assign(&data[offset], &data[offset + header.nameLength]);
     offset += header.nameLength;
@@ -138,11 +143,19 @@ Mesh Mesh::load(const std::filesystem::path& path)
 
 void Mesh::save(const std::filesystem::path& path, const Mesh& mesh)
 {
+    XMFLOAT3 minB, maxB;
+
+    XMStoreFloat3(&minB, mesh.m_bounds.min.vec);
+    XMStoreFloat3(&maxB, mesh.m_bounds.max.vec);
+
     MeshFileHeader header{
         .magic = MeshFileHeader::MAGIC,
+        .headerSize = u32(sizeof(MeshFileHeader)),
         .nameLength = u32(mesh.m_name.length()),
         .numVertices = u32(mesh.m_vertices.size()),
         .numIndices = u32(mesh.m_indices.size()),
+        .minBounds{ minB.x, minB.y, minB.z },
+        .maxBounds{ maxB.x, maxB.y, maxB.z },
     };
 
     std::ofstream o{ path, std::ios::binary };
