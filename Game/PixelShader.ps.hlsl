@@ -46,7 +46,7 @@ float4 main(VS_Output v) : SV_TARGET
         total += ComputePointLight(PointLights[i], v.PositionWS.xyz, n);
     }
 
-    float2 texcoord = v.ShadowPos.xy;
+    float2 texcoord = v.ShadowPos.xy / v.ShadowPos.w;
 
     texcoord += 1.0f;
     texcoord *= 0.5;

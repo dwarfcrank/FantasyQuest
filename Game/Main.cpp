@@ -340,11 +340,6 @@ int main(int argc, char* argv[])
 
         std::unordered_map<Renderable*, RenderBatch> batches;
 
-        /*
-        for (const auto& [k, v] : renderables) {
-            batches[v].renderable = v;
-        }
-        */
         for (const auto& model : models) {
             batches[model.renderable].renderable = model.renderable;
         }
