@@ -41,6 +41,8 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
         [](const auto& a, const auto& b) {
             return a.name < b.name;
         });
+
+    m_camera.setPosition(0.0f, 5.0f, -5.0f);
 }
 
 static_assert(sizeof(XMFLOAT4X4A) == sizeof(Im3d::Mat4));
