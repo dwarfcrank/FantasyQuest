@@ -285,7 +285,7 @@ void SceneEditor::sceneWindow()
 
         ImGui::Separator();
 
-        if (ImGui::CollapsingHeader("Entities")) {
+        if (ImGui::CollapsingHeader("Entities", ImGuiTreeNodeFlags_DefaultOpen)) {
             entityList();
         }
 
@@ -305,11 +305,12 @@ entt::entity SceneEditor::createEntity()
         t = m_scene.reg.get<components::Transform>(m_currentEntity);
     }
 
-    m_scene.reg.emplace<components::Misc>(e, fmt::format("entity{}", m_scene.reg.size()));
+    const auto& [renderableName, renderable] = m_renderables[m_currentModelIdx];
+
+    m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", renderableName, m_scene.reg.size()));
     m_scene.reg.emplace<components::Transform>(e, t);
 
-    const auto& [name, renderable] = m_renderables[m_currentModelIdx];
-    m_scene.reg.emplace<components::Renderable>(e, name, renderable);
+    m_scene.reg.emplace<components::Renderable>(e, renderableName, renderable);
 
     return e;
 }
