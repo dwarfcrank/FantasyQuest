@@ -84,9 +84,7 @@ bool SceneEditor::update(float dt)
         }
 
         drawEntityBounds(m_currentEntity);
-    }
-
-    if (moveCamera) {
+    } else if (moveCamera) {
         m_camera.move(v.x, v.y, v.z);
         m_camera.rotate(0.0f, a);
     }
