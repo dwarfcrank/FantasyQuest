@@ -6,6 +6,8 @@
 #include "ArrayView.h"
 #include "ShaderCommon.h"
 
+#include "im3d.h"
+
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>
@@ -56,6 +58,7 @@ public:
     virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void draw(const RenderBatch& batch, const Camera&) = 0;
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) = 0;
+    virtual void debugDraw(const Camera&, ArrayView<Im3d::DrawList>) = 0;
     virtual void clear(float r, float g, float b) = 0;
 
     virtual void draw(const RenderBatch& batch) = 0;

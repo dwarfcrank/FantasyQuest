@@ -15,6 +15,7 @@
 #include "GameTime.h"
 #include "SceneEditor.h"
 #include "ArrayView.h"
+#include "im3d.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -397,14 +398,24 @@ int main(int argc, char* argv[])
             ImGui_ImplSDL2_NewFrame(window);
             ImGui::NewFrame();
 
-            pw.update(dt);
+            {
+                auto& ad = Im3d::GetAppData();
+                ad.m_deltaTime = dt;
+                ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
+                ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
+                ad.m_projOrtho = false;
+            }
+
+            Im3d::NewFrame();
+
+            //pw.update(dt);
             g->update(dt);
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
             }
 
-            {
+            if constexpr (false) {
                 ImGui::Begin("Post processing");
 
                 ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
@@ -413,7 +424,29 @@ int main(int argc, char* argv[])
                 ImGui::End();
             }
 
+            {
+                Im3d::PushDrawState();
+                Im3d::SetColor(Im3d::Color_Red);
+                Im3d::DrawSphere(Im3d::Vec3(-3.0f, 0.0f, 0.0f), 1.0f);
+                Im3d::PopDrawState();
+            }
+
+            {
+                Im3d::PushDrawState();
+                Im3d::SetColor(Im3d::Color_Green);
+                Im3d::DrawSphere(Im3d::Vec3(0.0f, 0.0f, 0.0f), 1.0f);
+                Im3d::PopDrawState();
+            }
+
+            {
+                Im3d::PushDrawState();
+                Im3d::SetColor(Im3d::Color_Blue);
+                Im3d::DrawSphere(Im3d::Vec3(3.0f, 0.0f, 0.0f), 1.0f);
+                Im3d::PopDrawState();
+            }
+
             ImGui::Render();
+            Im3d::EndFrame();
 
             {
                 shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
@@ -453,8 +486,9 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
-                pw.render(r.get());
-                r->debugDraw(g->getCamera(), pw.d.verts);
+                //pw.render(r.get());
+                //r->debugDraw(g->getCamera(), pw.d.verts);
+                r->debugDraw(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
 
                 params.deltaTime = dt;
                 r->postProcess(params);

@@ -115,6 +115,9 @@
     <ClInclude Include="DebugDraw.h" />
     <ClInclude Include="GameTime.h" />
     <ClInclude Include="Hresult.h" />
+    <ClInclude Include="im3d.h" />
+    <ClInclude Include="im3d_config.h" />
+    <ClInclude Include="im3d_math.h" />
     <ClInclude Include="imgui_impl_dx11.h" />
     <ClInclude Include="imgui_impl_sdl.h" />
     <ClInclude Include="imconfig.h" />
@@ -148,6 +151,10 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DebugDraw.cpp" />
     <ClCompile Include="GameTime.cpp" />
+    <ClCompile Include="im3d.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
+    </ClCompile>
     <ClCompile Include="imgui_impl_dx11.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>

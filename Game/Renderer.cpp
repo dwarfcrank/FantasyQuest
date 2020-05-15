@@ -13,6 +13,8 @@
 #include "RenderTarget.h"
 #include "Shader.h"
 
+#include "im3d.h"
+
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_syswm.h>
 #include <fmt/format.h>
@@ -62,6 +64,7 @@ public:
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
     virtual void draw(const RenderBatch& batch, const Camera&) override;
     virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) override;
+    virtual void debugDraw(const Camera&, ArrayView<Im3d::DrawList>) override;
     virtual void clear(float r, float g, float b) override;
 
     virtual void beginFrame() override;
@@ -113,6 +116,10 @@ private:
     ComPtr<ID3D11VertexShader> m_debugVS;
     ComPtr<ID3D11PixelShader> m_debugPS;
     VertexBuffer<DebugDrawVertex> m_debugVertexBuffer;
+
+    ComPtr<ID3D11InputLayout> m_im3dLayout;
+    ComPtr<ID3D11VertexShader> m_im3dVS;
+    VertexBuffer<Im3d::VertexData> m_im3dVertexBuffer;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
@@ -511,6 +518,50 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertic
     m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
 
     m_context->Draw(vertices.size, 0);
+}
+
+void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLists)
+{
+    EVENT_SCOPE_FUNC();
+
+    {
+        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
+        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
+        m_cameraConstantBuffer.update(m_context);
+    }
+
+    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(), };
+
+    m_context->IASetInputLayout(m_im3dLayout.Get());
+    m_context->VSSetShader(m_im3dVS.Get(), nullptr, 0);
+
+    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
+    m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
+
+    for (const auto& drawList : drawLists) {
+        if (drawList.m_primType == Im3d::DrawPrimitive_Lines) {
+            m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+        } else if (drawList.m_primType == Im3d::DrawPrimitive_Points) {
+            m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+        } else if (drawList.m_primType == Im3d::DrawPrimitive_Triangles) {
+            m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        } else {
+            assert(false);
+        }
+
+        if (drawList.m_vertexCount > m_im3dVertexBuffer.getCapacity()) {
+            m_im3dVertexBuffer.init(m_device, ArrayView(drawList.m_vertexData, drawList.m_vertexCount));
+        } else {
+            m_im3dVertexBuffer.update(m_context, ArrayView(drawList.m_vertexData, drawList.m_vertexCount));
+        }
+
+        std::array vertexBuffers{ m_im3dVertexBuffer.getBuffer(), };
+        std::array strides{ static_cast<UINT>(sizeof(Im3d::VertexData)) };
+        std::array offsets{ UINT(0) };
+
+        m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
+        m_context->Draw(drawList.m_vertexCount, 0);
+    }
 }
 
 void Renderer::clear(float r, float g, float b)
@@ -946,6 +997,18 @@ void Renderer::loadShaders()
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
                 bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_debugInputLayout);
             setObjectName(m_debugInputLayout, "DebugDrawInputLayout");
+        });
+
+    m_im3dVS = compileVertexShader(m_device, shaderDir / "DebugDraw.hlsl", "vsMain2",
+        [this](ID3DBlob* bytecode) {
+            std::array layout{
+                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32_UINT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+            };
+
+            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
+                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_im3dLayout);
+            setObjectName(m_im3dLayout, "Im3dLayout");
         });
 
     m_gaussianCS = compileComputeShader(m_device, shaderDir / "GaussianBlur.cs.hlsl", "main");

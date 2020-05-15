@@ -126,6 +126,15 @@
     <ClInclude Include="imgui_stdlib.h">
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
+    <ClInclude Include="im3d.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="im3d_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="im3d_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp">
@@ -190,6 +199,9 @@
     </ClCompile>
     <ClCompile Include="imgui_stdlib.cpp">
       <Filter>Source Files\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="im3d.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
