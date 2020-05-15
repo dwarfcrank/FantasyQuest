@@ -427,22 +427,6 @@ int main(int argc, char* argv[])
                 ImGui::End();
             }
 
-            {
-                Im3d::PushDrawState();
-                Im3d::SetSize(2.0f);
-
-                Im3d::SetColor(Im3d::Color_Red);
-                Im3d::DrawSphere(Im3d::Vec3(-2.0f, 0.0f, 0.0f), 1.0f);
-
-                Im3d::SetColor(Im3d::Color_Green);
-                Im3d::DrawSphere(Im3d::Vec3(0.0f, 0.0f, 0.0f), 1.0f);
-
-                Im3d::SetColor(Im3d::Color_Blue);
-                Im3d::DrawSphere(Im3d::Vec3(2.0f, 0.0f, 0.0f), 1.0f);
-
-                Im3d::PopDrawState();
-            }
-
             ImGui::Render();
             Im3d::EndFrame();
 
@@ -484,12 +468,10 @@ int main(int argc, char* argv[])
 
                 g->render(r.get());
 
-                //pw.render(r.get());
-                //r->debugDraw(g->getCamera(), pw.d.verts);
-                r->debugDraw(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
-
                 params.deltaTime = dt;
                 r->postProcess(params);
+
+                r->drawIm3d(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
 
                 r->drawImgui();
             }

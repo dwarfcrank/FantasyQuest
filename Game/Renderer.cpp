@@ -62,7 +62,7 @@ public:
     virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
     virtual void draw(const RenderBatch& batch, const Camera&) override;
-    virtual void debugDraw(const Camera&, ArrayView<Im3d::DrawList>) override;
+    virtual void drawIm3d(const Camera&, ArrayView<Im3d::DrawList>) override;
     virtual void clear(float r, float g, float b) override;
 
     virtual void beginFrame() override;
@@ -514,7 +514,7 @@ void Renderer::draw(const RenderBatch& batch, const Camera& camera)
     m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
 }
 
-void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLists)
+void Renderer::drawIm3d(const Camera& camera, ArrayView<Im3d::DrawList> drawLists)
 {
     EVENT_SCOPE_FUNC();
 
@@ -527,6 +527,9 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLis
     std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(), };
 
     m_context->RSSetState(m_im3dRasterizerState.Get());
+
+    auto rtv = m_backbufferRTV.Get();
+    m_context->OMSetRenderTargets(1, &rtv, m_mainRT.m_dsv.Get());
     m_context->OMSetBlendState(m_im3dBlendState.Get(), nullptr, 0xffffffff);
     m_context->OMSetDepthStencilState(m_im3dDepthStencilState.Get(), 0);
 
