@@ -84,7 +84,9 @@ bool SceneEditor::update(float dt)
         }
 
         drawEntityBounds(m_currentEntity);
-    } else if (moveCamera) {
+    }
+    
+    if (moveCamera) {
         m_camera.move(v.x, v.y, v.z);
         m_camera.rotate(0.0f, a);
     }
@@ -264,39 +266,16 @@ void SceneEditor::entityPropertiesWindow()
 
 void SceneEditor::lightList()
 {
-    if (ImGui::TreeNode("Directional light")) {
-        auto& dir = m_scene.directionalLight;
+    auto& dir = m_scene.directionalLight;
 
-        bool changed = false;
+    bool changed = false;
 
-        changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
-        changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
-        changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
-		changed |= ImGui::SliderFloat("Intensity", &m_scene.directionalLightIntensity, 0.0f, 10.0f, "%.5f");
+    changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
+    changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
+    changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
+    changed |= ImGui::SliderFloat("Intensity", &m_scene.directionalLightIntensity, 0.0f, 10.0f, "%.5f");
 
-        ImGui::TreePop();
-    }
-
-    for (size_t i = 0; i < m_scene.lights.size(); i++) {
-        auto& light = m_scene.lights[i];
-        auto id = reinterpret_cast<void*>(i);
-
-        if (ImGui::TreeNode(id, "Point light %lld", i)) {
-            bool changed = false;
-
-            changed |= ImGui::InputFloat3("Position", &light.Position.x);
-            changed |= ImGui::ColorEdit3("Color", &light.Color.x);
-            changed |= ImGui::SliderFloat("Linear", &light.Position.w, 0.0f, 1.0f, "%.5f");
-            changed |= ImGui::SliderFloat("Quadratic", &light.Color.w, 0.0f, 1.0f, "%.5f");
-			changed |= ImGui::SliderFloat("Intensity", &light.Intensity, 0.0f, 10.0f, "%.5f");
-
-            if (changed) {
-
-            }
-
-            ImGui::TreePop();
-        }
-    }
+    ImGui::TreePop();
 }
 
 void SceneEditor::sceneWindow()

@@ -41,6 +41,11 @@ public:
         return m_name;
     }
 
+    void setName(std::string_view name)
+    {
+        m_name = name;
+    }
+
     const Bounds& getBounds() const
     {
         return m_bounds;

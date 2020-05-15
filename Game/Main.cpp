@@ -23,6 +23,7 @@
 #include <DirectXMath.h>
 #include <chrono>
 #include <entt/entt.hpp>
+#include <unordered_set>
 
 #include <bullet/btBulletDynamicsCommon.h>
 
@@ -33,30 +34,6 @@ void reportError(const char* message, TArgs&&... args)
 {
     auto msg = fmt::format(message, std::forward<TArgs>(args)...);
     MessageBoxA(nullptr, msg.c_str(), "fuck", MB_OK);
-}
-
-void loadAssets(IRenderer* r, std::vector<RModel>& models, std::unordered_map<std::string, Renderable*>& renderables)
-{
-    std::filesystem::directory_iterator end;
-
-    for (auto it = std::filesystem::directory_iterator("./content"); it != end; ++it) {
-        if (!it->is_regular_file()) {
-            continue;
-        }
-
-        const auto p = it->path();
-
-        if (p.extension() == ".mesh") {
-            auto mesh = Mesh::load(p);
-
-            auto a = ArrayView(mesh.getVertices());
-            auto b = a.byteSize();
-
-            auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
-            models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
-            renderables.emplace(mesh.getName(), renderable);
-        }
-    }
 }
 
 std::vector<ModelAsset> loadModels(IRenderer* r)
@@ -85,8 +62,8 @@ std::vector<ModelAsset> loadModels(IRenderer* r)
 void convertAssets(const std::filesystem::path& in, const std::filesystem::path& out)
 {
     std::filesystem::directory_iterator end;
-
     std::filesystem::create_directories(out);
+    std::unordered_set<std::string> meshNames;
 
     for (auto it = std::filesystem::directory_iterator(in); it != end; ++it) {
         if (!it->is_regular_file()) {
@@ -96,6 +73,18 @@ void convertAssets(const std::filesystem::path& in, const std::filesystem::path&
         const auto p = it->path();
         if (p.extension() == ".fbx") {
             auto mesh = Mesh::import(p);
+
+            auto meshName = mesh.getName();
+
+            int i = 0;
+
+            while (meshNames.contains(meshName)) {
+                meshName = fmt::format("{}#{}", mesh.getName(), i);
+                i++;
+            }
+
+            mesh.setName(meshName);
+            meshNames.insert(meshName);
 
             auto pOut = p.filename();
             pOut.replace_extension(".mesh");
@@ -283,6 +272,22 @@ int main(int argc, char* argv[])
         inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
         auto models = loadModels(r.get());
+
+        if (std::filesystem::exists("scene.json")) {
+            std::unordered_map<std::string, const ModelAsset*> m;
+            for (const auto& model : models) {
+                m[model.name] = &model;
+            }
+
+            scene.load("scene.json");
+
+            scene.reg.view<components::Renderable>()
+                .each([&](components::Renderable& rc) {
+                    const auto& model = m[rc.name];
+                    rc.renderable = model->renderable;
+                    rc.bounds = model->bounds;
+                });
+        }
 
         Game game(scene, inputs);
         SceneEditor editor(scene, inputs, models);
@@ -472,6 +477,8 @@ int main(int argc, char* argv[])
             }
             r->endFrame();
         }
+
+        scene.save("scene.json");
 
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplSDL2_Shutdown();
