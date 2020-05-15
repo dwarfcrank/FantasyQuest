@@ -30,6 +30,12 @@ Matrix<World, View> Camera::getViewMatrix() const
     return Matrix<World, View>(XMMatrixLookToLH(m_position.vec, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)));
 }
 
+Matrix<View, World> Camera::getInverseViewMatrix() const
+{
+    auto vm = getViewMatrix();
+    return Matrix<View, World>(XMMatrixInverse(nullptr, vm.mat));
+}
+
 void Camera::move(Vector<View> direction)
 {
     auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);

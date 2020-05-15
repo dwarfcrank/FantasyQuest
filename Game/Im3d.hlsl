@@ -27,6 +27,23 @@ VSOutput vsMain(VSInput input)
 	output.position = mul(output.position, camera.Projection);
 
 	output.color = input.color.abgr;
+	output.color.a *= smoothstep(0.0f, 1.0f, input.position.w / antialiasing);
+
+	output.size = max(input.position.w, antialiasing);
+	output.edgeDistance = 0.0f;
+
+	return output;
+}
+
+VSOutput vsTriangles(VSInput input)
+{
+	VSOutput output;
+
+	output.position = float4(input.position.xyz, 1.0f);
+	output.position = mul(output.position, camera.View);
+	output.position = mul(output.position, camera.Projection);
+
+	output.color = input.color.abgr;
 
 	output.size = max(input.position.w, antialiasing);
 	output.edgeDistance = 0.0f;
@@ -88,3 +105,7 @@ float4 psMain(VSOutput v) : SV_TARGET
 	return color;
 }
 
+float4 psTriangles(VSOutput v) : SV_TARGET
+{
+	return v.color;
+}

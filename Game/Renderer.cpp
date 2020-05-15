@@ -111,9 +111,11 @@ private:
     ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
     ComPtr<ID3D11InputLayout> m_im3dLayout;
-    ComPtr<ID3D11VertexShader> m_im3dVS;
-    ComPtr<ID3D11PixelShader> m_im3dPS;
-    ComPtr<ID3D11GeometryShader> m_im3dGS;
+    ComPtr<ID3D11VertexShader> m_im3dLineVS;
+    ComPtr<ID3D11PixelShader> m_im3dLinePS;
+    ComPtr<ID3D11GeometryShader> m_im3dLineGS;
+    ComPtr<ID3D11VertexShader> m_im3dTriangleVS;
+    ComPtr<ID3D11PixelShader> m_im3dTrianglePS;
     VertexBuffer<Im3d::VertexData> m_im3dVertexBuffer;
     ComPtr<ID3D11RasterizerState> m_im3dRasterizerState;
     ComPtr<ID3D11BlendState> m_im3dBlendState;
@@ -535,20 +537,21 @@ void Renderer::drawIm3d(const Camera& camera, ArrayView<Im3d::DrawList> drawList
 
     m_context->IASetInputLayout(m_im3dLayout.Get());
 
-    m_context->VSSetShader(m_im3dVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->PSSetShader(m_im3dPS.Get(), nullptr, 0);
 
     for (const auto& drawList : drawLists) {
         if (drawList.m_primType == Im3d::DrawPrimitive_Lines) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-            m_context->GSSetShader(m_im3dGS.Get(), nullptr, 0);
+            m_context->VSSetShader(m_im3dLineVS.Get(), nullptr, 0);
+            m_context->GSSetShader(m_im3dLineGS.Get(), nullptr, 0);
+            m_context->PSSetShader(m_im3dLinePS.Get(), nullptr, 0);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Points) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Triangles) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            m_context->VSSetShader(m_im3dTriangleVS.Get(), nullptr, 0);
             m_context->GSSetShader(nullptr, nullptr, 0);
+            m_context->PSSetShader(m_im3dTrianglePS.Get(), nullptr, 0);
         } else {
             assert(false);
         }
@@ -995,9 +998,9 @@ void Renderer::loadShaders()
             setObjectName(m_inputLayout, "DefaultInputLayout");
         });
 
-    m_im3dGS = compileGeometryShader(m_device, shaderDir / "Im3d.hlsl", "gsLines");
-    m_im3dPS = compilePixelShader(m_device, shaderDir / "Im3d.hlsl", "psMain");
-    m_im3dVS = compileVertexShader(m_device, shaderDir / "Im3d.hlsl", "vsMain",
+    m_im3dLineGS = compileGeometryShader(m_device, shaderDir / "Im3d.hlsl", "gsLines");
+    m_im3dLinePS = compilePixelShader(m_device, shaderDir / "Im3d.hlsl", "psMain");
+    m_im3dLineVS = compileVertexShader(m_device, shaderDir / "Im3d.hlsl", "vsMain",
         [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -1008,6 +1011,9 @@ void Renderer::loadShaders()
                 bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_im3dLayout);
             setObjectName(m_im3dLayout, "Im3dLayout");
         });
+
+    m_im3dTrianglePS = compilePixelShader(m_device, shaderDir / "Im3d.hlsl", "psTriangles");
+    m_im3dTriangleVS = compileVertexShader(m_device, shaderDir / "Im3d.hlsl", "vsTriangles");
 
     m_gaussianCS = compileComputeShader(m_device, shaderDir / "GaussianBlur.cs.hlsl", "main");
     m_fscs = compileComputeShader(m_device, shaderDir / "FullScreenPass.cs.hlsl", "main");

@@ -422,9 +422,6 @@ int main(int argc, char* argv[])
                 ImGui::End();
             }
 
-            ImGui::Render();
-            Im3d::EndFrame();
-
             {
                 shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
 
@@ -438,6 +435,9 @@ int main(int argc, char* argv[])
 
                 r->setPointLights(lights);
             }
+
+            ImGui::Render();
+            Im3d::EndFrame();
 
             updateBatches();
 

@@ -13,6 +13,7 @@ public:
     static Camera perspective(float fovY = XM_PI / 2.5f, float aspect = 16.0f / 9.0f, float nearZ = 100.0f, float farZ = 0.01f);
 
     Matrix<World, View> getViewMatrix() const;
+    Matrix<View, World> getInverseViewMatrix() const;
 
     const Matrix<View, Projection>& getProjectionMatrix() const
     {
