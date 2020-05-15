@@ -55,8 +55,8 @@ namespace components
 
     struct Renderable
     {
-        Renderable(std::string name, ::Renderable* renderable) :
-            name{ std::move(name) }, renderable{ renderable } {}
+        Renderable(std::string name, ::Renderable* renderable, const Bounds& bounds) :
+            name{ std::move(name) }, renderable{ renderable }, bounds{ bounds } {}
 
         std::string name;
         ::Renderable* renderable = nullptr;

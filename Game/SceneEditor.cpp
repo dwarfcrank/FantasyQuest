@@ -7,8 +7,8 @@
 #include "imgui_stdlib.h"
 #include "im3d.h"
 
-SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& renderables) :
-    GameBase(inputs), m_scene(scene), m_renderables(renderables.begin(), renderables.end())
+SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :
+    GameBase(inputs), m_scene(scene), m_models(models)
 {
     auto doBind = [this](SDL_Keycode k, float& target, float value) {
         m_inputs.key(k)
@@ -37,11 +37,13 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
         }
     });
 
-    std::sort(m_renderables.begin(), m_renderables.end(),
+    std::sort(m_models.begin(), m_models.end(),
         [](const auto& a, const auto& b) {
             return a.name < b.name;
         });
 }
+
+static_assert(sizeof(XMFLOAT4X4A) == sizeof(Im3d::Mat4));
 
 bool SceneEditor::update(float dt)
 {
@@ -53,13 +55,17 @@ bool SceneEditor::update(float dt)
     float changed = (v.x != 0.0f) || (v.y != 0.0f) || (v.z != 0.0f) || (angle != 0.0f);
     float a = angle * dt;
 
-    if (m_scene.reg.valid(m_currentEntity) && !moveCamera) {
+    if (m_scene.reg.valid(m_currentEntity)) {
         auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
-		t.position.x += v.x;
-		t.position.y += v.y;
-		t.position.z += v.z;
-		t.rotation.y += a;
+        if (!moveCamera) {
+            t.position.x += v.x;
+            t.position.y += v.y;
+            t.position.z += v.z;
+            t.rotation.y += a;
+        }
+
+        drawEntityBounds(m_currentEntity);
     }
 
     if (moveCamera) {
@@ -86,8 +92,8 @@ const Camera& SceneEditor::getCamera() const
 void SceneEditor::modelList()
 {
     if (ImGui::Begin("Models")) {
-        for (size_t i = 0; i < m_renderables.size(); i++) {
-            if (ImGui::Selectable(m_renderables[i].name.c_str(), i == m_currentModelIdx)) {
+        for (size_t i = 0; i < m_models.size(); i++) {
+            if (ImGui::Selectable(m_models[i].name.c_str(), i == m_currentModelIdx)) {
                 m_currentModelIdx = i;
             }
         }
@@ -155,16 +161,17 @@ void SceneEditor::entityPropertiesWindow()
                     m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
                     rc = nullptr;
                 } else if (render && !rc) {
-                    const auto& model = m_renderables.front();
-                    m_scene.reg.emplace<components::Renderable>(m_currentEntity, model.name, model.renderable);
+                    const auto& model = m_models.front();
+                    auto& rc = m_scene.reg.emplace<components::Renderable>(m_currentEntity,
+                        model.name, model.renderable, model.bounds);
                 }
             }
 
             if (rc) {
                 int selected = 0;
 
-                for (size_t i = 0; i < m_renderables.size(); i++) {
-                    if (rc->name == m_renderables[i].name) {
+                for (size_t i = 0; i < m_models.size(); i++) {
+                    if (rc->name == m_models[i].name) {
                         selected = int(i);
                         break;
                     }
@@ -173,15 +180,14 @@ void SceneEditor::entityPropertiesWindow()
                 int newSelection = selected;
 
                 auto getter = [](void* data, int idx, const char** out) {
-                    //const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
-                    const auto& items = *reinterpret_cast<const decltype(m_renderables)*>(data);
+                    const auto& items = *reinterpret_cast<const decltype(m_models)*>(data);
 
                     *out = items[idx].name.c_str();
 
                     return true;
                 };
 
-                ImGui::Combo("Mesh", &newSelection, getter, &m_renderables, int(m_renderables.size()));
+                ImGui::Combo("Mesh", &newSelection, getter, &m_models, int(m_models.size()));
 
                 if (ImGui::Button("Pick from model list")) {
                     newSelection = int(m_currentModelIdx);
@@ -190,9 +196,10 @@ void SceneEditor::entityPropertiesWindow()
                 if (newSelection != selected) {
                     m_scene.reg.patch<components::Renderable>(m_currentEntity,
                         [&](components::Renderable& r) {
-                            const auto& model = m_renderables[newSelection];
+                            const auto& model = m_models[newSelection];
                             r.name = model.name;
                             r.renderable = model.renderable;
+                            r.bounds = model.bounds;
                         });
                 }
             }
@@ -302,12 +309,12 @@ entt::entity SceneEditor::createEntity()
         t = m_scene.reg.get<components::Transform>(m_currentEntity);
     }
 
-    const auto& model = m_renderables[m_currentModelIdx];
+    const auto& model = m_models[m_currentModelIdx];
 
     m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", model.name, m_scene.reg.size()));
     m_scene.reg.emplace<components::Transform>(e, t);
 
-    m_scene.reg.emplace<components::Renderable>(e, model.name, model.renderable);
+    m_scene.reg.emplace<components::Renderable>(e, model.name, model.renderable, model.bounds);
 
     return e;
 }
@@ -335,4 +342,32 @@ void SceneEditor::drawGrid()
     }
 
     Im3d::PopDrawState();
+}
+
+void SceneEditor::drawEntityBounds(entt::entity e)
+{
+    if (!m_scene.reg.valid(e)) {
+        return;
+    }
+
+    const auto [t, rc] = std::as_const(m_scene.reg).try_get<components::Transform, components::Renderable>(e);
+
+    if (!t || !rc) {
+        return;
+    }
+
+    XMFLOAT3 bMin, bMax;
+    XMStoreFloat3(&bMin, rc->bounds.min.vec);
+    XMStoreFloat3(&bMax, rc->bounds.max.vec);
+
+    XMFLOAT4X4A wm;
+    XMStoreFloat4x4A(&wm, t->getMatrix());
+
+    Im3d::Mat4 wm2;
+    std::memcpy(&wm2, &wm, sizeof(wm));
+
+    Im3d::PushMatrix();
+    Im3d::SetMatrix(wm2);
+    Im3d::DrawAlignedBox(Im3d::Vec3(bMin.x, bMin.y, bMin.z), Im3d::Vec3(bMax.x, bMax.y, bMax.z));
+    Im3d::PopMatrix();
 }

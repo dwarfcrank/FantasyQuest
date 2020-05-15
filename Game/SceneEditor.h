@@ -26,7 +26,7 @@ struct ModelAsset
 class SceneEditor : public GameBase
 {
 public:
-    SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& renderables);
+    SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models);
 
     virtual bool update(float dt) override;
     virtual void render(class IRenderer*) override;
@@ -35,7 +35,7 @@ public:
 private:
     Scene& m_scene;
 
-    std::vector<ModelAsset> m_renderables;
+    std::vector<ModelAsset> m_models;
     size_t m_currentModelIdx = 0;
 
     Camera m_camera = Camera::perspective();
@@ -61,5 +61,7 @@ private:
     void mainMenu();
 
     void drawGrid();
+
+    void drawEntityBounds(entt::entity e);
 };
 
