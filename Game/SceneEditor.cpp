@@ -71,6 +71,7 @@ bool SceneEditor::update(float dt)
 
     sceneWindow();
     entityPropertiesWindow();
+    modelList();
     
     return true;
 }
@@ -87,36 +88,14 @@ const Camera& SceneEditor::getCamera() const
     return m_camera;
 }
 
-void SceneEditor::renderableList()
+void SceneEditor::modelList()
 {
-    auto opened = ImGui::Begin("Model"); 
-
-    if (opened && m_scene.reg.valid(m_currentEntity)) {
-        if (auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
-            int selected = 0;
-
-            for (size_t i = 0; i < m_renderables.size(); i++) {
-                if (rc->name == std::get<0>(m_renderables[i])) {
-                    selected = int(i);
-                    break;
-                }
+    if (ImGui::Begin("Models")) {
+        for (size_t i = 0; i < m_renderables.size(); i++) {
+            if (ImGui::Selectable(std::get<0>(m_renderables[i]).c_str(), i == m_currentModelIdx)) {
+                m_currentModelIdx = i;
             }
-
-            auto getter = [](void* data, int idx, const char** out) {
-                const auto& items = *reinterpret_cast<const std::vector<std::tuple<std::string, Renderable*>>*>(data);
-
-                const auto& [name, _] = items[idx];
-                *out = name.c_str();
-
-                return true;
-            };
-
-            ImGui::Combo("Mesh", &selected, getter, &m_renderables, int(m_renderables.size()));
-        } else {
-            ImGui::Text("No renderable entity selected.");
         }
-    } else if (opened) {
-        ImGui::Text("No entity selected.");
     }
 
     ImGui::End();
@@ -208,11 +187,15 @@ void SceneEditor::entityPropertiesWindow()
                 };
 
                 ImGui::Combo("Mesh", &newSelection, getter, &m_renderables, int(m_renderables.size()));
+
+                if (ImGui::Button("Pick from model list")) {
+                    newSelection = int(m_currentModelIdx);
+                }
+
                 if (newSelection != selected) {
                     m_scene.reg.patch<components::Renderable>(m_currentEntity,
                         [&](components::Renderable& r) {
                             std::tie(r.name, r.renderable) = m_renderables[newSelection];
-                            m_lastUsedRenderable = newSelection;
                         });
                 }
             }
@@ -325,7 +308,7 @@ entt::entity SceneEditor::createEntity()
     m_scene.reg.emplace<components::Misc>(e, fmt::format("entity{}", m_scene.reg.size()));
     m_scene.reg.emplace<components::Transform>(e, t);
 
-    const auto& [name, renderable] = m_renderables[m_lastUsedRenderable];
+    const auto& [name, renderable] = m_renderables[m_currentModelIdx];
     m_scene.reg.emplace<components::Renderable>(e, name, renderable);
 
     return e;

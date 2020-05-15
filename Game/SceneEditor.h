@@ -28,7 +28,7 @@ private:
     Scene& m_scene;
 
     std::vector<std::tuple<std::string, Renderable*>> m_renderables;
-    size_t m_lastUsedRenderable = 0;
+    size_t m_currentModelIdx = 0;
 
     Camera m_camera = Camera::perspective();
 
@@ -40,9 +40,8 @@ private:
     XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
 
     entt::entity m_currentEntity = entt::null;
-    int m_currentObjectIdx = -1;
 
-    void renderableList();
+    void modelList();
 
     void entityList();
     void entityPropertiesWindow();
