@@ -30,3 +30,9 @@ Microsoft::WRL::ComPtr<ID3D11PixelShader> compilePixelShader(
     const std::filesystem::path& filename,
     const char* entryPoint
 );
+
+Microsoft::WRL::ComPtr<ID3D11GeometryShader> compileGeometryShader(
+    const Microsoft::WRL::ComPtr<ID3D11Device>& device,
+    const std::filesystem::path& filename,
+    const char* entryPoint
+);

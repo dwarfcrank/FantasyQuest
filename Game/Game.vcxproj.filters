@@ -93,9 +93,6 @@
     <ClInclude Include="Math.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="DebugDraw.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SceneEditor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -185,9 +182,6 @@
     <ClCompile Include="GameTime.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="DebugDraw.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="SceneEditor.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -254,10 +248,10 @@
     <FxCompile Include="KawaseBlur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="DebugDraw.hlsl">
+    <FxCompile Include="LuminanceHistogram.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="LuminanceHistogram.hlsl">
+    <FxCompile Include="Im3d.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

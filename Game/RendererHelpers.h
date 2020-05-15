@@ -99,6 +99,15 @@ inline auto createRasterizerState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_
 }
 
 template<typename... Args>
+inline auto createBlendState(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, Args... args)
+{
+    CD3D11_BLEND_DESC desc(args...);
+    Microsoft::WRL::ComPtr<ID3D11BlendState> bs;
+    Hresult hr = m_device->CreateBlendState(&desc, &bs);
+    return bs;
+}
+
+template<typename... Args>
 inline auto createUnorderedAccessView(const Microsoft::WRL::ComPtr<ID3D11Device>& m_device, ID3D11Resource* resource, Args... args)
 {
     Microsoft::WRL::ComPtr<ID3D11UnorderedAccessView> uav;

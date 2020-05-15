@@ -79,3 +79,16 @@ ComPtr<ID3D11PixelShader> compilePixelShader(const ComPtr<ID3D11Device>& device,
 
     return shader;
 }
+
+ComPtr<ID3D11GeometryShader> compileGeometryShader(const ComPtr<ID3D11Device>& device,
+    const std::filesystem::path& filename, const char* entryPoint)
+{
+    ComPtr<ID3D11GeometryShader> shader;
+    auto bytecode = compileShader(filename, "gs_5_0", entryPoint);
+    Hresult hr = device->CreateGeometryShader(bytecode->GetBufferPointer(), bytecode->GetBufferSize(), nullptr, &shader);
+
+    auto name = filename.filename().replace_extension();
+    setObjectName(shader, name.string());
+
+    return shader;
+}

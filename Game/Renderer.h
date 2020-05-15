@@ -2,11 +2,11 @@
 
 #include "Common.h"
 
-#include "DebugDraw.h"
 #include "ArrayView.h"
 #include "ShaderCommon.h"
 
 #include "im3d.h"
+#include "Math.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -57,7 +57,6 @@ public:
     virtual void setPointLights(ArrayView<PointLight> lights) = 0;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
     virtual void draw(const RenderBatch& batch, const Camera&) = 0;
-    virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) = 0;
     virtual void debugDraw(const Camera&, ArrayView<Im3d::DrawList>) = 0;
     virtual void clear(float r, float g, float b) = 0;
 

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "DebugDraw.h"
 #include "Game.h"
 
 #include <entt/entt.hpp>
@@ -21,8 +20,6 @@ public:
     virtual bool update(float dt) override;
     virtual void render(class IRenderer*) override;
     virtual const Camera& getCamera() const override;
-
-    DebugDraw d;
 
 private:
     Scene& m_scene;

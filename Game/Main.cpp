@@ -144,7 +144,7 @@ struct PhysicsWorld
 
     void render(IRenderer* r)
     {
-        d.clear();
+        //d.clear();
 
         Transform tt;
         btTransform ft;
@@ -178,14 +178,16 @@ struct PhysicsWorld
                 const auto* box = static_cast<const btBoxShape*>(shape);
                 const auto halfExtents = box->getHalfExtentsWithoutMargin();
 
+                /*
                 d.drawBounds(
                     Vector<Model>{ -halfExtents.x(), -halfExtents.y(), -halfExtents.z(), 1.0f },
                     Vector<Model>{ halfExtents.x(), halfExtents.y(), halfExtents.z(), 1.0f },
                     tt
                 );
+                */
             } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
                 const auto* sphere = static_cast<const btSphereShape*>(shape);
-                d.drawSphere(sphere->getRadius(), tt);
+                //d.drawSphere(sphere->getRadius(), tt);
             }
         }
     }
@@ -197,8 +199,6 @@ struct PhysicsWorld
     std::unique_ptr<btDiscreteDynamicsWorld> dynamicsWorld;
 
     std::vector<std::unique_ptr<btCollisionShape>> collisionShapes;
-
-    DebugDraw d;
 
     float time = 0.0f;
     static constexpr auto TICKS_PER_SECOND = 60;
@@ -338,8 +338,6 @@ int main(int argc, char* argv[])
 
         XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
 
-        std::vector<DebugDrawVertex> debugVerts;
-
         std::unordered_map<Renderable*, RenderBatch> batches;
 
         for (const auto& [k, v] : renderables) {
@@ -426,22 +424,17 @@ int main(int argc, char* argv[])
 
             {
                 Im3d::PushDrawState();
-                Im3d::SetColor(Im3d::Color_Red);
-                Im3d::DrawSphere(Im3d::Vec3(-3.0f, 0.0f, 0.0f), 1.0f);
-                Im3d::PopDrawState();
-            }
+                Im3d::SetSize(2.0f);
 
-            {
-                Im3d::PushDrawState();
+                Im3d::SetColor(Im3d::Color_Red);
+                Im3d::DrawSphere(Im3d::Vec3(-2.0f, 0.0f, 0.0f), 1.0f);
+
                 Im3d::SetColor(Im3d::Color_Green);
                 Im3d::DrawSphere(Im3d::Vec3(0.0f, 0.0f, 0.0f), 1.0f);
-                Im3d::PopDrawState();
-            }
 
-            {
-                Im3d::PushDrawState();
                 Im3d::SetColor(Im3d::Color_Blue);
-                Im3d::DrawSphere(Im3d::Vec3(3.0f, 0.0f, 0.0f), 1.0f);
+                Im3d::DrawSphere(Im3d::Vec3(2.0f, 0.0f, 0.0f), 1.0f);
+
                 Im3d::PopDrawState();
             }
 

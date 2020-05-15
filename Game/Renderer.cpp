@@ -8,7 +8,6 @@
 #include "ArrayView.h"
 #include "RendererHelpers.h"
 #include "Buffer.h"
-#include "DebugDraw.h"
 #include "imgui_impl_dx11.h"
 #include "RenderTarget.h"
 #include "Shader.h"
@@ -63,7 +62,6 @@ public:
     virtual void setPointLights(ArrayView<PointLight> lights) override;
     virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
     virtual void draw(const RenderBatch& batch, const Camera&) override;
-    virtual void debugDraw(const Camera&, ArrayView<DebugDrawVertex>) override;
     virtual void debugDraw(const Camera&, ArrayView<Im3d::DrawList>) override;
     virtual void clear(float r, float g, float b) override;
 
@@ -112,14 +110,14 @@ private:
     ComPtr<ID3D11ComputeShader> m_fscs;
     ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
-    ComPtr<ID3D11InputLayout> m_debugInputLayout;
-    ComPtr<ID3D11VertexShader> m_debugVS;
-    ComPtr<ID3D11PixelShader> m_debugPS;
-    VertexBuffer<DebugDrawVertex> m_debugVertexBuffer;
-
     ComPtr<ID3D11InputLayout> m_im3dLayout;
     ComPtr<ID3D11VertexShader> m_im3dVS;
+    ComPtr<ID3D11PixelShader> m_im3dPS;
+    ComPtr<ID3D11GeometryShader> m_im3dGS;
     VertexBuffer<Im3d::VertexData> m_im3dVertexBuffer;
+    ComPtr<ID3D11RasterizerState> m_im3dRasterizerState;
+    ComPtr<ID3D11BlendState> m_im3dBlendState;
+    ComPtr<ID3D11DepthStencilState> m_im3dDepthStencilState;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
@@ -280,6 +278,35 @@ Renderer::Renderer(SDL_Window* window)
         m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
         SET_OBJECT_NAME(m_shadowRasterizerState);
+    }
+
+    {
+        m_im3dRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_NONE, FALSE,
+            0, 0.0f, 0.0f, TRUE, FALSE, FALSE, FALSE);
+        SET_OBJECT_NAME(m_im3dRasterizerState);
+
+        D3D11_BLEND_DESC bd = {};
+        bd.RenderTarget[0].BlendEnable = TRUE;
+        bd.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+
+        bd.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+        bd.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+        bd.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+
+        bd.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+        bd.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_ZERO;
+        bd.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+
+        m_im3dBlendState = createBlendState(m_device, bd);
+        SET_OBJECT_NAME(m_im3dBlendState);
+
+        m_im3dDepthStencilState = createDepthStencilState(m_device,
+            TRUE, D3D11_DEPTH_WRITE_MASK_ZERO, D3D11_COMPARISON_GREATER,
+            FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
+
+        SET_OBJECT_NAME(m_im3dDepthStencilState);
     }
 
     {
@@ -487,39 +514,6 @@ void Renderer::draw(const RenderBatch& batch, const Camera& camera)
     m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
 }
 
-void Renderer::debugDraw(const Camera& camera, ArrayView<DebugDrawVertex> vertices)
-{
-    EVENT_SCOPE_FUNC();
-
-    if (vertices.size > m_debugVertexBuffer.getCapacity()) {
-        m_debugVertexBuffer.init(m_device, vertices);
-    } else {
-        m_debugVertexBuffer.update(m_context, vertices);
-    }
-
-    {
-        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
-        m_cameraConstantBuffer.update(m_context);
-    }
-
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer() };
-    std::array vertexBuffers{ m_debugVertexBuffer.getBuffer() };
-    std::array strides{ static_cast<UINT>(sizeof(DebugDrawVertex)) };
-    std::array offsets{ UINT(0) };
-
-    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-    m_context->IASetInputLayout(m_debugInputLayout.Get());
-
-    m_context->VSSetShader(m_debugVS.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
-
-    m_context->Draw(vertices.size, 0);
-}
-
 void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLists)
 {
     EVENT_SCOPE_FUNC();
@@ -532,19 +526,26 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLis
 
     std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(), };
 
-    m_context->IASetInputLayout(m_im3dLayout.Get());
-    m_context->VSSetShader(m_im3dVS.Get(), nullptr, 0);
+    m_context->RSSetState(m_im3dRasterizerState.Get());
+    m_context->OMSetBlendState(m_im3dBlendState.Get(), nullptr, 0xffffffff);
+    m_context->OMSetDepthStencilState(m_im3dDepthStencilState.Get(), 0);
 
+    m_context->IASetInputLayout(m_im3dLayout.Get());
+
+    m_context->VSSetShader(m_im3dVS.Get(), nullptr, 0);
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
-    m_context->PSSetShader(m_debugPS.Get(), nullptr, 0);
+
+    m_context->PSSetShader(m_im3dPS.Get(), nullptr, 0);
 
     for (const auto& drawList : drawLists) {
         if (drawList.m_primType == Im3d::DrawPrimitive_Lines) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+            m_context->GSSetShader(m_im3dGS.Get(), nullptr, 0);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Points) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Triangles) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            m_context->GSSetShader(nullptr, nullptr, 0);
         } else {
             assert(false);
         }
@@ -562,6 +563,11 @@ void Renderer::debugDraw(const Camera& camera, ArrayView<Im3d::DrawList> drawLis
         m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
         m_context->Draw(drawList.m_vertexCount, 0);
     }
+
+    m_context->GSSetShader(nullptr, nullptr, 0);
+    m_context->RSSetState(nullptr);
+    m_context->OMSetBlendState(nullptr, nullptr, 0xffffffff);
+    m_context->OMSetDepthStencilState(m_depthStencilState.Get(), 0);
 }
 
 void Renderer::clear(float r, float g, float b)
@@ -986,24 +992,13 @@ void Renderer::loadShaders()
             setObjectName(m_inputLayout, "DefaultInputLayout");
         });
 
-    m_debugPS = compilePixelShader(m_device, shaderDir / "DebugDraw.hlsl", "psMain");
-    m_debugVS = compileVertexShader(m_device, shaderDir / "DebugDraw.hlsl", "vsMain",
-        [this](ID3DBlob* bytecode) {
-            std::array layout{
-                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            };
-
-            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
-                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_debugInputLayout);
-            setObjectName(m_debugInputLayout, "DebugDrawInputLayout");
-        });
-
-    m_im3dVS = compileVertexShader(m_device, shaderDir / "DebugDraw.hlsl", "vsMain2",
+    m_im3dGS = compileGeometryShader(m_device, shaderDir / "Im3d.hlsl", "gsLines");
+    m_im3dPS = compilePixelShader(m_device, shaderDir / "Im3d.hlsl", "psMain");
+    m_im3dVS = compileVertexShader(m_device, shaderDir / "Im3d.hlsl", "vsMain",
         [this](ID3DBlob* bytecode) {
             std::array layout{
                 D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32_UINT, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R8G8B8A8_UNORM, 0, 16, D3D11_INPUT_PER_VERTEX_DATA, 0 },
             };
 
             Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),

@@ -3,9 +3,9 @@
 #include "SceneEditor.h"
 #include "Scene.h"
 #include "imgui.h"
-#include "DebugDraw.h"
 #include "InputMap.h"
 #include "imgui_stdlib.h"
+#include "im3d.h"
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_map<std::string, Renderable*>& renderables) :
     GameBase(inputs), m_scene(scene), m_renderables(renderables.begin(), renderables.end())
@@ -45,8 +45,6 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::unordered_ma
 
 bool SceneEditor::update(float dt)
 {
-    d.clear();
-
     moveCamera = (SDL_GetModState() & KMOD_LCTRL) != 0;
 
     drawGrid();
@@ -78,9 +76,6 @@ bool SceneEditor::update(float dt)
 
 void SceneEditor::render(IRenderer* r)
 {
-    if (!d.verts.empty()) {
-        r->debugDraw(m_camera, d.verts);
-    }
 }
 
 const Camera& SceneEditor::getCamera() const
@@ -321,16 +316,21 @@ void SceneEditor::mainMenu()
 
 void SceneEditor::drawGrid()
 {
-    const XMFLOAT4 gridAxisColor(0.8f, 0.8f, 0.8f, 1.0f);
-    const XMFLOAT4 gridColor(0.3f, 0.3f, 0.3f, 1.0f);
+    Im3d::PushDrawState();
 
-    d.drawLine({ -100.0f, 0.0f, 0.0f, 1.0f }, { 100.0f, 0.0f, 0.0f, 1.0f }, gridAxisColor);
-    d.drawLine({ 0.0f, 0.0f, -100.0f, 1.0f }, { 0.0f, 0.0f, 100.0f, 1.0f }, gridAxisColor);
+    float size = 1.5f;
+    Im3d::SetSize(size);
+    Im3d::DrawLine({ -100.0f, 0.0f, 0.0f }, { 100.0f, 0.0f, 0.0f }, size, Im3d::Color_White);
+    Im3d::DrawLine({ 0.0f, 0.0f, -100.0f }, { 0.0f, 0.0f, 100.0f }, size, Im3d::Color_White);
+
+    constexpr u32 gridColor2 = 0x808080ff;
 
     for (auto i = 1; i <= 20; i++) {
-        d.drawLine({ float(i) * 5.0f, 0.0f, 100.0f, 1.0f }, { float(i) * 5.0f, 0.0f, -100.0f, 1.0f }, gridColor);
-        d.drawLine({ float(i) * -5.0f, 0.0f, 100.0f, 1.0f }, { float(i) * -5.0f, 0.0f, -100.0f, 1.0f }, gridColor);
-        d.drawLine({ 100.0f, 0.0f, float(i) * 5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * 5.0f, 1.0f }, gridColor);
-        d.drawLine({ 100.0f, 0.0f, float(i) * -5.0f, 1.0f }, { -100.0f, 0.0f, float(i) * -5.0f, 1.0f }, gridColor);
+        Im3d::DrawLine({ float(i) *  5.0f, 0.0f, 100.0f }, { float(i) *  5.0f, 0.0f, -100.0f }, size, gridColor2);
+        Im3d::DrawLine({ float(i) * -5.0f, 0.0f, 100.0f }, { float(i) * -5.0f, 0.0f, -100.0f }, size, gridColor2);
+        Im3d::DrawLine({ 100.0f, 0.0f, float(i) *  5.0f }, { -100.0f, 0.0f, float(i) *  5.0f }, size, gridColor2);
+        Im3d::DrawLine({ 100.0f, 0.0f, float(i) * -5.0f }, { -100.0f, 0.0f, float(i) * -5.0f }, size, gridColor2);
     }
+
+    Im3d::PopDrawState();
 }
