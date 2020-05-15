@@ -144,7 +144,6 @@
     <ClInclude Include="ShaderCommon.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Transform.h" />
-    <ClInclude Include="VertexTypes.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />

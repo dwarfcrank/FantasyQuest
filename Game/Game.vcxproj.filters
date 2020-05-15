@@ -22,6 +22,12 @@
     <Filter Include="Source Files\imgui">
       <UniqueIdentifier>{8aaa79ec-2f85-4832-8b89-039ca32afdff}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\im3d">
+      <UniqueIdentifier>{b657f558-56fc-4708-bacb-916b7266e296}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\im3d">
+      <UniqueIdentifier>{8a645684-f513-477b-a6b5-e42071d0fdce}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -108,9 +114,6 @@
     <ClInclude Include="Buffer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VertexTypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="ShaderCommon.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -124,13 +127,13 @@
       <Filter>Header Files\imgui</Filter>
     </ClInclude>
     <ClInclude Include="im3d.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\im3d</Filter>
     </ClInclude>
     <ClInclude Include="im3d_config.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\im3d</Filter>
     </ClInclude>
     <ClInclude Include="im3d_math.h">
-      <Filter>Header Files</Filter>
+      <Filter>Header Files\im3d</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -195,7 +198,7 @@
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
     <ClCompile Include="im3d.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\im3d</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
