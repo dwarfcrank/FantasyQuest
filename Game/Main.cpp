@@ -17,6 +17,8 @@
 #include "ArrayView.h"
 #include "im3d.h"
 
+#include "PhysicsWorld.h"
+
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>
@@ -97,132 +99,6 @@ void convertAssets(const std::filesystem::path& in, const std::filesystem::path&
     }
 }
 
-struct PhysicsWorld
-{
-    PhysicsWorld()
-    {
-        collisionConfiguration.reset(new btDefaultCollisionConfiguration());
-        dispatcher.reset(new btCollisionDispatcher(collisionConfiguration.get()));
-        overlappingPairCache.reset(new btDbvtBroadphase());
-        solver.reset(new btSequentialImpulseConstraintSolver());
-        dynamicsWorld.reset(new btDiscreteDynamicsWorld(
-            dispatcher.get(), overlappingPairCache.get(), solver.get(), collisionConfiguration.get()));
-
-        dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
-    }
-
-    void addBox(float hw, float hh, float hd, float mass, float x, float y, float z)
-    {
-        auto shape = collisionShapes.emplace_back(new btBoxShape(btVector3(hw, hh, hd))).get();
-
-        btTransform t;
-        t.setIdentity();
-        t.setOrigin(btVector3(x, y, z));
-
-        auto motionState = new btDefaultMotionState(t);
-        btRigidBody::btRigidBodyConstructionInfo info(mass, motionState, shape);
-        auto body = new btRigidBody(info);
-
-        dynamicsWorld->addRigidBody(body);
-    }
-
-    void addSphere(float radius, float mass, float x, float y, float z)
-    {
-        auto shape = collisionShapes.emplace_back(new btSphereShape(radius)).get();
-
-        btTransform t;
-        t.setIdentity();
-        t.setOrigin(btVector3(x, y, z));
-
-        btVector3 localInertia(0.0f, 0.0f, 0.0f);
-        shape->calculateLocalInertia(mass, localInertia);
-
-        auto motionState = new btDefaultMotionState(t);
-        btRigidBody::btRigidBodyConstructionInfo info(mass, motionState, shape, localInertia);
-        auto body = new btRigidBody(info);
-
-        dynamicsWorld->addRigidBody(body);
-    }
-
-    void update(float dt)
-    {
-        time += dt;
-
-        if (time < TIMESTEP) {
-            return;
-        }
-
-        time -= TIMESTEP;
-
-        dynamicsWorld->stepSimulation(TIMESTEP, 10);
-    }
-
-    void render()
-    {
-        Transform tt;
-        btTransform ft;
-
-        auto n = dynamicsWorld->getNumCollisionObjects();
-        const auto& collisionObjects = dynamicsWorld->getCollisionObjectArray();
-
-        for (int i = 0; i < n; i++) {
-            auto obj = collisionObjects[i];
-
-            if (auto body = btRigidBody::upcast(obj)) {
-                if (auto motionState = body->getMotionState()) {
-                    motionState->getWorldTransform(ft);
-                }
-            } else {
-                ft = obj->getWorldTransform();
-            }
-
-            const auto& origin = ft.getOrigin();
-            XMFLOAT3 position(origin.x(), origin.y(), origin.z());
-
-            XMFLOAT3 rotation;
-            ft.getRotation().getEulerZYX(rotation.z, rotation.y, rotation.x);
-            
-            tt.Position = XMLoadFloat3(&position);
-            tt.Rotation = XMLoadFloat3(&rotation);
-
-            XMFLOAT4X4 tt2;
-            XMStoreFloat4x4(&tt2, tt.getMatrix());
-            Im3d::Mat4 tm;
-            std::memcpy(&tm, &tt2, sizeof(tm));
-
-            const auto* shape = obj->getCollisionShape();
-
-            Im3d::PushMatrix(tm);
-            Im3d::PushSize(2.5f);
-            Im3d::PushColor(Im3d::Color_Cyan);
-            if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
-                const auto* box = static_cast<const btBoxShape*>(shape);
-                const auto halfExtents = box->getHalfExtentsWithoutMargin();
-
-                Im3d::Vec3 h(halfExtents.x(), halfExtents.y(), halfExtents.z());
-                Im3d::DrawAlignedBox({ -h.x, -h.y, -h.z }, h);
-            } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
-                const auto* sphere = static_cast<const btSphereShape*>(shape);
-                Im3d::DrawSphere(Im3d::Vec3(0.0f), sphere->getRadius());
-            }
-            Im3d::PopColor();
-            Im3d::PopSize();
-            Im3d::PopMatrix();
-        }
-    }
-
-    std::unique_ptr<btDefaultCollisionConfiguration> collisionConfiguration;
-    std::unique_ptr<btCollisionDispatcher> dispatcher;
-    std::unique_ptr<btBroadphaseInterface> overlappingPairCache;
-    std::unique_ptr<btSequentialImpulseConstraintSolver> solver;
-    std::unique_ptr<btDiscreteDynamicsWorld> dynamicsWorld;
-
-    std::vector<std::unique_ptr<btCollisionShape>> collisionShapes;
-
-    float time = 0.0f;
-    static constexpr auto TICKS_PER_SECOND = 60;
-    static constexpr auto TIMESTEP = 1.0f / float(TICKS_PER_SECOND);
-};
 
 std::vector<std::string_view> getArgs(int argc, char* argv[])
 {

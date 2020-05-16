@@ -135,6 +135,9 @@
     <ClInclude Include="im3d_math.h">
       <Filter>Header Files\im3d</Filter>
     </ClInclude>
+    <ClInclude Include="PhysicsWorld.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Game.cpp">
@@ -199,6 +202,9 @@
     </ClCompile>
     <ClCompile Include="im3d.cpp">
       <Filter>Source Files\im3d</Filter>
+    </ClCompile>
+    <ClCompile Include="PhysicsWorld.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
