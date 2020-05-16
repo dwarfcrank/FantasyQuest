@@ -120,6 +120,7 @@ private:
     ComPtr<ID3D11RasterizerState> m_im3dRasterizerState;
     ComPtr<ID3D11BlendState> m_im3dBlendState;
     ComPtr<ID3D11DepthStencilState> m_im3dDepthStencilState;
+    ComPtr<ID3D11DepthStencilState> m_im3dGizmoDepthStencilState;
 
     ComPtr<ID3D11DepthStencilState> m_depthStencilState;
 
@@ -307,8 +308,14 @@ Renderer::Renderer(SDL_Window* window)
             FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
             D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
-
         SET_OBJECT_NAME(m_im3dDepthStencilState);
+
+        m_im3dGizmoDepthStencilState = createDepthStencilState(m_device,
+            TRUE, D3D11_DEPTH_WRITE_MASK_ZERO, D3D11_COMPARISON_ALWAYS,
+            FALSE, D3D11_DEFAULT_STENCIL_READ_MASK, D3D11_DEFAULT_STENCIL_WRITE_MASK,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS,
+            D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_STENCIL_OP_KEEP, D3D11_COMPARISON_ALWAYS);
+        SET_OBJECT_NAME(m_im3dGizmoDepthStencilState);
     }
 
     {
@@ -533,13 +540,20 @@ void Renderer::drawIm3d(const Camera& camera, ArrayView<Im3d::DrawList> drawList
     auto rtv = m_backbufferRTV.Get();
     m_context->OMSetRenderTargets(1, &rtv, m_mainRT.m_dsv.Get());
     m_context->OMSetBlendState(m_im3dBlendState.Get(), nullptr, 0xffffffff);
-    m_context->OMSetDepthStencilState(m_im3dDepthStencilState.Get(), 0);
 
     m_context->IASetInputLayout(m_im3dLayout.Get());
 
     m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
 
+    const auto gizmoLayerId = Im3d::MakeId("currentEntity");
     for (const auto& drawList : drawLists) {
+        if (drawList.m_layerId == gizmoLayerId) {
+            // Disable depth testing for the entity gizmo so it won't be hidden by geometry
+            m_context->OMSetDepthStencilState(m_im3dGizmoDepthStencilState.Get(), 0);
+        } else {
+            m_context->OMSetDepthStencilState(m_im3dDepthStencilState.Get(), 0);
+        }
+
         if (drawList.m_primType == Im3d::DrawPrimitive_Lines) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
             m_context->VSSetShader(m_im3dLineVS.Get(), nullptr, 0);

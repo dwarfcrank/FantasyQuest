@@ -442,49 +442,11 @@ int main(int argc, char* argv[])
                     ad.m_viewDirection = Vector<View>(0.0f, 0.0f, 1.0f) * ivm;
                     ad.m_cursorRayOrigin = ad.m_viewOrigin;
                     ad.m_cursorRayDirection = cursor * ivm;
-
-                    ImGui::Begin("test");
-                    ImGui::Text("view origin: %.3f %.3f %.3f", ad.m_viewOrigin.x, ad.m_viewOrigin.y, ad.m_viewOrigin.z);
-                    ImGui::Text("view direction: %.3f %.3f %.3f", ad.m_viewDirection.x, ad.m_viewDirection.y, ad.m_viewDirection.z);
-                    ImGui::Text("cursor direction (view): %.3f %.3f %.3f", c.x, c.y, c.z);
-                    ImGui::Text("cursor direction (world): %.3f %.3f %.3f",
-                        ad.m_cursorRayDirection.x, ad.m_cursorRayDirection.y, ad.m_cursorRayDirection.z);
-                    ImGui::End();
                 }
             }
 
             Im3d::NewFrame();
 
-            /*
-            {
-                static Im3d::Vec3 translation(0.0f, 1.0f, 0.0f);
-                static Im3d::Mat3 rotation(1.0f);
-                static Im3d::Vec3 scale(1.0f, 1.0f, 1.0f);
-
-                Im3d::PushMatrix(Im3d::Mat4(translation, rotation, scale));
-                Im3d::GizmoTranslation("ebin", translation, false);
-                {
-                    Im3d::BeginTriangles();
-                    Im3d::Vertex( 0.0f, 0.0f,  1.0f, 2.0f, Im3d::Color_Yellow);
-                    Im3d::Vertex( 1.0f, 0.0f, -1.0f, 2.0f, Im3d::Color_Yellow);
-                    Im3d::Vertex(-1.0f, 0.0f, -1.0f, 2.0f, Im3d::Color_Yellow);
-                    Im3d::End();
-                }
-                Im3d::PopMatrix();
-
-                ImGui::Begin("test");
-                ImGui::Text("pos: %.3f %.3f %.3f", translation.x, translation.y, translation.z);
-                ImGui::End();
-            }
-
-            {
-                static Im3d::Mat4 transform;
-                if (Im3d::Gizmo("ebin", transform)) {
-                }
-            }
-            */
-
-            //pw.update(dt);
             g->update(dt);
 
             if (showDemo) {

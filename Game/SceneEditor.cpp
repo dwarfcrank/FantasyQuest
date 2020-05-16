@@ -75,8 +75,8 @@ bool SceneEditor::update(float dt)
             std::memcpy(&transform, &t2, sizeof(transform));
         }
 
-        Im3d::PushLayerId("gizmo");
-        if (Im3d::Gizmo("currentEntity", transform)) {
+        Im3d::PushLayerId("currentEntity");
+        if (Im3d::Gizmo("gizmo", transform)) {
             t.position = transform.getTranslation();
             // TODO: this doesn't work
             //t.rotation = Im3d::ToEulerXYZ(transform.getRotation());
