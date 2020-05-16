@@ -67,7 +67,7 @@ bool SceneEditor::update(float dt)
     float a = angle * dt;
 
     if (entitySelected()) {
-        auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
+        const auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
         Im3d::Mat4 transform(1.0f);
         {
@@ -77,11 +77,13 @@ bool SceneEditor::update(float dt)
         }
 
         Im3d::PushLayerId("currentEntity");
-        if (Im3d::Gizmo("gizmo", transform)) {
-            t.position = transform.getTranslation();
-            // TODO: this doesn't work
-            //t.rotation = Im3d::ToEulerXYZ(transform.getRotation());
-            t.scale = transform.getScale();
+        if (Im3d::Gizmo("gizmo", transform) && !m_physicsEnabled) {
+            m_scene.reg.patch<components::Transform>(m_currentEntity, [&](components::Transform& tc) {
+                tc.position = transform.getTranslation();
+                // TODO: this doesn't work
+                //tc.rotation = Im3d::ToEulerXYZ(transform.getRotation());
+                tc.scale = transform.getScale();
+            });
         }
         Im3d::PopLayerId();
 

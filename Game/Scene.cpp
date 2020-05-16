@@ -66,6 +66,10 @@ Scene::Scene() :
     reg
         .on_construct<components::Physics>()
         .connect<&PhysicsWorld::onCreate>(physicsWorld);
+
+    reg
+        .on_destroy<components::Physics>()
+        .connect<&PhysicsWorld::onDestroy>(physicsWorld);
 }
 
 void Scene::load(const std::filesystem::path& path)

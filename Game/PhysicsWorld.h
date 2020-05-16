@@ -9,7 +9,9 @@ namespace components
 {
     struct Physics
     {
-        int i = 0;
+        std::unique_ptr<btCollisionObject> collisionObject;
+        std::unique_ptr<btMotionState> motionState;
+        std::unique_ptr<btCollisionShape> collisionShape;
     };
 }
 
@@ -20,6 +22,7 @@ public:
     ~PhysicsWorld();
 
     void onCreate(entt::registry&, entt::entity);
+    void onDestroy(entt::registry&, entt::entity);
     void addBox(float hw, float hh, float hd, float mass, float x, float y, float z);
     void addSphere(float radius, float mass, float x, float y, float z);
     void update(float dt);
