@@ -135,7 +135,7 @@ void SceneEditor::entityList()
     entt::entity toDestroy = entt::null;
 
     if (ImGui::BeginChild("##entities", ImVec2(-1.0f, -1.0f))) {
-        ImGui::Columns(2);
+        ImGui::Columns(2, nullptr, false);
         auto w = ImGui::GetWindowContentRegionWidth();
 
         m_scene.reg.view<components::Misc>()
