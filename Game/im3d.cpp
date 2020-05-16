@@ -1692,6 +1692,7 @@ void Context::sort()
 		}
 		bool first = true;
 		#define modinc(v) ((v + 1) % DrawPrimitive_Count)
+		auto layerId = m_layerIdMap[layer];
 		while (emptyCount != DrawPrimitive_Count) {
 			while (search[cprim] == 0) {
 				cprim = modinc(cprim);
@@ -1709,12 +1710,12 @@ void Context::sort()
 		 // if draw list is empty or the layer or primitive changed, start a new draw list
 			if (
 				first ||
-				m_drawLists.back().m_layerId != layer ||
+				m_drawLists.back().m_layerId != layerId ||
 				m_drawLists.back().m_primType != mxprim
 				) {
 				cprim = mxprim;
 				DrawList dl;
-				dl.m_layerId     = layer;
+				dl.m_layerId     = layerId;
 				dl.m_primType    = (DrawPrimitiveType)cprim;
 				dl.m_vertexData  = m_vertexData[1][layer * DrawPrimitive_Count + cprim]->data() + (search[cprim] - sortData[cprim].data()) * VertsPerDrawPrimitive[cprim];
 				dl.m_vertexCount = 0;
