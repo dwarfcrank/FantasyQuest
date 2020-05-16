@@ -52,6 +52,7 @@ Mesh Mesh::import(const std::filesystem::path& path)
         | aiProcess_GenNormals
         | aiProcess_OptimizeMeshes
         | aiProcess_PreTransformVertices
+        | aiProcess_ImproveCacheLocality
         ;
 
     auto scene = g_importer.ReadFile(path.generic_string(), flags);
@@ -95,6 +96,17 @@ Mesh Mesh::import(const std::filesystem::path& path)
         }
 
         baseIdx = static_cast<u16>(result.m_indices.size());
+    }
+
+    aiVector3D center = aabbMin + ((aabbMax - aabbMin) * 0.5f);
+
+    aabbMin -= center;
+    aabbMax -= center;
+
+    for (auto& vertex : result.m_vertices) {
+        vertex.Position.x -= center.x;
+        vertex.Position.y -= center.y;
+        vertex.Position.z -= center.z;
     }
 
     result.m_bounds.min = Vector<Model>(aabbMin.x, aabbMin.y, aabbMin.z, 1.0f);
