@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
             }
         };
 
-        scene.physicsWorld.addBox(20.0f, 1.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+        scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
         std::mt19937 gen{ std::random_device{}() };
         std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
@@ -330,8 +330,8 @@ int main(int argc, char* argv[])
 
             Im3d::NewFrame();
 
-            scene.physicsWorld.update(dt);
             g->update(dt);
+            //scene.physicsWorld.update(dt);
             scene.physicsWorld.render();
 
             if (showDemo) {
@@ -398,7 +398,7 @@ int main(int argc, char* argv[])
             r->endFrame();
         }
 
-        scene.save("scene.json");
+        //scene.save("scene.json");
 
         ImGui_ImplDX11_Shutdown();
         ImGui_ImplSDL2_Shutdown();

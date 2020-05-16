@@ -8,6 +8,7 @@
 #include "im3d.h"
 #include "im3d_math.h"
 #include "Math.h"
+#include "PhysicsWorld.h"
 
 using namespace math;
 
@@ -96,6 +97,10 @@ bool SceneEditor::update(float dt)
     entityPropertiesWindow();
     modelList();
     
+    if (m_physicsEnabled) {
+        m_scene.physicsWorld.update(dt);
+    }
+
     return true;
 }
 
@@ -284,6 +289,29 @@ void SceneEditor::entityPropertiesWindow()
                 }
             }
         }
+
+        ImGui::Separator();
+
+        {
+            auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity);
+            bool hasPhysics = (pc != nullptr);
+
+            if (ImGui::Checkbox("Physics", &hasPhysics)) {
+                if (!hasPhysics) {
+                    m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
+                    pc = nullptr;
+                } else if (hasPhysics && !pc) {
+                    m_scene.reg.emplace<components::Physics>(m_currentEntity);
+                }
+            }
+
+            if (pc) {
+                bool changed = false;
+
+                if (changed) {
+                }
+            }
+        }
     }
 
     ImGui::End();
@@ -292,6 +320,9 @@ void SceneEditor::entityPropertiesWindow()
 void SceneEditor::sceneWindow()
 {
     if (ImGui::Begin("Scene")) {
+        ImGui::Checkbox("Simulate physics", &m_physicsEnabled);
+        ImGui::Separator();
+
         if (ImGui::Button("New entity")) {
             m_currentEntity = createEntity();
         }

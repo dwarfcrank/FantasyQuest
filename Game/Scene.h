@@ -68,7 +68,7 @@ namespace components
 
 struct Scene
 {
-    Scene() = default;
+    Scene();
 
     void load(const std::filesystem::path& path);
     void save(const std::filesystem::path& path);

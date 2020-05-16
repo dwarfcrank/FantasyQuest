@@ -60,6 +60,14 @@ void serialize(Archive& archive, Scene& s)
     archive(s.depthBias);
 }
 
+Scene::Scene() :
+    physicsWorld(*this)
+{
+    reg
+        .on_construct<components::Physics>()
+        .connect<&PhysicsWorld::onCreate>(physicsWorld);
+}
+
 void Scene::load(const std::filesystem::path& path)
 {
     std::ifstream input(path);

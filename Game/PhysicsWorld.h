@@ -3,19 +3,31 @@
 #include <vector>
 #include <memory>
 #include <bullet/btBulletDynamicsCommon.h>
+#include <entt/entt.hpp>
+
+namespace components
+{
+    struct Physics
+    {
+        int i = 0;
+    };
+}
 
 class PhysicsWorld
 {
 public:
-    PhysicsWorld();
+    PhysicsWorld(struct Scene& scene);
     ~PhysicsWorld();
 
+    void onCreate(entt::registry&, entt::entity);
     void addBox(float hw, float hh, float hd, float mass, float x, float y, float z);
     void addSphere(float radius, float mass, float x, float y, float z);
     void update(float dt);
     void render();
 
 private:
+    struct Scene& m_scene;
+
     std::unique_ptr<btDefaultCollisionConfiguration> m_collisionConfiguration;
     std::unique_ptr<btCollisionDispatcher> m_dispatcher;
     std::unique_ptr<btBroadphaseInterface> m_overlappingPairCache;

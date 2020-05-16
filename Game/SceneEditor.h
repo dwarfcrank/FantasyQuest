@@ -32,6 +32,11 @@ public:
     virtual void render(class IRenderer*) override;
     virtual const Camera& getCamera() const override;
 
+    bool physicsEnabled() const
+    {
+        return m_physicsEnabled;
+    }
+
 private:
     Scene& m_scene;
 
@@ -44,6 +49,7 @@ private:
     float turnSpeed = 3.0f;
     float angle = 0.0f;
     bool moveCamera = false;
+    bool m_physicsEnabled = false;
 
     XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
 
