@@ -27,6 +27,8 @@
 
 #include <bullet/btBulletDynamicsCommon.h>
 
+using namespace math;
+
 extern "C" __declspec(dllexport) DWORD NvOptimusEnablement = 1;
 
 template<typename... TArgs>
@@ -301,7 +303,9 @@ int main(int argc, char* argv[])
         bool showDemo = false;
         inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
 
-        auto handleEvents = [&io, &inputs, &running] {
+        XMFLOAT2 mouse(0.0f, 0.0f);
+
+        auto handleEvents = [&io, &inputs, &running, &mouse] {
             SDL_Event event;
             while (SDL_PollEvent(&event)) {
                 ImGui_ImplSDL2_ProcessEvent(&event);
@@ -321,6 +325,19 @@ int main(int argc, char* argv[])
                 case SDL_MOUSEMOTION:
                     if (!io.WantCaptureMouse) {
                         inputs.handleEvent(event.motion);
+                        mouse.x = float(event.motion.x) / 1920.0f;
+                        mouse.y = float(event.motion.y) / 1080.0f;
+                    }
+                    break;
+
+                case SDL_MOUSEBUTTONUP:
+                case SDL_MOUSEBUTTONDOWN:
+                    if (!io.WantCaptureMouse) {
+                        auto& ad = Im3d::GetAppData();
+
+                        if (event.button.button == SDL_BUTTON_LEFT) {
+                            ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
+                        }
                     }
                     break;
 
@@ -407,9 +424,65 @@ int main(int argc, char* argv[])
                 ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
                 ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
                 ad.m_projOrtho = false;
+                ad.m_projScaleY = 2.0f;
+
+                {
+                    const auto ivm = g->getCamera().getInverseViewMatrix();
+                    XMFLOAT4X4 proj;
+                    XMStoreFloat4x4(&proj, g->getCamera().getProjectionMatrix().mat);
+
+                    XMFLOAT3 c;
+                    float cursorX = (mouse.x * 2.0f - 1.0f) / proj._11;
+                    float cursorY = -(mouse.y * 2.0f - 1.0f) / proj._22;
+                    Vector<View> cursor(cursorX, cursorY, 1.0f, 0.0f);
+                    cursor.vec = XMVector3Normalize(cursor.vec);
+                    XMStoreFloat3(&c, cursor.vec);
+
+                    ad.m_viewOrigin = g->getCamera().getPosition();
+                    ad.m_viewDirection = Vector<View>(0.0f, 0.0f, 1.0f) * ivm;
+                    ad.m_cursorRayOrigin = ad.m_viewOrigin;
+                    ad.m_cursorRayDirection = cursor * ivm;
+
+                    ImGui::Begin("test");
+                    ImGui::Text("view origin: %.3f %.3f %.3f", ad.m_viewOrigin.x, ad.m_viewOrigin.y, ad.m_viewOrigin.z);
+                    ImGui::Text("view direction: %.3f %.3f %.3f", ad.m_viewDirection.x, ad.m_viewDirection.y, ad.m_viewDirection.z);
+                    ImGui::Text("cursor direction (view): %.3f %.3f %.3f", c.x, c.y, c.z);
+                    ImGui::Text("cursor direction (world): %.3f %.3f %.3f",
+                        ad.m_cursorRayDirection.x, ad.m_cursorRayDirection.y, ad.m_cursorRayDirection.z);
+                    ImGui::End();
+                }
             }
 
             Im3d::NewFrame();
+
+            /*
+            {
+                static Im3d::Vec3 translation(0.0f, 1.0f, 0.0f);
+                static Im3d::Mat3 rotation(1.0f);
+                static Im3d::Vec3 scale(1.0f, 1.0f, 1.0f);
+
+                Im3d::PushMatrix(Im3d::Mat4(translation, rotation, scale));
+                Im3d::GizmoTranslation("ebin", translation, false);
+                {
+                    Im3d::BeginTriangles();
+                    Im3d::Vertex( 0.0f, 0.0f,  1.0f, 2.0f, Im3d::Color_Yellow);
+                    Im3d::Vertex( 1.0f, 0.0f, -1.0f, 2.0f, Im3d::Color_Yellow);
+                    Im3d::Vertex(-1.0f, 0.0f, -1.0f, 2.0f, Im3d::Color_Yellow);
+                    Im3d::End();
+                }
+                Im3d::PopMatrix();
+
+                ImGui::Begin("test");
+                ImGui::Text("pos: %.3f %.3f %.3f", translation.x, translation.y, translation.z);
+                ImGui::End();
+            }
+
+            {
+                static Im3d::Mat4 transform;
+                if (Im3d::Gizmo("ebin", transform)) {
+                }
+            }
+            */
 
             //pw.update(dt);
             g->update(dt);

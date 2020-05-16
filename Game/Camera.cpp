@@ -2,6 +2,8 @@
 
 #include "Camera.h"
 
+using namespace math;
+
 Camera Camera::ortho(float width, float height, float nearZ, float farZ)
 {
     Camera cam;

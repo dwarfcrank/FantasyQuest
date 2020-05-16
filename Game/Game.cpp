@@ -12,6 +12,7 @@
 #include "File.h"
 #include "Scene.h"
 #include "Camera.h"
+#include "Math.h"
 
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
@@ -21,6 +22,8 @@
 #include <d3dcompiler.h>
 #include <wrl.h>
 #include <chrono>
+
+using namespace math;
 
 GameBase::GameBase(InputMap& inputs) :
     m_inputs(inputs)

@@ -20,9 +20,9 @@ struct Transform
         return s * r * t;
     }
 
-    Matrix<Model, World> getMatrix2() const
+    math::Matrix<math::Model, math::World> getMatrix2() const
     {
-        return Matrix<Model, World>{ getMatrix() };
+        return math::Matrix<math::Model, math::World>{ getMatrix() };
     }
 
     void move(float xOff, float yOff, float zOff)

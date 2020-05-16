@@ -547,6 +547,9 @@ void Renderer::drawIm3d(const Camera& camera, ArrayView<Im3d::DrawList> drawList
             m_context->PSSetShader(m_im3dLinePS.Get(), nullptr, 0);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Points) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+            m_context->VSSetShader(m_im3dLineVS.Get(), nullptr, 0);
+            m_context->GSSetShader(nullptr, nullptr, 0);
+            m_context->PSSetShader(m_im3dLinePS.Get(), nullptr, 0);
         } else if (drawList.m_primType == Im3d::DrawPrimitive_Triangles) {
             m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             m_context->VSSetShader(m_im3dTriangleVS.Get(), nullptr, 0);

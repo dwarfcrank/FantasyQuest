@@ -6,6 +6,10 @@
 #include "InputMap.h"
 #include "imgui_stdlib.h"
 #include "im3d.h"
+#include "im3d_math.h"
+#include "Math.h"
+
+using namespace math;
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :
     GameBase(inputs), m_scene(scene), m_models(models)
@@ -26,6 +30,10 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
 
     doBind(SDLK_r, velocity.y, moveSpeed);
     doBind(SDLK_f, velocity.y, -moveSpeed);
+
+    m_inputs.key(SDLK_1).up([] { Im3d::GetContext().m_gizmoMode = Im3d::GizmoMode_Translation; });
+    m_inputs.key(SDLK_2).up([] { Im3d::GetContext().m_gizmoMode = Im3d::GizmoMode_Rotation; });
+    m_inputs.key(SDLK_3).up([] { Im3d::GetContext().m_gizmoMode = Im3d::GizmoMode_Scale; });
 
     m_inputs.key(SDLK_c).up([&] { m_currentEntity = createEntity(); });
 
@@ -60,29 +68,21 @@ bool SceneEditor::update(float dt)
     if (entitySelected()) {
         auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
-        if (!moveCamera) {
-            if (velocity.y != 0.0f) {
-                t.position.y += velocity.y * dt;
-            } else if (velocity.x != 0.0f || velocity.z != 0.0f) {
-                auto ivm = m_camera.getInverseViewMatrix();
-                auto dir = Vector<View>(velocity.x, 0.0f, velocity.z) * ivm;
-
-                if (!XMVector3Equal(dir.vec, XMVectorZero())) {
-                    dir.vec = XMVector3NormalizeEst(dir.vec);
-                    dir.vec = XMVectorSetY(dir.vec, 0.0f);
-
-                    auto m = XMVectorReplicate(dt * 3);
-
-                    XMFLOAT3A d;
-                    XMStoreFloat3A(&d, XMVectorMultiply(dir.vec, m));
-
-                    t.position.x += d.x;
-                    t.position.z += d.z;
-                }
-            }
-
-            t.rotation.y += a;
+        Im3d::Mat4 transform(1.0f);
+        {
+            XMFLOAT4X4A t2;
+            XMStoreFloat4x4A(&t2, t.getMatrix());
+            std::memcpy(&transform, &t2, sizeof(transform));
         }
+
+        Im3d::PushLayerId("gizmo");
+        if (Im3d::Gizmo("currentEntity", transform)) {
+            t.position = transform.getTranslation();
+            // TODO: this doesn't work
+            //t.rotation = Im3d::ToEulerXYZ(transform.getRotation());
+            t.scale = transform.getScale();
+        }
+        Im3d::PopLayerId();
 
         drawEntityBounds(m_currentEntity);
     }

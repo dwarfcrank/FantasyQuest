@@ -28,8 +28,8 @@ class Camera;
 
 struct Bounds
 {
-    Vector<Model> min;
-    Vector<Model> max;
+    math::Vector<math::Model> min;
+    math::Vector<math::Model> max;
 };
 
 class Renderable;

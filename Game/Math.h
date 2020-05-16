@@ -4,6 +4,9 @@
 
 // Transformation helpers
 
+namespace math
+{
+
 enum Space
 {
     Model,
@@ -137,4 +140,6 @@ inline Radians::Radians(const Degrees& degrees) :
 inline Degrees::Degrees(const Radians& radians) :
     angle(DirectX::XMConvertToDegrees(radians.angle))
 {
+}
+
 }

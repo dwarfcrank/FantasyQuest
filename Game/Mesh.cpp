@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Mesh.h"
 
+#include "Math.h"
 #include "File.h"
 
 #include <assimp/Importer.hpp>
@@ -8,6 +9,8 @@
 #include <assimp/postprocess.h>
 #include <algorithm>
 #include <unordered_map>
+
+using namespace math;
 
 static Assimp::Importer g_importer;
 

@@ -32,7 +32,7 @@ namespace components
 
         std::string name;
         ::Renderable* renderable = nullptr;
-        Bounds bounds{ Vector<Model>(), Vector<Model>() };
+        Bounds bounds{ math::Vector<math::Model>(), math::Vector<math::Model>() };
     };
 
     struct PointLight
@@ -58,9 +58,9 @@ namespace components
 			return s * r * t;
 		}
 
-		Matrix<Model, World> getMatrix2() const
+		math::Matrix<math::Model, math::World> getMatrix2() const
 		{
-			return Matrix<Model, World>{ getMatrix() };
+			return math::Matrix<math::Model, math::World>{ getMatrix() };
 		}
     };
 }
