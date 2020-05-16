@@ -55,7 +55,6 @@ private:
 
     void entityList();
     void entityPropertiesWindow();
-    void lightList();
     void sceneWindow();
 
     entt::entity createEntity();

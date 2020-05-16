@@ -265,20 +265,6 @@ void SceneEditor::entityPropertiesWindow()
     ImGui::End();
 }
 
-void SceneEditor::lightList()
-{
-    auto& dir = m_scene.directionalLight;
-
-    bool changed = false;
-
-    changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
-    changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
-    changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
-    changed |= ImGui::SliderFloat("Intensity", &m_scene.directionalLightIntensity, 0.0f, 10.0f, "%.5f");
-
-    ImGui::TreePop();
-}
-
 void SceneEditor::sceneWindow()
 {
     if (ImGui::Begin("Scene")) {
@@ -288,8 +274,15 @@ void SceneEditor::sceneWindow()
 
         ImGui::Separator();
 
-        if (ImGui::CollapsingHeader("Lights")) {
-            lightList();
+        if (ImGui::CollapsingHeader("Directional light", ImGuiTreeNodeFlags_DefaultOpen)) {
+            auto& dir = m_scene.directionalLight;
+
+            bool changed = false;
+
+            changed |= ImGui::SliderAngle("X", &dir.x, -180.0f, 180.0f);
+            changed |= ImGui::SliderAngle("Y", &dir.y, -180.0f, 180.0f);
+            changed |= ImGui::ColorEdit3("Color", &m_scene.directionalLightColor.x);
+            changed |= ImGui::SliderFloat("Intensity", &m_scene.directionalLightIntensity, 0.0f, 10.0f, "%.5f");
         }
 
         ImGui::Separator();
