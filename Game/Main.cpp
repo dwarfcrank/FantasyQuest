@@ -24,6 +24,7 @@
 #include <chrono>
 #include <entt/entt.hpp>
 #include <unordered_set>
+#include <random>
 
 #include <bullet/btBulletDynamicsCommon.h>
 
@@ -156,10 +157,8 @@ struct PhysicsWorld
         dynamicsWorld->stepSimulation(TIMESTEP, 10);
     }
 
-    void render(IRenderer* r)
+    void render()
     {
-        //d.clear();
-
         Transform tt;
         btTransform ft;
 
@@ -186,23 +185,29 @@ struct PhysicsWorld
             tt.Position = XMLoadFloat3(&position);
             tt.Rotation = XMLoadFloat3(&rotation);
 
+            XMFLOAT4X4 tt2;
+            XMStoreFloat4x4(&tt2, tt.getMatrix());
+            Im3d::Mat4 tm;
+            std::memcpy(&tm, &tt2, sizeof(tm));
+
             const auto* shape = obj->getCollisionShape();
 
+            Im3d::PushMatrix(tm);
+            Im3d::PushSize(2.5f);
+            Im3d::PushColor(Im3d::Color_Cyan);
             if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
                 const auto* box = static_cast<const btBoxShape*>(shape);
                 const auto halfExtents = box->getHalfExtentsWithoutMargin();
 
-                /*
-                d.drawBounds(
-                    Vector<Model>{ -halfExtents.x(), -halfExtents.y(), -halfExtents.z(), 1.0f },
-                    Vector<Model>{ halfExtents.x(), halfExtents.y(), halfExtents.z(), 1.0f },
-                    tt
-                );
-                */
+                Im3d::Vec3 h(halfExtents.x(), halfExtents.y(), halfExtents.z());
+                Im3d::DrawAlignedBox({ -h.x, -h.y, -h.z }, h);
             } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
                 const auto* sphere = static_cast<const btSphereShape*>(shape);
-                //d.drawSphere(sphere->getRadius(), tt);
+                Im3d::DrawSphere(Im3d::Vec3(0.0f), sphere->getRadius());
             }
+            Im3d::PopColor();
+            Im3d::PopSize();
+            Im3d::PopMatrix();
         }
     }
 
@@ -350,9 +355,12 @@ int main(int argc, char* argv[])
         PhysicsWorld pw;
         pw.addBox(20.0f, 1.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
+        std::mt19937 gen{ std::random_device{}() };
+        std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
+        
         float radius = 1.0f;
         inputs.key(SDLK_SPACE).up([&] () mutable {
-            pw.addSphere(radius, radius * 1.5f, 0.0f, 15.0f, 0.0f);
+            pw.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
             radius += 0.1f;
         });
 
@@ -447,7 +455,9 @@ int main(int argc, char* argv[])
 
             Im3d::NewFrame();
 
+            pw.update(dt);
             g->update(dt);
+            pw.render();
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
