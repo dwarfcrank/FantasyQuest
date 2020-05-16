@@ -599,7 +599,7 @@ void Renderer::beginFrame()
 void Renderer::endFrame()
 {
     m_annotation->EndEvent();
-    m_swapChain->Present(0, 0);
+    m_swapChain->Present(1, 0);
 }
 
 ID3D11ShaderResourceView* Renderer::computeBloom()
