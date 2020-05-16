@@ -51,6 +51,15 @@ void serialize(Archive& archive, PointLight& p)
 
 }
 
+template<typename Archive>
+void serialize(Archive& archive, Scene& s)
+{
+    archive(s.directionalLight);
+    archive(s.directionalLightColor);
+    archive(s.directionalLightIntensity);
+    archive(s.depthBias);
+}
+
 void Scene::load(const std::filesystem::path& path)
 {
     std::ifstream input(path);
@@ -59,6 +68,8 @@ void Scene::load(const std::filesystem::path& path)
     entt::snapshot_loader(reg)
         .entities(archive)
         .component<components::Misc, components::Transform, components::Renderable, components::PointLight>(archive);
+
+    archive(*this);
 }
 
 void Scene::save(const std::filesystem::path& path)
@@ -69,4 +80,6 @@ void Scene::save(const std::filesystem::path& path)
     entt::snapshot(reg)
         .entities(archive)
         .component<components::Misc, components::Transform, components::Renderable, components::PointLight>(archive);
+
+    archive(*this);
 }
