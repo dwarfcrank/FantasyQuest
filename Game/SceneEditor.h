@@ -50,6 +50,7 @@ private:
     bool entitySelected() const;
 
     entt::entity m_currentEntity = entt::null;
+    int m_nextId = 0;
 
     void modelList();
 

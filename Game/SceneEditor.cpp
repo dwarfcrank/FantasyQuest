@@ -128,11 +128,15 @@ void SceneEditor::modelList()
 
 void SceneEditor::entityList()
 {
-    entt::entity e = entt::null;
+    entt::entity toDestroy = entt::null;
 
     if (ImGui::BeginChild("##entities", ImVec2(-1.0f, -1.0f))) {
+        ImGui::Columns(2);
+        auto w = ImGui::GetWindowContentRegionWidth();
+
         m_scene.reg.view<components::Misc>()
             .each([&](entt::entity entity, const components::Misc& m) {
+                ImGui::SetColumnWidth(-1, w - 25.0f);
 				if (ImGui::Selectable(m.name.c_str(), entity == m_currentEntity)) {
                     if (m_currentEntity == entity) {
                         m_currentEntity = entt::null;
@@ -140,10 +144,26 @@ void SceneEditor::entityList()
                         m_currentEntity = entity;
                     }
 				}
+
+                ImGui::NextColumn();
+
+                ImGui::PushID(m.name.c_str());
+                if (ImGui::SmallButton("x")) {
+                    toDestroy = entity;
+                }
+                ImGui::PopID();
+
+                ImGui::NextColumn();
 			});
+
+        ImGui::Columns(1);
     }
 
     ImGui::EndChild();
+
+    if (m_scene.reg.valid(toDestroy)) {
+        m_scene.reg.destroy(toDestroy);
+    }
 }
 
 void SceneEditor::entityPropertiesWindow()
@@ -309,7 +329,7 @@ entt::entity SceneEditor::createEntity()
 
     const auto& model = m_models[m_currentModelIdx];
 
-    m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", model.name, m_scene.reg.size()));
+    m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", model.name, m_nextId++));
     m_scene.reg.emplace<components::Transform>(e, t);
 
     m_scene.reg.emplace<components::Renderable>(e, model.name, model.renderable, model.bounds);
