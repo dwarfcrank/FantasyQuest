@@ -8,6 +8,7 @@
 
 #include "Transform.h"
 #include "Renderer.h"
+#include "PhysicsWorld.h"
 
 class Renderable;
 
@@ -77,10 +78,6 @@ struct Scene
     float directionalLightIntensity = 1.0f;
     float depthBias = 0.005f;
 
-    /*
-    std::vector<Object> objects;
-    std::vector<PointLight> lights;
-    */
-
     entt::registry reg;
+    PhysicsWorld physicsWorld;
 };

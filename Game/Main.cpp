@@ -228,15 +228,14 @@ int main(int argc, char* argv[])
             }
         };
 
-        PhysicsWorld pw;
-        pw.addBox(20.0f, 1.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+        scene.physicsWorld.addBox(20.0f, 1.0f, 20.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
         std::mt19937 gen{ std::random_device{}() };
         std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
         
         float radius = 1.0f;
         inputs.key(SDLK_SPACE).up([&] () mutable {
-            pw.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
+            scene.physicsWorld.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
             radius += 0.1f;
         });
 
@@ -331,9 +330,9 @@ int main(int argc, char* argv[])
 
             Im3d::NewFrame();
 
-            pw.update(dt);
+            scene.physicsWorld.update(dt);
             g->update(dt);
-            pw.render();
+            scene.physicsWorld.render();
 
             if (showDemo) {
                 ImGui::ShowDemoWindow(&showDemo);
