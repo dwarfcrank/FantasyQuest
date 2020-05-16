@@ -117,8 +117,12 @@ void SceneEditor::modelList()
 {
     if (ImGui::Begin("Models")) {
         for (size_t i = 0; i < m_models.size(); i++) {
-            if (ImGui::Selectable(m_models[i].name.c_str(), i == m_currentModelIdx)) {
+            if (ImGui::Selectable(m_models[i].name.c_str(), i == m_currentModelIdx, ImGuiSelectableFlags_AllowDoubleClick)) {
                 m_currentModelIdx = i;
+
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    m_currentEntity = createEntity();
+                }
             }
         }
     }
