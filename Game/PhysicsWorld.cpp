@@ -39,22 +39,6 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
 
     pc.collisionShape = getCollisionMesh("basic_box");
 
-    //std::unique_ptr<btCollisionShape> shape;
-
-    /*
-    if (const auto* rc = reg.try_get<components::Renderable>(entity)) {
-        XMFLOAT3 h;
-        XMStoreFloat3(&h, ((rc->bounds.max - rc->bounds.min) * 0.5f).vec);
-        auto volume = (h.x * h.y * h.z) * 8.0f;
-        mass = volume / 10.0f;
-        shape = std::make_unique<btBoxShape>(btVector3(h.x, h.y, h.z));
-    } else {
-        float radius = 2.5f;
-        auto volume = (4.0f / 3.0f) * XM_PI * radius * radius * radius;
-        shape = std::make_unique<btSphereShape>(radius);
-    }
-    */
-
     btTransform transform;
     transform.setIdentity();
     transform.setOrigin(btVector3(tc.position.x, tc.position.y, tc.position.z));
