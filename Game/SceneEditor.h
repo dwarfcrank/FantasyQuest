@@ -13,12 +13,13 @@ struct Scene;
 
 struct ModelAsset
 {
-    ModelAsset(const std::string& name, Renderable* renderable, Bounds bounds) :
-        name(name), renderable(renderable), bounds(bounds) {}
+    ModelAsset(const std::string& name, Renderable* renderable, Bounds bounds, const std::string_view filename = "") :
+        name(name), renderable(renderable), bounds(bounds), filename(filename) {}
 
     ModelAsset() = default;
 
     std::string name;
+    std::string filename;
     Renderable* renderable = nullptr;
     Bounds bounds;
 };

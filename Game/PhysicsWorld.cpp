@@ -4,6 +4,7 @@
 #include "PhysicsWorld.h"
 #include "im3d.h"
 #include "Scene.h"
+#include "Mesh.h"
 
 #include <bullet/btBulletDynamicsCommon.h>
 
@@ -18,6 +19,9 @@ PhysicsWorld::PhysicsWorld(Scene& scene) :
         m_dispatcher.get(), m_overlappingPairCache.get(), m_solver.get(), m_collisionConfiguration.get()));
 
     m_dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
+
+    auto shape = m_collisionShapes.emplace_back(new btBoxShape(btVector3(0.5f, 0.5f, 0.5f))).get();
+    m_collisionMeshes["basic_box"] = shape;
 }
 
 PhysicsWorld::~PhysicsWorld()
@@ -33,10 +37,11 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
     // and this should just add the component to the simulation
     auto [tc, pc] = reg.get<components::Transform, components::Physics>(entity);
 
-    std::unique_ptr<btCollisionShape> shape;
+    pc.collisionShape = getCollisionMesh("basic_box");
 
-    float mass = 5.0f;
+    //std::unique_ptr<btCollisionShape> shape;
 
+    /*
     if (const auto* rc = reg.try_get<components::Renderable>(entity)) {
         XMFLOAT3 h;
         XMStoreFloat3(&h, ((rc->bounds.max - rc->bounds.min) * 0.5f).vec);
@@ -48,6 +53,7 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
         auto volume = (4.0f / 3.0f) * XM_PI * radius * radius * radius;
         shape = std::make_unique<btSphereShape>(radius);
     }
+    */
 
     btTransform transform;
     transform.setIdentity();
@@ -58,17 +64,18 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
     transform.setRotation(rot);
 
     btVector3 localInertia(0.0f, 0.0f, 0.0f);
-    shape->calculateLocalInertia(mass, localInertia);
+    if (pc.mass != 0.0f) {
+        pc.collisionShape->calculateLocalInertia(pc.mass, localInertia);
+    }
 
     auto motionState = std::make_unique<btDefaultMotionState>(transform);
-    btRigidBody::btRigidBodyConstructionInfo info(mass, motionState.get(), shape.get(), localInertia);
+    btRigidBody::btRigidBodyConstructionInfo info(pc.mass, motionState.get(), pc.collisionShape, localInertia);
     auto body = std::make_unique<btRigidBody>(info);
 
     body->setUserPointer((void*)(uintptr_t)entity);
 
     m_dynamicsWorld->addRigidBody(body.get());
     pc.collisionObject = std::move(body);
-    pc.collisionShape = std::move(shape);
     pc.motionState = std::move(motionState);
 }
 
@@ -116,6 +123,30 @@ void PhysicsWorld::addSphere(float radius, float mass, float x, float y, float z
     m_dynamicsWorld->addRigidBody(body.get());
     m_collisionObjects.emplace_back(std::move(body));
     m_motionStates.emplace_back(std::move(motionState));
+}
+
+btCollisionShape* PhysicsWorld::createCollisionMesh(const std::string& name, const Mesh& mesh)
+{
+    assert(!m_collisionMeshes.contains(name));
+
+    const auto& verts = mesh.getVertices();
+
+    auto shape = std::make_unique<btConvexHullShape>(&verts[0].Position.x, int(verts.size()),
+        int(sizeof(Vertex)));
+    shape->optimizeConvexHull();
+
+    m_collisionMeshes[name] = shape.get();
+
+    return m_collisionShapes.emplace_back(std::move(shape)).get();
+}
+
+btCollisionShape* PhysicsWorld::getCollisionMesh(const std::string& name)
+{
+    if (auto it = m_collisionMeshes.find(name); it != m_collisionMeshes.end()) {
+        return it->second;
+    }
+
+    return nullptr;
 }
 
 void PhysicsWorld::update(float dt)

@@ -57,7 +57,7 @@ std::vector<ModelAsset> loadModels(IRenderer* r)
         if (p.extension() == ".mesh") {
             auto mesh = Mesh::load(p);
             auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
-            models.emplace_back(mesh.getName(), renderable, mesh.getBounds());
+            models.emplace_back(mesh.getName(), renderable, mesh.getBounds(), p.generic_string());
         }
     }
 
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
             }
         };
 
-        scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+        scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, +1.0f, 0.0f);
 
         std::mt19937 gen{ std::random_device{}() };
         std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };

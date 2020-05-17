@@ -9,6 +9,7 @@
 #include "im3d_math.h"
 #include "Math.h"
 #include "PhysicsWorld.h"
+#include "Mesh.h"
 
 using namespace math;
 
@@ -310,7 +311,40 @@ void SceneEditor::entityPropertiesWindow()
             if (pc) {
                 bool changed = false;
 
-                if (changed) {
+                // TODO: move this to the physics component or something
+                if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
+                    if (ImGui::InputFloat("Mass", &pc->mass)) {
+                        rb->setMassProps(pc->mass, btVector3(0.0f, 0.0f, 0.0f));
+                    }
+                }
+
+                int selected = 0;
+
+                for (size_t i = 0; i < m_models.size(); i++) {
+                    if (pc->collisionShape == m_scene.physicsWorld.getCollisionMesh(m_models[i].name)) {
+                        selected = int(i);
+                        break;
+                    }
+                }
+
+                int newSelection = selected;
+
+                auto getter = [](void* data, int idx, const char** out) {
+                    const auto& items = *reinterpret_cast<const decltype(m_models)*>(data);
+                    *out = items[idx].name.c_str();
+                    return true;
+                };
+
+                if (ImGui::Combo("Collision mesh", &newSelection, getter, &m_models, int(m_models.size()))) {
+                    const auto& model = m_models[newSelection];
+                    if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
+                        pc->collisionShape = collisionMesh;
+                    } else {
+                        auto mesh = Mesh::load(model.filename);
+                        pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(model.name, mesh);
+                    }
+
+                    pc->collisionObject->setCollisionShape(pc->collisionShape);
                 }
             }
         }
