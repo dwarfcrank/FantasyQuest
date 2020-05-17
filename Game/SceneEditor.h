@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <tuple>
+#include <filesystem>
 
 struct Scene;
 
@@ -22,6 +23,13 @@ struct ModelAsset
     std::string filename;
     Renderable* renderable = nullptr;
     Bounds bounds;
+};
+
+// HACK: This exception is thrown when we want to load a new scene, so we catch the
+// exception and destroy/rebuild everything
+struct LoadSceneException
+{
+    std::filesystem::path path;
 };
 
 class SceneEditor : public GameBase

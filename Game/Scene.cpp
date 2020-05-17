@@ -58,6 +58,7 @@ void serialize(Archive& archive, Scene& s)
     archive(s.directionalLightColor);
     archive(s.directionalLightIntensity);
     archive(s.depthBias);
+    archive(s.name);
 }
 
 Scene::Scene() :

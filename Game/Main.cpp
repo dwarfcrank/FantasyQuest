@@ -135,140 +135,144 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    {
-        auto r = createRenderer(window);
+    bool running = true;
 
-        Scene scene;
+    std::filesystem::path scenePath;
 
-        IMGUI_CHECKVERSION();
-        ImGui::CreateContext();
-        auto& io = ImGui::GetIO();
-        io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigWindowsMoveFromTitleBarOnly = true;
-        ImGui::StyleColorsDark();
-        ImGui_ImplSDL2_InitForD3D(window);
-        r->initImgui();
+    while (running) {
+        try {
+            auto r = createRenderer(window);
 
-        InputMap inputs;
+            Scene scene;
 
-        bool running = true;
-        inputs.key(SDLK_ESCAPE).up([&] { running = false; });
+            IMGUI_CHECKVERSION();
+            ImGui::CreateContext();
+            auto& io = ImGui::GetIO();
+            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+            io.ConfigWindowsMoveFromTitleBarOnly = true;
+            ImGui::StyleColorsDark();
+            ImGui_ImplSDL2_InitForD3D(window);
+            r->initImgui();
 
-        auto models = loadModels(r.get());
+            InputMap inputs;
 
-        if (std::filesystem::exists("scene.json")) {
-            std::unordered_map<std::string, const ModelAsset*> m;
-            for (const auto& model : models) {
-                m[model.name] = &model;
-            }
+            inputs.key(SDLK_ESCAPE).up([&] { running = false; });
 
-            scene.load("scene.json");
+            auto models = loadModels(r.get());
 
-            scene.reg.view<components::Renderable>()
-                .each([&](components::Renderable& rc) {
+            if (std::filesystem::exists(scenePath)) {
+                std::unordered_map<std::string, const ModelAsset*> m;
+                for (const auto& model : models) {
+                    m[model.name] = &model;
+                }
+
+                scene.load(scenePath);
+
+                scene.reg.view<components::Renderable>()
+                    .each([&](components::Renderable& rc) {
                     const auto& model = m[rc.name];
                     rc.renderable = model->renderable;
                     rc.bounds = model->bounds;
-                });
-        }
+                        });
+            }
 
-        Game game(scene, inputs);
-        SceneEditor editor(scene, inputs, models);
+            Game game(scene, inputs);
+            SceneEditor editor(scene, inputs, models);
 
-        std::array<GameBase*, 2> games{ &game, &editor };
-        size_t gameIdx = 1;
-        inputs.key(SDLK_F1).up([&] { gameIdx++; gameIdx %= games.size(); });
+            std::array<GameBase*, 2> games{ &game, &editor };
+            size_t gameIdx = 1;
+            inputs.key(SDLK_F1).up([&] { gameIdx++; gameIdx %= games.size(); });
 
-        GameTime gt;
+            GameTime gt;
 
-        bool showDemo = false;
-        inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
+            bool showDemo = false;
+            inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
 
-        XMFLOAT2 mouse(0.0f, 0.0f);
+            XMFLOAT2 mouse(0.0f, 0.0f);
 
-        auto handleEvents = [&io, &inputs, &running, &mouse] {
-            SDL_Event event;
-            while (SDL_PollEvent(&event)) {
-                ImGui_ImplSDL2_ProcessEvent(&event);
+            auto handleEvents = [&io, &inputs, &running, &mouse] {
+                SDL_Event event;
+                while (SDL_PollEvent(&event)) {
+                    ImGui_ImplSDL2_ProcessEvent(&event);
 
-                switch (event.type) {
-                case SDL_QUIT:
-                    running = false;
-                    break;
+                    switch (event.type) {
+                    case SDL_QUIT:
+                        running = false;
+                        break;
 
-                case SDL_KEYUP:
-                case SDL_KEYDOWN:
-                    if (!io.WantCaptureKeyboard) {
-                        inputs.handleEvent(event.key);
-                    }
-                    break;
-
-                case SDL_MOUSEMOTION:
-                    if (!io.WantCaptureMouse) {
-                        inputs.handleEvent(event.motion);
-                        mouse.x = float(event.motion.x) / 1920.0f;
-                        mouse.y = float(event.motion.y) / 1080.0f;
-                    }
-                    break;
-
-                case SDL_MOUSEBUTTONUP:
-                case SDL_MOUSEBUTTONDOWN:
-                    if (!io.WantCaptureMouse) {
-                        auto& ad = Im3d::GetAppData();
-
-                        if (event.button.button == SDL_BUTTON_LEFT) {
-                            ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
+                    case SDL_KEYUP:
+                    case SDL_KEYDOWN:
+                        if (!io.WantCaptureKeyboard) {
+                            inputs.handleEvent(event.key);
                         }
+                        break;
+
+                    case SDL_MOUSEMOTION:
+                        if (!io.WantCaptureMouse) {
+                            inputs.handleEvent(event.motion);
+                            mouse.x = float(event.motion.x) / 1920.0f;
+                            mouse.y = float(event.motion.y) / 1080.0f;
+                        }
+                        break;
+
+                    case SDL_MOUSEBUTTONUP:
+                    case SDL_MOUSEBUTTONDOWN:
+                        if (!io.WantCaptureMouse) {
+                            auto& ad = Im3d::GetAppData();
+
+                            if (event.button.button == SDL_BUTTON_LEFT) {
+                                ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
+                            }
+                        }
+                        break;
+
+                    default:
+                        break;
                     }
-                    break;
-
-                default:
-                    break;
                 }
-            }
-        };
+            };
 
-        scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, +1.0f, 0.0f);
+            scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, +1.0f, 0.0f);
 
-        std::mt19937 gen{ std::random_device{}() };
-        std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
-        
-        float radius = 1.0f;
-        inputs.key(SDLK_SPACE).up([&] () mutable {
-            scene.physicsWorld.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
-            radius += 0.1f;
-        });
+            std::mt19937 gen{ std::random_device{}() };
+            std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
 
-        Camera shadowCam = Camera::ortho();
+            float radius = 1.0f;
+            inputs.key(SDLK_SPACE).up([&]() mutable {
+                scene.physicsWorld.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
+                radius += 0.1f;
+                });
 
-        XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
+            Camera shadowCam = Camera::ortho();
 
-        std::unordered_map<Renderable*, RenderBatch> batches;
+            XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
 
-        for (const auto& model : models) {
-            batches[model.renderable].renderable = model.renderable;
-        }
+            std::unordered_map<Renderable*, RenderBatch> batches;
 
-        auto updateBatches = [&] {
-            for (auto& [_, batch] : batches) {
-                batch.instances.clear();
+            for (const auto& model : models) {
+                batches[model.renderable].renderable = model.renderable;
             }
 
-            scene.reg.view<components::Transform, components::Renderable>()
-                .each([&](const components::Transform& t, const components::Renderable& rc) {
-					auto wm = t.getMatrix();
-					auto& instance = batches[rc.renderable].instances.emplace_back();
-					instance.World = XMMatrixTranspose(wm);
-					instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
-				});
-        };
+            auto updateBatches = [&] {
+                for (auto& [_, batch] : batches) {
+                    batch.instances.clear();
+                }
 
-        std::vector<PointLight> lights;
+                scene.reg.view<components::Transform, components::Renderable>()
+                    .each([&](const components::Transform& t, const components::Renderable& rc) {
+                    auto wm = t.getMatrix();
+                    auto& instance = batches[rc.renderable].instances.emplace_back();
+                    instance.World = XMMatrixTranspose(wm);
+                    instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
+                        });
+            };
 
-        auto updateLights = [&] {
-            lights.clear();
-            scene.reg.view<components::Transform, components::PointLight>()
-                .each([&](const components::Transform& tc, const components::PointLight& plc) {
+            std::vector<PointLight> lights;
+
+            auto updateLights = [&] {
+                lights.clear();
+                scene.reg.view<components::Transform, components::PointLight>()
+                    .each([&](const components::Transform& tc, const components::PointLight& plc) {
                     PointLight l;
 
                     l.Color.x = plc.color.x;
@@ -283,119 +287,122 @@ int main(int argc, char* argv[])
 
                     l.Intensity = plc.intensity;
                     lights.push_back(l);
-                });
-        };
+                        });
+            };
 
-        PostProcessParams params;
+            PostProcessParams params;
 
-        float t = 0.0f;
+            float t = 0.0f;
 
-        while (running) {
-            auto g = games[gameIdx];
-            float dt = gt.update();
-            t += dt;
+            while (running) {
+                auto g = games[gameIdx];
+                float dt = gt.update();
+                t += dt;
 
-            handleEvents();
+                handleEvents();
 
-            ImGui_ImplDX11_NewFrame();
-            ImGui_ImplSDL2_NewFrame(window);
-            ImGui::NewFrame();
-
-            {
-                auto& ad = Im3d::GetAppData();
-                ad.m_deltaTime = dt;
-                ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
-                ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
-                ad.m_projOrtho = false;
-                ad.m_projScaleY = 2.0f;
+                ImGui_ImplDX11_NewFrame();
+                ImGui_ImplSDL2_NewFrame(window);
+                ImGui::NewFrame();
 
                 {
-                    const auto ivm = g->getCamera().getInverseViewMatrix();
-                    XMFLOAT4X4 proj;
-                    XMStoreFloat4x4(&proj, g->getCamera().getProjectionMatrix().mat);
+                    auto& ad = Im3d::GetAppData();
+                    ad.m_deltaTime = dt;
+                    ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
+                    ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
+                    ad.m_projOrtho = false;
+                    ad.m_projScaleY = 2.0f;
 
-                    XMFLOAT3 c;
-                    float cursorX = (mouse.x * 2.0f - 1.0f) / proj._11;
-                    float cursorY = -(mouse.y * 2.0f - 1.0f) / proj._22;
-                    Vector<View> cursor(cursorX, cursorY, 1.0f, 0.0f);
-                    cursor.vec = XMVector3Normalize(cursor.vec);
-                    XMStoreFloat3(&c, cursor.vec);
+                    {
+                        const auto ivm = g->getCamera().getInverseViewMatrix();
+                        XMFLOAT4X4 proj;
+                        XMStoreFloat4x4(&proj, g->getCamera().getProjectionMatrix().mat);
 
-                    ad.m_viewOrigin = g->getCamera().getPosition();
-                    ad.m_viewDirection = Vector<View>(0.0f, 0.0f, 1.0f) * ivm;
-                    ad.m_cursorRayOrigin = ad.m_viewOrigin;
-                    ad.m_cursorRayDirection = cursor * ivm;
-                }
-            }
+                        XMFLOAT3 c;
+                        float cursorX = (mouse.x * 2.0f - 1.0f) / proj._11;
+                        float cursorY = -(mouse.y * 2.0f - 1.0f) / proj._22;
+                        Vector<View> cursor(cursorX, cursorY, 1.0f, 0.0f);
+                        cursor.vec = XMVector3Normalize(cursor.vec);
+                        XMStoreFloat3(&c, cursor.vec);
 
-            Im3d::NewFrame();
-
-            g->update(dt);
-            //scene.physicsWorld.update(dt);
-            scene.physicsWorld.render();
-
-            if (showDemo) {
-                ImGui::ShowDemoWindow(&showDemo);
-            }
-
-            if constexpr (false) {
-                ImGui::Begin("Post processing");
-
-                ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
-                ImGui::Checkbox("Gamma correction", &params.gammaCorrection);
-
-                ImGui::End();
-            }
-
-            {
-                shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
-
-                auto rotation = XMQuaternionRotationRollPitchYaw(scene.directionalLight.x, scene.directionalLight.y, 0.0f);
-                auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
-                XMFLOAT3 d;
-                XMStoreFloat3(&d, direction);
-                r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
-
-                updateLights();
-
-                r->setPointLights(lights);
-            }
-
-            ImGui::Render();
-            Im3d::EndFrame();
-
-            updateBatches();
-
-            r->beginShadowPass(shadowCam);
-            {
-                for (const auto& [_, batch] : batches) {
-                    if (!batch.instances.empty()) {
-                        r->drawShadow(batch);
-                    }
-                }
-            }
-            r->endShadowPass();
-
-            r->beginFrame(g->getCamera());
-            {
-                r->clear(0.0f, 0.0f, 0.0f);
-
-                for (const auto& [_, batch] : batches) {
-                    if (!batch.instances.empty()) {
-                        r->draw(batch);
+                        ad.m_viewOrigin = g->getCamera().getPosition();
+                        ad.m_viewDirection = Vector<View>(0.0f, 0.0f, 1.0f) * ivm;
+                        ad.m_cursorRayOrigin = ad.m_viewOrigin;
+                        ad.m_cursorRayDirection = cursor * ivm;
                     }
                 }
 
-                g->render(r.get());
+                Im3d::NewFrame();
 
-                params.deltaTime = dt;
-                r->postProcess(params);
+                g->update(dt);
+                //scene.physicsWorld.update(dt);
+                scene.physicsWorld.render();
 
-                r->drawIm3d(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
+                if (showDemo) {
+                    ImGui::ShowDemoWindow(&showDemo);
+                }
 
-                r->drawImgui();
+                if constexpr (false) {
+                    ImGui::Begin("Post processing");
+
+                    ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
+                    ImGui::Checkbox("Gamma correction", &params.gammaCorrection);
+
+                    ImGui::End();
+                }
+
+                {
+                    shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
+
+                    auto rotation = XMQuaternionRotationRollPitchYaw(scene.directionalLight.x, scene.directionalLight.y, 0.0f);
+                    auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
+                    XMFLOAT3 d;
+                    XMStoreFloat3(&d, direction);
+                    r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
+
+                    updateLights();
+
+                    r->setPointLights(lights);
+                }
+
+                ImGui::Render();
+                Im3d::EndFrame();
+
+                updateBatches();
+
+                r->beginShadowPass(shadowCam);
+                {
+                    for (const auto& [_, batch] : batches) {
+                        if (!batch.instances.empty()) {
+                            r->drawShadow(batch);
+                        }
+                    }
+                }
+                r->endShadowPass();
+
+                r->beginFrame(g->getCamera());
+                {
+                    r->clear(0.0f, 0.0f, 0.0f);
+
+                    for (const auto& [_, batch] : batches) {
+                        if (!batch.instances.empty()) {
+                            r->draw(batch);
+                        }
+                    }
+
+                    g->render(r.get());
+
+                    params.deltaTime = dt;
+                    r->postProcess(params);
+
+                    r->drawIm3d(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
+
+                    r->drawImgui();
+                }
+                r->endFrame();
             }
-            r->endFrame();
+        } catch (const LoadSceneException& lse) {
+            scenePath = lse.path;
         }
 
         //scene.save("scene.json");

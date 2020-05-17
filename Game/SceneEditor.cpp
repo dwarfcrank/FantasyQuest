@@ -99,6 +99,7 @@ bool SceneEditor::update(float dt)
     sceneWindow();
     entityPropertiesWindow();
     modelList();
+    mainMenu();
     
     if (m_physicsEnabled) {
         m_scene.physicsWorld.update(dt);
@@ -356,6 +357,8 @@ void SceneEditor::entityPropertiesWindow()
 void SceneEditor::sceneWindow()
 {
     if (ImGui::Begin("Scene")) {
+        ImGui::InputText("Name", &m_scene.name);
+        ImGui::Separator();
         ImGui::Checkbox("Simulate physics", &m_physicsEnabled);
         ImGui::Separator();
 
@@ -408,8 +411,50 @@ entt::entity SceneEditor::createEntity()
     return e;
 }
 
+static void listScenes()
+{
+    if (!std::filesystem::exists("./scenes")) {
+        return;
+    }
+
+    std::filesystem::directory_iterator end{};
+
+    for (auto it = std::filesystem::directory_iterator("./scenes"); it != end; ++it) {
+        if (!it->is_regular_file()) {
+            continue;
+        }
+
+        if (auto p = it->path(); p.extension() == ".json") {
+            const auto s = p.filename().generic_string();
+
+            if (ImGui::MenuItem(s.c_str())) {
+                throw LoadSceneException{ .path = p };
+            }
+        }
+    }
+}
+
 void SceneEditor::mainMenu()
 {
+    if (ImGui::BeginMainMenuBar()) {
+        if (ImGui::BeginMenu("File")) {
+            if (ImGui::BeginMenu("Open...")) {
+                listScenes();
+                ImGui::EndMenu();
+            }
+
+            if (ImGui::MenuItem("Save", "CTRL+S")) {
+                // TODO: really should keep the scene filename around somewhere
+                const std::filesystem::path root("./scenes");
+                std::filesystem::create_directories(root);
+                m_scene.save((root / m_scene.name).replace_extension(".json"));
+            }
+
+            ImGui::EndMenu();
+        }
+
+        ImGui::EndMainMenuBar();
+    }
 }
 
 void SceneEditor::drawGrid()

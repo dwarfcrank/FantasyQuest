@@ -78,6 +78,7 @@ struct Scene
     float directionalLightIntensity = 1.0f;
     float depthBias = 0.005f;
 
+    std::string name{ "scene" };
     entt::registry reg;
     PhysicsWorld physicsWorld;
 };
