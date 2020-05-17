@@ -40,9 +40,4 @@ private:
     std::vector<std::unique_ptr<btCollisionShape>> m_collisionShapes;
     std::vector<std::unique_ptr<btCollisionObject>> m_collisionObjects;
     std::vector<std::unique_ptr<btMotionState>> m_motionStates;
-
-    float m_time = 0.0f;
-
-    static constexpr auto TICKS_PER_SECOND = 60;
-    static constexpr auto TIMESTEP = 1.0f / float(TICKS_PER_SECOND);
 };

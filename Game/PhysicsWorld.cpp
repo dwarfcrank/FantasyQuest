@@ -120,15 +120,7 @@ void PhysicsWorld::addSphere(float radius, float mass, float x, float y, float z
 
 void PhysicsWorld::update(float dt)
 {
-    m_time += dt;
-
-    if (m_time < TIMESTEP) {
-        return;
-    }
-
-    m_time -= TIMESTEP;
-
-    m_dynamicsWorld->stepSimulation(TIMESTEP, 10);
+    m_dynamicsWorld->stepSimulation(dt, 10);
 
     m_scene.reg.view<components::Transform, components::Physics>()
         .each([&](entt::entity entity, const components::Transform&, const components::Physics& pc) {
