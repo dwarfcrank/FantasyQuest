@@ -382,6 +382,7 @@ void SceneEditor::entityPropertiesWindow()
                     // TODO: ugh this is the wrong place to do this
                     if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(rc->name)) {
                         pc->collisionShape = collisionMesh;
+                        pc->collisionObject->setCollisionShape(pc->collisionShape);
                     } else {
                         auto it = std::find_if(m_models.cbegin(), m_models.cend(), [&](const ModelAsset& m) {
                                 return m.renderable == rc->renderable;
@@ -401,7 +402,12 @@ void SceneEditor::entityPropertiesWindow()
                 // TODO: move this to the physics component or something
                 if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
                     if (ImGui::InputFloat("Mass", &pc->mass)) {
-                        rb->setMassProps(pc->mass, btVector3(0.0f, 0.0f, 0.0f));
+                        btVector3 inertia(0.0f, 0.0f, 0.0f);
+                        if (pc->mass != 0.0f) {
+                            pc->collisionShape->calculateLocalInertia(pc->mass, inertia);
+                        }
+
+                        rb->setMassProps(pc->mass, inertia);
                     }
                 }
 
@@ -485,6 +491,11 @@ void SceneEditor::sceneWindow()
         ImGui::InputText("Name", &m_scene.name);
         ImGui::Separator();
         ImGui::Checkbox("Simulate physics", &m_physicsEnabled);
+
+        if (ImGui::Checkbox("Draw physics models", &m_drawPhysics)) {
+            m_scene.physicsWorld.setDebugDrawMode(m_drawPhysics ? btIDebugDraw::DBG_DrawWireframe : 0);
+        }
+
         ImGui::Separator();
 
         if (ImGui::Button("New entity")) {

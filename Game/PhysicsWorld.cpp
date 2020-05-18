@@ -8,53 +8,6 @@
 
 #include <bullet/btBulletDynamicsCommon.h>
 
-// TODO: use Im3d for a lot of these
-class PhysicsDebugDraw : public btIDebugDraw
-{
-public:
-    virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override
-    {
-        u32 c2 = 0x00'00'00'ff;
-        c2 |= (u32(color.x() * 255.0f) << 24);
-        c2 |= (u32(color.y() * 255.0f) << 16);
-        c2 |= (u32(color.z() * 255.0f) << 8);
-
-        Im3d::DrawLine(
-            Im3d::Vec3(from.x(), from.y(), from.z()),
-            Im3d::Vec3(to.x(), to.y(), to.z()),
-            2.0f, c2
-        );
-    }
-
-    virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB,
-        btScalar distance, int lifeTime, const btVector3& color) override
-    {
-    }
-
-	virtual void reportErrorWarning(const char* warningString) override
-    {
-    }
-
-    virtual void draw3dText(const btVector3& location, const char* textString) override
-    {
-    }
-
-    virtual void setDebugMode(int debugMode) override
-    {
-        m_debugMode = debugMode;
-    }
-
-    virtual int getDebugMode() const override
-    {
-        return m_debugMode;
-    }
-
-private:
-    int m_debugMode = btIDebugDraw::DBG_DrawWireframe;
-};
-
-static PhysicsDebugDraw g_debugDraw;
-
 PhysicsWorld::PhysicsWorld(Scene& scene) :
     m_scene(scene)
 {
@@ -66,7 +19,7 @@ PhysicsWorld::PhysicsWorld(Scene& scene) :
         m_dispatcher.get(), m_overlappingPairCache.get(), m_solver.get(), m_collisionConfiguration.get());
 
     m_dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
-    m_dynamicsWorld->setDebugDrawer(&g_debugDraw);
+    m_dynamicsWorld->setDebugDrawer(&m_debugDraw);
 
     auto shape = m_collisionShapes.emplace_back(std::make_unique<btBoxShape>(btVector3(0.5f, 0.5f, 0.5f))).get();
     m_collisionMeshes["basic_box"] = shape;
@@ -213,9 +166,50 @@ void PhysicsWorld::update(float dt)
         });
 }
 
+void PhysicsWorld::setDebugDrawMode(int mode)
+{
+    m_debugDraw.setDebugMode(mode);
+}
+
 void PhysicsWorld::render()
 {
     Im3d::PushMatrix(Im3d::Mat4(1.0f));
     m_dynamicsWorld->debugDrawWorld();
     Im3d::PopMatrix();
+}
+
+void PhysicsDebugDraw::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
+{
+    u32 c2 = 0x00'00'00'ff;
+    c2 |= (u32(color.x() * 255.0f) << 24);
+    c2 |= (u32(color.y() * 255.0f) << 16);
+    c2 |= (u32(color.z() * 255.0f) << 8);
+
+    Im3d::DrawLine(
+        Im3d::Vec3(from.x(), from.y(), from.z()),
+        Im3d::Vec3(to.x(), to.y(), to.z()),
+        2.0f, c2
+    );
+}
+
+void PhysicsDebugDraw::drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB, btScalar distance, int lifeTime, const btVector3& color)
+{
+}
+
+void PhysicsDebugDraw::reportErrorWarning(const char* warningString)
+{
+}
+
+void PhysicsDebugDraw::draw3dText(const btVector3& location, const char* textString)
+{
+}
+
+void PhysicsDebugDraw::setDebugMode(int debugMode)
+{
+    m_debugMode = debugMode;
+}
+
+int PhysicsDebugDraw::getDebugMode() const
+{
+    return m_debugMode;
 }

@@ -61,6 +61,7 @@ private:
     float angle = 0.0f;
     bool moveCamera = false;
     bool m_physicsEnabled = false;
+    bool m_drawPhysics = false;
 
     XMFLOAT3 velocity{ 0.0f, 0.0f, 0.0f };
 

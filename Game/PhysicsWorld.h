@@ -25,6 +25,23 @@ namespace components
     };
 }
 
+// TODO: use Im3d for a lot of these
+class PhysicsDebugDraw : public btIDebugDraw
+{
+public:
+    virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override;
+    virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB,
+        btScalar distance, int lifeTime, const btVector3& color) override;
+
+    virtual void reportErrorWarning(const char* warningString) override;
+    virtual void draw3dText(const btVector3& location, const char* textString) override;
+    virtual void setDebugMode(int debugMode) override;
+    virtual int getDebugMode() const override;
+
+private:
+    int m_debugMode = 0;
+};
+
 class PhysicsWorld
 {
 public:
@@ -40,6 +57,8 @@ public:
     btCollisionShape* getCollisionMesh(const std::string& name);
 
     void update(float dt);
+
+    void setDebugDrawMode(int mode);
     void render();
 
 private:
@@ -56,4 +75,6 @@ private:
     std::vector<std::unique_ptr<btCollisionShape>> m_collisionShapes;
     std::vector<std::unique_ptr<btCollisionObject>> m_collisionObjects;
     std::vector<std::unique_ptr<btMotionState>> m_motionStates;
+
+    PhysicsDebugDraw m_debugDraw;
 };
