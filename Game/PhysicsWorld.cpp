@@ -161,11 +161,20 @@ btCollisionShape* PhysicsWorld::createCollisionMesh(const std::string& name, con
 {
     assert(!m_collisionMeshes.contains(name));
 
-    const auto& verts = mesh.getVertices();
+    const auto& indices = mesh.getIndices();
+    const auto& vIn = mesh.getVertices();
 
-    auto shape = std::make_unique<btConvexHullShape>(&verts[0].Position.x, int(verts.size()),
-        int(sizeof(Vertex)));
+    std::vector<XMFLOAT3> vOut(indices.size());
+
+    for (size_t i = 0; i < indices.size(); i++) {
+        vOut[i] = vIn[indices[i]].Position;
+    }
+
+    auto shape = std::make_unique<btConvexHullShape>(&vOut[0].x, int(vOut.size()),
+        int(sizeof(XMFLOAT3)));
+
     shape->optimizeConvexHull();
+    shape->initializePolyhedralFeatures();
 
     m_collisionMeshes[name] = shape.get();
 
