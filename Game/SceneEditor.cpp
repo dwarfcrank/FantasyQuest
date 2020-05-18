@@ -303,7 +303,21 @@ void SceneEditor::entityPropertiesWindow()
                     m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
                     pc = nullptr;
                 } else if (hasPhysics && !pc) {
-                    m_scene.reg.emplace<components::Physics>(m_currentEntity);
+                    pc = &(m_scene.reg.emplace<components::Physics>(m_currentEntity));
+                    if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
+                        // TODO: ugh this is the wrong place to do this
+                        if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(rc->name)) {
+                            pc->collisionShape = collisionMesh;
+                        } else {
+                            auto it = std::find_if(m_models.begin(), m_models.end(), [&](const ModelAsset& m) {
+                                    return m.renderable == rc->renderable;
+                                });
+                            if (it != m_models.end()) {
+                                auto mesh = Mesh::load(it->filename);
+                                pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(rc->name, mesh);
+                            }
+                        }
+                    }
                 }
             }
 
@@ -336,6 +350,7 @@ void SceneEditor::entityPropertiesWindow()
 
                 if (ImGui::Combo("Collision mesh", &newSelection, getter, &m_models, int(m_models.size()))) {
                     const auto& model = m_models[newSelection];
+                    // TODO: ugh this is also the wrong place to do this
                     if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
                         pc->collisionShape = collisionMesh;
                     } else {
