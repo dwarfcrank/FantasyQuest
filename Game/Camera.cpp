@@ -18,26 +18,6 @@ Camera Camera::perspective(float fovY, float aspect, float nearZ, float farZ)
     return cam;
 }
 
-Matrix<World, View> Camera::getViewMatrix() const
-{
-    XMVECTOR direction;
-
-    if (m_useDirection) {
-        direction = m_direction;
-    } else {
-        auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
-        direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
-    }
-
-    return Matrix<World, View>(XMMatrixLookToLH(m_position.vec, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f)));
-}
-
-Matrix<View, World> Camera::getInverseViewMatrix() const
-{
-    auto vm = getViewMatrix();
-    return Matrix<View, World>(XMMatrixInverse(nullptr, vm.mat));
-}
-
 void Camera::move(Vector<View> direction)
 {
     auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
@@ -93,4 +73,31 @@ void Camera::setDirection(float x, float y, float z)
 void Camera::makeOrtho()
 {
     m_projectionMatrix.mat = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
+}
+
+Vector<World> Camera::viewToWorld(Vector<View> viewVec) const
+{
+    auto v = XMVectorSet(
+        XMVectorGetX(m_projectionMatrix.mat.r[0]),
+        XMVectorGetY(m_projectionMatrix.mat.r[1]),
+        1.0f, 1.0f
+    );
+
+    viewVec.vec = XMVector3Normalize(XMVectorDivide(viewVec.vec, v));
+    return viewVec * m_invViewMatrix;
+}
+
+void Camera::update()
+{
+    XMVECTOR direction;
+
+    if (m_useDirection) {
+        direction = m_direction;
+    } else {
+        auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
+        direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
+    }
+
+    m_viewMatrix.mat = XMMatrixLookToLH(m_position.vec, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+    m_invViewMatrix.mat = XMMatrixInverse(nullptr, m_viewMatrix.mat);
 }

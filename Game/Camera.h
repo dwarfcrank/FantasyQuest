@@ -12,8 +12,15 @@ public:
     static Camera ortho(float width = 40.0f, float height = 40.0f, float nearZ = 100.0f, float farZ = -10.0f);
     static Camera perspective(float fovY = XM_PI / 2.5f, float aspect = 16.0f / 9.0f, float nearZ = 100.0f, float farZ = 0.01f);
 
-    math::Matrix<math::World, math::View> getViewMatrix() const;
-    math::Matrix<math::View, math::World> getInverseViewMatrix() const;
+    math::Matrix<math::World, math::View> getViewMatrix() const
+    {
+        return m_viewMatrix;
+    }
+
+    math::Matrix<math::View, math::World> getInverseViewMatrix() const
+    {
+        return m_invViewMatrix;
+    }
 
     const math::Matrix<math::View, math::Projection>& getProjectionMatrix() const
     {
@@ -41,6 +48,10 @@ public:
         return m_position;
     }
 
+    math::Vector<math::World> viewToWorld(math::Vector<math::View> viewVec) const;
+
+    void update();
+
 private:
     bool m_useDirection = false;
     float m_pitch = 0.0f;
@@ -51,5 +62,7 @@ private:
     XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
 
     math::Matrix<math::View, math::Projection> m_projectionMatrix;
+    math::Matrix<math::World, math::View> m_viewMatrix;
+    math::Matrix<math::View, math::World> m_invViewMatrix;
 };
 

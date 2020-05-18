@@ -313,29 +313,20 @@ int main(int argc, char* argv[])
                     ad.m_projOrtho = false;
                     ad.m_projScaleY = 2.0f;
 
-                    {
-                        const auto ivm = g->getCamera().getInverseViewMatrix();
-                        XMFLOAT4X4 proj;
-                        XMStoreFloat4x4(&proj, g->getCamera().getProjectionMatrix().mat);
+                    const auto& cam = g->getCamera();
 
-                        XMFLOAT3 c;
-                        float cursorX = (mouse.x * 2.0f - 1.0f) / proj._11;
-                        float cursorY = -(mouse.y * 2.0f - 1.0f) / proj._22;
-                        Vector<View> cursor(cursorX, cursorY, 1.0f, 0.0f);
-                        cursor.vec = XMVector3Normalize(cursor.vec);
-                        XMStoreFloat3(&c, cursor.vec);
+                    ad.m_viewOrigin = cam.getPosition();
+                    ad.m_cursorRayOrigin = ad.m_viewOrigin;
 
-                        ad.m_viewOrigin = g->getCamera().getPosition();
-                        ad.m_viewDirection = Vector<View>(0.0f, 0.0f, 1.0f) * ivm;
-                        ad.m_cursorRayOrigin = ad.m_viewOrigin;
-                        ad.m_cursorRayDirection = cursor * ivm;
-                    }
+                    ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
+                    ad.m_cursorRayDirection = cam.viewToWorld({
+                        mouse.x * 2.0f - 1.0f, -mouse.y * 2.0f + 1.0f, 1.0f, 0.0f
+                    });
                 }
 
                 Im3d::NewFrame();
 
                 g->update(dt);
-                //scene.physicsWorld.update(dt);
                 scene.physicsWorld.render();
 
                 if (showDemo) {

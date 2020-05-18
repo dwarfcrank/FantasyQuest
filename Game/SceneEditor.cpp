@@ -102,6 +102,8 @@ bool SceneEditor::update(float dt)
         m_camera.rotate(0.0f, a);
     }
 
+    m_camera.update();
+
     sceneWindow();
     entityPropertiesWindow();
     modelList();
