@@ -8,6 +8,53 @@
 
 #include <bullet/btBulletDynamicsCommon.h>
 
+// TODO: use Im3d for a lot of these
+class PhysicsDebugDraw : public btIDebugDraw
+{
+public:
+    virtual void drawLine(const btVector3& from, const btVector3& to, const btVector3& color) override
+    {
+        u32 c2 = 0x00'00'00'ff;
+        c2 |= (u32(color.x() * 255.0f) << 24);
+        c2 |= (u32(color.y() * 255.0f) << 16);
+        c2 |= (u32(color.z() * 255.0f) << 8);
+
+        Im3d::DrawLine(
+            Im3d::Vec3(from.x(), from.y(), from.z()),
+            Im3d::Vec3(to.x(), to.y(), to.z()),
+            2.0f, c2
+        );
+    }
+
+    virtual void drawContactPoint(const btVector3& PointOnB, const btVector3& normalOnB,
+        btScalar distance, int lifeTime, const btVector3& color) override
+    {
+    }
+
+	virtual void reportErrorWarning(const char* warningString) override
+    {
+    }
+
+    virtual void draw3dText(const btVector3& location, const char* textString) override
+    {
+    }
+
+    virtual void setDebugMode(int debugMode) override
+    {
+        m_debugMode = debugMode;
+    }
+
+    virtual int getDebugMode() const override
+    {
+        return m_debugMode;
+    }
+
+private:
+    int m_debugMode = 0;
+};
+
+static PhysicsDebugDraw g_debugDraw;
+
 PhysicsWorld::PhysicsWorld(Scene& scene) :
     m_scene(scene)
 {
@@ -19,6 +66,7 @@ PhysicsWorld::PhysicsWorld(Scene& scene) :
         m_dispatcher.get(), m_overlappingPairCache.get(), m_solver.get(), m_collisionConfiguration.get()));
 
     m_dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
+    m_dynamicsWorld->setDebugDrawer(&g_debugDraw);
 
     auto shape = m_collisionShapes.emplace_back(new btBoxShape(btVector3(0.5f, 0.5f, 0.5f))).get();
     m_collisionMeshes["basic_box"] = shape;
@@ -158,47 +206,7 @@ void PhysicsWorld::update(float dt)
 
 void PhysicsWorld::render()
 {
-    btTransform ft;
-
-    auto n = m_dynamicsWorld->getNumCollisionObjects();
-    const auto& collisionObjects = m_dynamicsWorld->getCollisionObjectArray();
-
-    for (int i = 0; i < n; i++) {
-        auto obj = collisionObjects[i];
-
-        if (auto body = btRigidBody::upcast(obj)) {
-            if (auto motionState = body->getMotionState()) {
-                motionState->getWorldTransform(ft);
-            }
-        } else {
-            ft = obj->getWorldTransform();
-        }
-
-        const auto& origin = ft.getOrigin();
-
-        auto T = XMMatrixTranslationFromVector(ft.getOrigin().get128());
-        auto R = XMMatrixRotationQuaternion(ft.getRotation().get128());
-        auto S = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-
-        const auto* shape = obj->getCollisionShape();
-
-        Im3d::PushMatrix(S * R * T);
-        Im3d::PushSize(2.5f);
-        Im3d::PushColor(Im3d::Color_Cyan);
-
-        if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
-            const auto* box = static_cast<const btBoxShape*>(shape);
-            const auto halfExtents = box->getHalfExtentsWithoutMargin();
-
-            Im3d::Vec3 h(halfExtents.x(), halfExtents.y(), halfExtents.z());
-            Im3d::DrawAlignedBox({ -h.x, -h.y, -h.z }, h);
-        } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
-            const auto* sphere = static_cast<const btSphereShape*>(shape);
-            Im3d::DrawSphere(Im3d::Vec3(0.0f), sphere->getRadius());
-        }
-
-        Im3d::PopColor();
-        Im3d::PopSize();
-        Im3d::PopMatrix();
-    }
+    Im3d::PushMatrix(Im3d::Mat4(1.0f));
+    m_dynamicsWorld->debugDrawWorld();
+    Im3d::PopMatrix();
 }
