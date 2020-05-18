@@ -5,6 +5,7 @@
 
 #include <entt/entt.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
 #include <vector>
 #include <tuple>
@@ -50,7 +51,8 @@ private:
     Scene& m_scene;
 
     std::vector<ModelAsset> m_models;
-    size_t m_currentModelIdx = 0;
+
+    int m_currentModelIdx = -1;
 
     Camera m_camera = Camera::perspective();
 

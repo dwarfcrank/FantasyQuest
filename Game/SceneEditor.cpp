@@ -11,7 +11,19 @@
 #include "PhysicsWorld.h"
 #include "Mesh.h"
 
+#include <algorithm>
+
 using namespace math;
+
+static std::string_view getPrefix(std::string_view name)
+{
+    if (auto i = name.find_first_of('_'); i != std::string::npos && i > 0) {
+        return name.substr(0, i);
+    }
+
+    //return std::string_view();
+    return name;
+}
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :
     GameBase(inputs), m_scene(scene), m_models(models)
@@ -118,15 +130,72 @@ bool SceneEditor::entitySelected() const
 
 void SceneEditor::modelList()
 {
-    if (ImGui::Begin("Models")) {
-        for (size_t i = 0; i < m_models.size(); i++) {
-            if (ImGui::Selectable(m_models[i].name.c_str(), i == m_currentModelIdx, ImGuiSelectableFlags_AllowDoubleClick)) {
-                m_currentModelIdx = i;
+    struct ModelPrefixComparison
+    {
+        bool operator()(const ModelAsset& m, std::string_view p) const { return getPrefix(m.name) < p; }
+        bool operator()(std::string_view p, const ModelAsset& m) const { return p < getPrefix(m.name); }
+    };
 
-                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    m_currentEntity = createEntity();
+    if (ImGui::Begin("Models")) {
+        int i = 0;
+        int selection = -1;
+
+        auto modelListEntry = [&](const ModelAsset& model) {
+            ImGuiTreeNodeFlags nodeFlags = ImGuiTreeNodeFlags_Leaf 
+                | ImGuiTreeNodeFlags_NoTreePushOnOpen
+                | ImGuiTreeNodeFlags_OpenOnDoubleClick
+                | ImGuiTreeNodeFlags_SpanAvailWidth;
+
+            if (i == m_currentModelIdx) {
+                nodeFlags |= ImGuiTreeNodeFlags_Selected;
+            }
+
+            ImGui::TreeNodeEx(model.name.c_str(), nodeFlags);
+
+            if (i == m_currentModelIdx) {
+                if (ImGui::IsItemHovered()) {
+                    if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                        m_currentEntity = createEntity();
+                    }
+                }
+            } else if (ImGui::IsItemClicked()) {
+                if (i == m_currentModelIdx) {
+                    m_currentModelIdx = -1;
+                    selection = -1;
+                } else {
+                    selection = i;
                 }
             }
+
+            i++;
+        };
+
+        auto it = m_models.cbegin();
+        while (it != m_models.cend()) {
+            auto prefix = getPrefix(it->name);
+            auto [begin, end] = std::equal_range(it, m_models.cend(), prefix, ModelPrefixComparison{});
+
+            std::for_each(it, begin, modelListEntry);
+            auto dist = std::distance(begin, end);
+
+            if (dist == 1) {
+                modelListEntry(*begin);
+            } else {
+                if (std::string ps(prefix); ImGui::TreeNode(ps.c_str())) {
+                    std::for_each(begin, end, modelListEntry);
+                    ImGui::TreePop();
+                } else {
+                    // tree node is closed so the loop won't run, we have to advance i for
+                    // every model that would've been under it
+                    i += int(dist);
+                }
+            }
+
+            it = end;
+        }
+
+        if (selection != -1) {
+            m_currentModelIdx = selection;
         }
     }
 
