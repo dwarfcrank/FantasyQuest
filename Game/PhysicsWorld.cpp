@@ -58,17 +58,17 @@ static PhysicsDebugDraw g_debugDraw;
 PhysicsWorld::PhysicsWorld(Scene& scene) :
     m_scene(scene)
 {
-    m_collisionConfiguration.reset(new btDefaultCollisionConfiguration());
-    m_dispatcher.reset(new btCollisionDispatcher(m_collisionConfiguration.get()));
-    m_overlappingPairCache.reset(new btDbvtBroadphase());
-    m_solver.reset(new btSequentialImpulseConstraintSolver());
-    m_dynamicsWorld.reset(new btDiscreteDynamicsWorld(
-        m_dispatcher.get(), m_overlappingPairCache.get(), m_solver.get(), m_collisionConfiguration.get()));
+    m_collisionConfiguration = std::make_unique<btDefaultCollisionConfiguration>();
+    m_dispatcher = std::make_unique<btCollisionDispatcher>(m_collisionConfiguration.get());
+    m_overlappingPairCache = std::make_unique<btDbvtBroadphase>();
+    m_solver = std::make_unique<btSequentialImpulseConstraintSolver>();
+    m_dynamicsWorld = std::make_unique<btDiscreteDynamicsWorld>(
+        m_dispatcher.get(), m_overlappingPairCache.get(), m_solver.get(), m_collisionConfiguration.get());
 
     m_dynamicsWorld->setGravity(btVector3(0.0f, -10.0f, 0.0f));
     m_dynamicsWorld->setDebugDrawer(&g_debugDraw);
 
-    auto shape = m_collisionShapes.emplace_back(new btBoxShape(btVector3(0.5f, 0.5f, 0.5f))).get();
+    auto shape = m_collisionShapes.emplace_back(std::make_unique<btBoxShape>(btVector3(0.5f, 0.5f, 0.5f))).get();
     m_collisionMeshes["basic_box"] = shape;
 }
 
