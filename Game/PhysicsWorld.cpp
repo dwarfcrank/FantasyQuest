@@ -50,7 +50,7 @@ public:
     }
 
 private:
-    int m_debugMode = 0;
+    int m_debugMode = btIDebugDraw::DBG_DrawWireframe;
 };
 
 static PhysicsDebugDraw g_debugDraw;
