@@ -70,19 +70,13 @@ bool SceneEditor::update(float dt)
     if (entitySelected()) {
         const auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
-        Im3d::Mat4 transform(1.0f);
-        {
-            XMFLOAT4X4A t2;
-            XMStoreFloat4x4A(&t2, t.getMatrix());
-            std::memcpy(&transform, &t2, sizeof(transform));
-        }
+        Im3d::Mat4 transform = t.getMatrix();
 
         Im3d::PushLayerId("currentEntity");
         if (Im3d::Gizmo("gizmo", transform) && !m_physicsEnabled) {
             m_scene.reg.patch<components::Transform>(m_currentEntity, [&](components::Transform& tc) {
                 tc.position = transform.getTranslation();
-                // TODO: this doesn't work
-                //tc.rotation = Im3d::ToEulerXYZ(transform.getRotation());
+                tc.rotationQuat = XMQuaternionRotationMatrix(transform);
                 tc.scale = transform.getScale();
             });
         }
@@ -201,6 +195,7 @@ void SceneEditor::entityPropertiesWindow()
             auto& t = m_scene.reg.get<components::Transform>(m_currentEntity);
 
             changed |= ImGui::InputFloat3("Position", &t.position.x);
+
             changed |= ImGui::SliderAngle("X", &t.rotation.x, -180.0f, 180.0f);
             changed |= ImGui::SliderAngle("Y", &t.rotation.y, -180.0f, 180.0f);
             changed |= ImGui::SliderAngle("Z", &t.rotation.z, -180.0f, 180.0f);
@@ -208,6 +203,9 @@ void SceneEditor::entityPropertiesWindow()
 
             if (changed) {
                 // hmmm
+                m_scene.reg.patch<components::Transform>(m_currentEntity, [&](components::Transform& tc) {
+                        tc.rotationQuat = XMQuaternionRotationRollPitchYaw(t.rotation.x, t.rotation.y, t.rotation.z);
+                    });
             }
         }
 
@@ -490,15 +488,9 @@ void SceneEditor::drawEntityBounds(entt::entity e)
         return;
     }
 
-    XMFLOAT4X4A wm;
-    XMStoreFloat4x4A(&wm, t->getMatrix());
-
-    Im3d::Mat4 wm2;
-    std::memcpy(&wm2, &wm, sizeof(wm));
-
     Im3d::PushDrawState();
     Im3d::PushMatrix();
-    Im3d::SetMatrix(wm2);
+    Im3d::SetMatrix(t->getMatrix());
     Im3d::SetSize(3.0f);
 
     if (const auto rc = std::as_const(m_scene.reg).try_get<components::Renderable>(e)) {

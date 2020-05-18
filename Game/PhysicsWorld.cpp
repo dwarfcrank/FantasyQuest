@@ -44,7 +44,7 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
     transform.setOrigin(btVector3(tc.position.x, tc.position.y, tc.position.z));
 
     btQuaternion rot;
-    rot.setEulerZYX(tc.rotation.z, tc.rotation.y, tc.rotation.x);
+    rot.set128(tc.rotationQuat);
     transform.setRotation(rot);
 
     btVector3 localInertia(0.0f, 0.0f, 0.0f);
@@ -151,14 +151,13 @@ void PhysicsWorld::update(float dt)
 
             m_scene.reg.patch<components::Transform>(entity, [&](components::Transform& tc) {
                 tc.position = XMFLOAT3(origin.x(), origin.y(), origin.z());
-                ft.getRotation().getEulerZYX(tc.rotation.z, tc.rotation.y, tc.rotation.x);
+                tc.rotationQuat = ft.getRotation().get128();
             });
         });
 }
 
 void PhysicsWorld::render()
 {
-    Transform tt;
     btTransform ft;
 
     auto n = m_dynamicsWorld->getNumCollisionObjects();
@@ -176,35 +175,28 @@ void PhysicsWorld::render()
         }
 
         const auto& origin = ft.getOrigin();
-        XMFLOAT3 position(origin.x(), origin.y(), origin.z());
 
-        XMFLOAT3 rotation;
-        ft.getRotation().getEulerZYX(rotation.z, rotation.y, rotation.x);
-
-        tt.Position = XMLoadFloat3(&position);
-        tt.Rotation = XMLoadFloat3(&rotation);
-
-        XMFLOAT4X4 tt2;
-        XMStoreFloat4x4(&tt2, tt.getMatrix());
-        Im3d::Mat4 tm;
-        std::memcpy(&tm, &tt2, sizeof(tm));
+        auto T = XMMatrixTranslationFromVector(ft.getOrigin().get128());
+        auto R = XMMatrixRotationQuaternion(ft.getRotation().get128());
+        auto S = XMMatrixScaling(1.0f, 1.0f, 1.0f);
 
         const auto* shape = obj->getCollisionShape();
 
-        Im3d::PushMatrix(tm);
+        Im3d::PushMatrix(S * R * T);
         Im3d::PushSize(2.5f);
         Im3d::PushColor(Im3d::Color_Cyan);
+
         if (shape->getShapeType() == BOX_SHAPE_PROXYTYPE) {
             const auto* box = static_cast<const btBoxShape*>(shape);
             const auto halfExtents = box->getHalfExtentsWithoutMargin();
 
             Im3d::Vec3 h(halfExtents.x(), halfExtents.y(), halfExtents.z());
             Im3d::DrawAlignedBox({ -h.x, -h.y, -h.z }, h);
-        }
-        else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
+        } else if (shape->getShapeType() == SPHERE_SHAPE_PROXYTYPE) {
             const auto* sphere = static_cast<const btSphereShape*>(shape);
             Im3d::DrawSphere(Im3d::Vec3(0.0f), sphere->getRadius());
         }
+
         Im3d::PopColor();
         Im3d::PopSize();
         Im3d::PopMatrix();

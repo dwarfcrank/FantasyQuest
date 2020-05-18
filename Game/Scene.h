@@ -47,13 +47,16 @@ namespace components
     struct Transform
     {
         DirectX::XMFLOAT3 position{ 0.0f, 0.0f, 0.0f };
+        // TODO: need to get rid of this...
 		DirectX::XMFLOAT3 rotation{ 0.0f, 0.0f, 0.0f };
 		DirectX::XMFLOAT3 scale{ 1.0f, 1.0f, 1.0f };
+
+        DirectX::XMVECTOR rotationQuat = DirectX::XMQuaternionIdentity();
 
 		XMMATRIX getMatrix() const
 		{
 			auto t = XMMatrixTranslationFromVector(XMLoadFloat3(&position));
-			auto r = XMMatrixRotationRollPitchYawFromVector(XMLoadFloat3(&rotation));
+            auto r = XMMatrixRotationQuaternion(rotationQuat);
 			auto s = XMMatrixScalingFromVector(XMLoadFloat3(&scale));
 
 			return s * r * t;
