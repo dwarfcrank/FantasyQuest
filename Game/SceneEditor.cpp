@@ -364,32 +364,76 @@ void SceneEditor::entityPropertiesWindow()
         ImGui::Separator();
 
         {
-            auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity);
-            bool hasPhysics = (pc != nullptr);
+            bool hasPhysics = m_scene.reg.has<components::Physics>(m_currentEntity);
+            bool created = false;
 
             if (ImGui::Checkbox("Physics", &hasPhysics)) {
                 if (!hasPhysics) {
                     m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
-                    pc = nullptr;
-                } else if (hasPhysics && !pc) {
-                    pc = &(m_scene.reg.emplace<components::Physics>(m_currentEntity));
-                    if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity)) {
-                        // TODO: ugh this is the wrong place to do this
-                        if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(rc->name)) {
-                            pc->collisionShape = collisionMesh;
-                        } else {
-                            auto it = std::find_if(m_models.begin(), m_models.end(), [&](const ModelAsset& m) {
-                                    return m.renderable == rc->renderable;
-                                });
-                            if (it != m_models.end()) {
-                                auto mesh = Mesh::load(it->filename);
-                                pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(rc->name, mesh);
-                            }
-                        }
-                    }
+                } else {
+                    m_scene.reg.emplace<components::Physics>(m_currentEntity);
+                    created = true;
                 }
             }
 
+            // ughhhhh
+            if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity); hasPhysics && pc) {
+                if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
+                    // TODO: ugh this is the wrong place to do this
+                    if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(rc->name)) {
+                        pc->collisionShape = collisionMesh;
+                    } else {
+                        auto it = std::find_if(m_models.cbegin(), m_models.cend(), [&](const ModelAsset& m) {
+                                return m.renderable == rc->renderable;
+                            });
+                        if (it != m_models.cend()) {
+                            auto mesh = Mesh::load(it->filename);
+                            pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(it->name, mesh);
+                            int idx = int(std::distance(m_models.cbegin(), it));
+                            pc->collisionShape->setUserIndex(idx);
+                            pc->collisionObject->setCollisionShape(pc->collisionShape);
+                        }
+                    }
+                }
+
+                bool changed = false;
+
+                // TODO: move this to the physics component or something
+                if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
+                    if (ImGui::InputFloat("Mass", &pc->mass)) {
+                        rb->setMassProps(pc->mass, btVector3(0.0f, 0.0f, 0.0f));
+                    }
+                }
+
+                int idx = pc->collisionShape->getUserIndex();
+                auto previewText = "(null)";
+                if (idx >= 0 && idx < int(m_models.size())) {
+                    previewText = m_models[idx].name.c_str();
+                }
+
+                if (ImGui::BeginCombo("Collision mesh", previewText)) {
+                    for (int i = 0; const auto& model : m_models) {
+                        if (ImGui::Selectable(model.name.c_str(), i == idx)) {
+                            // TODO: ugh this is also the wrong place to do this
+                            if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
+                                pc->collisionShape = collisionMesh;
+                            } else {
+                                auto mesh = Mesh::load(model.filename);
+                                pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(model.name, mesh);
+                                pc->collisionShape->setUserIndex(i);
+                            }
+
+                            pc->collisionObject->setCollisionShape(pc->collisionShape);
+                        }
+
+                        i++;
+                    }
+
+                    ImGui::EndCombo();
+                }
+            }
+
+#if 0
             if (pc) {
                 bool changed = false;
 
@@ -400,36 +444,35 @@ void SceneEditor::entityPropertiesWindow()
                     }
                 }
 
-                int selected = 0;
-
-                for (size_t i = 0; i < m_models.size(); i++) {
-                    if (pc->collisionShape == m_scene.physicsWorld.getCollisionMesh(m_models[i].name)) {
-                        selected = int(i);
-                        break;
+                auto previewText = "(null)";
+                if (pc->collisionShape) {
+                    if (auto idx = pc->collisionShape->getUserIndex(); idx >= 0 && idx < int(m_models.size())) {
+                        previewText = m_models[idx].name.c_str();
                     }
                 }
 
-                int newSelection = selected;
+                if (ImGui::BeginCombo("Collision mesh", previewText)) {
+                    for (int i = 0; const auto& model : m_models) {
+                        if (ImGui::Selectable(model.name.c_str(), i == pc->collisionShape->getUserIndex())) {
+                            // TODO: ugh this is also the wrong place to do this
+                            if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
+                                pc->collisionShape = collisionMesh;
+                            } else {
+                                auto mesh = Mesh::load(model.filename);
+                                pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(model.name, mesh);
+                                pc->collisionShape->setUserIndex(i);
+                            }
 
-                auto getter = [](void* data, int idx, const char** out) {
-                    const auto& items = *reinterpret_cast<const decltype(m_models)*>(data);
-                    *out = items[idx].name.c_str();
-                    return true;
-                };
+                            pc->collisionObject->setCollisionShape(pc->collisionShape);
+                        }
 
-                if (ImGui::Combo("Collision mesh", &newSelection, getter, &m_models, int(m_models.size()))) {
-                    const auto& model = m_models[newSelection];
-                    // TODO: ugh this is also the wrong place to do this
-                    if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
-                        pc->collisionShape = collisionMesh;
-                    } else {
-                        auto mesh = Mesh::load(model.filename);
-                        pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(model.name, mesh);
+                        i++;
                     }
 
-                    pc->collisionObject->setCollisionShape(pc->collisionShape);
+                    ImGui::EndCombo();
                 }
             }
+#endif
         }
     }
 
