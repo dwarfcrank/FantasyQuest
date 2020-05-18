@@ -438,47 +438,6 @@ void SceneEditor::entityPropertiesWindow()
                     ImGui::EndCombo();
                 }
             }
-
-#if 0
-            if (pc) {
-                bool changed = false;
-
-                // TODO: move this to the physics component or something
-                if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
-                    if (ImGui::InputFloat("Mass", &pc->mass)) {
-                        rb->setMassProps(pc->mass, btVector3(0.0f, 0.0f, 0.0f));
-                    }
-                }
-
-                auto previewText = "(null)";
-                if (pc->collisionShape) {
-                    if (auto idx = pc->collisionShape->getUserIndex(); idx >= 0 && idx < int(m_models.size())) {
-                        previewText = m_models[idx].name.c_str();
-                    }
-                }
-
-                if (ImGui::BeginCombo("Collision mesh", previewText)) {
-                    for (int i = 0; const auto& model : m_models) {
-                        if (ImGui::Selectable(model.name.c_str(), i == pc->collisionShape->getUserIndex())) {
-                            // TODO: ugh this is also the wrong place to do this
-                            if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(model.name)) {
-                                pc->collisionShape = collisionMesh;
-                            } else {
-                                auto mesh = Mesh::load(model.filename);
-                                pc->collisionShape = m_scene.physicsWorld.createCollisionMesh(model.name, mesh);
-                                pc->collisionShape->setUserIndex(i);
-                            }
-
-                            pc->collisionObject->setCollisionShape(pc->collisionShape);
-                        }
-
-                        i++;
-                    }
-
-                    ImGui::EndCombo();
-                }
-            }
-#endif
         }
     }
 
@@ -541,8 +500,8 @@ entt::entity SceneEditor::createEntity()
 
     m_scene.reg.emplace<components::Misc>(e, fmt::format("{}:{}", model.name, m_nextId++));
     m_scene.reg.emplace<components::Transform>(e, t);
-
     m_scene.reg.emplace<components::Renderable>(e, model.name, model.renderable, model.bounds);
+    m_scene.reg.emplace<components::Physics>(e);
 
     return e;
 }
