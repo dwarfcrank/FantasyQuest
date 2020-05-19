@@ -34,7 +34,7 @@ public:
 
 private:
     Scene& scene;
-    Camera m_camera = Camera::perspective();
+    Camera m_camera = Camera::perspective({ 1920.0f, 1080.0f });
 
     float moveSpeed = 5.1f;
     float turnSpeed = 3.0f;

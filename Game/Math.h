@@ -99,7 +99,7 @@ inline Vector<S> operator+(const Vector<S>& a, const Vector<S>& b)
 template<Space S>
 inline Vector<S> operator-(const Vector<S>& a, const Vector<S>& b)
 {
-    return Vector<S>{ a.vec - b.vec };
+    return Vector<S>{ DirectX::XMVectorSubtract(a.vec, b.vec) };
 }
 
 template<Space S>

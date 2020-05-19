@@ -4,78 +4,65 @@
 
 using namespace math;
 
-Camera Camera::ortho(float width, float height, float nearZ, float farZ)
+Camera::Camera(XMFLOAT2 viewportSize, float nearZ, float farZ) :
+    m_viewportSize(viewportSize), m_nearZ(nearZ), m_farZ(farZ)
 {
-    Camera cam;
-    cam.m_projectionMatrix.mat = XMMatrixOrthographicLH(width, height, nearZ, farZ);
+}
+
+Camera Camera::ortho(XMFLOAT2 viewportSize, float width, float height, float nearZ, float farZ)
+{
+    Camera cam(viewportSize, nearZ, farZ);
+    // NOTE: near/far are intentionally swapped here because of the reverse-Z depth buffer
+    cam.m_projectionMatrix.mat = XMMatrixOrthographicLH(width, height, farZ, nearZ);
     return cam;
 }
 
-Camera Camera::perspective(float fovY, float aspect, float nearZ, float farZ)
+Camera Camera::perspective(XMFLOAT2 viewportSize, float fovY, float nearZ, float farZ)
 {
-    Camera cam;
-    cam.m_projectionMatrix.mat = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
+    Camera cam(viewportSize, nearZ, farZ);
+    // NOTE: near/far are intentionally swapped here because of the reverse-Z depth buffer
+    cam.m_projectionMatrix.mat = XMMatrixPerspectiveFovLH(fovY, viewportSize.x / viewportSize.y, farZ, nearZ);
     return cam;
 }
 
-void Camera::move(Vector<View> direction)
+void Camera::move(math::ViewVector v)
 {
-    auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
-    Vector<World> worldDir(XMVector3Rotate(direction.vec, rotation));
-
-    move(worldDir);
+    m_position.vec += XMVector3Rotate(v.vec, XMQuaternionRotationRollPitchYawFromVector(m_angles));
 }
 
-void Camera::move(Vector<World> direction)
+void Camera::move(math::WorldVector offset)
 {
-    m_position += direction;
+    m_position += offset;
 }
 
-void Camera::move(float xOff, float yOff, float zOff)
+void Camera::setPosition(math::WorldVector position)
 {
-    move(Vector<View>(xOff, yOff, zOff));
+    m_position = position;
 }
 
-void Camera::setPosition(float x, float y, float z)
+void Camera::rotate(float pitch, float yaw, float roll)
 {
-    m_position = Vector<World>(x, y, z);
+    m_angles = XMVectorAddAngles(m_angles, XMVectorSet(pitch, yaw, roll, 0.0f));
 }
 
-void Camera::setDirection(const XMFLOAT3& dir)
+void Camera::setRotation(float pitch, float yaw, float roll)
 {
-    m_useDirection = true;
-    m_direction = XMLoadFloat3(&dir);
-    m_direction = XMVector3Normalize(m_direction);
+    m_angles = XMVectorSet(pitch, yaw, roll, 0.0f);
 }
 
-void Camera::invertDirection()
+void Camera::update()
 {
-    m_direction = -m_direction;
+    const auto up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    const auto forward = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+
+    auto rotation = XMQuaternionRotationRollPitchYawFromVector(m_angles);
+    const auto dir = XMVector3Rotate(forward, rotation);
+
+    m_viewMatrix.mat = XMMatrixLookToLH(m_position.vec, dir, up);
+    m_invViewMatrix.mat = XMMatrixInverse(nullptr, m_viewMatrix.mat);
 }
 
-void Camera::rotate(float pitch, float yaw)
-{
-    m_pitch += pitch;
-    m_yaw += yaw;
-}
-
-void Camera::setRotation(float pitch, float yaw)
-{
-    m_pitch = pitch;
-    m_yaw = yaw;
-}
-
-void Camera::setDirection(float x, float y, float z)
-{
-    m_direction = XMVectorSet(x, y, z, 0.0f);
-}
-
-void Camera::makeOrtho()
-{
-    m_projectionMatrix.mat = XMMatrixOrthographicLH(20.0f, 20.0f, 100.0f, -10.0f);
-}
-
-Vector<World> Camera::viewToWorld(Vector<View> viewVec) const
+math::WorldVector Camera::viewToWorld(math::ViewVector viewVec) const
 {
     auto v = XMVectorSet(
         XMVectorGetX(m_projectionMatrix.mat.r[0]),
@@ -87,17 +74,14 @@ Vector<World> Camera::viewToWorld(Vector<View> viewVec) const
     return viewVec * m_invViewMatrix;
 }
 
-void Camera::update()
+WorldVector Camera::pixelToWorldDirection(int x, int y) const
 {
-    XMVECTOR direction;
+    XMFLOAT2 screenPos(
+        (float(x) / m_viewportSize.x) * 2.0f - 1.0f,
+        -(float(y) / m_viewportSize.y) * 2.0f + 1.0f
+    );
 
-    if (m_useDirection) {
-        direction = m_direction;
-    } else {
-        auto rotation = XMQuaternionRotationRollPitchYaw(m_pitch, m_yaw, 0.0f);
-        direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotation);
-    }
-
-    m_viewMatrix.mat = XMMatrixLookToLH(m_position.vec, direction, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
-    m_invViewMatrix.mat = XMMatrixInverse(nullptr, m_viewMatrix.mat);
+    auto dir = viewToWorld({ screenPos.x, screenPos.y, 1.0f, 1.0f }) - m_position;
+    return dir.normalized();
 }
+

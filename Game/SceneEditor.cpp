@@ -71,10 +71,12 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
         }
 
         auto from = m_camera.getPosition();
-        auto to = from + (100.0f * screenToWorldDirection(m_camera, x, y, { 1920.0f, 1080.0f }));
+        auto to = from + (100.0f * m_camera.pixelToWorldDirection(x, y));
 
         if (auto hit = m_scene.physicsWorld.raycast(from, to)) {
             m_currentEntity = hit.entity;
+        } else {
+            m_currentEntity = entt::null;
         }
     });
 
@@ -91,7 +93,7 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
             return a.name < b.name;
         });
 
-    m_camera.setPosition(0.0f, 5.0f, -5.0f);
+    m_camera.setPosition({ 0.0f, 5.0f, -5.0f });
 }
 
 static_assert(sizeof(XMFLOAT4X4A) == sizeof(Im3d::Mat4));
@@ -125,7 +127,7 @@ bool SceneEditor::update(float dt)
     }
     
     if (moveCamera) {
-        m_camera.move(v.x, v.y, v.z);
+        m_camera.move(ViewVector{ v.x, v.y, v.z });
         m_camera.rotate(0.0f, a);
     }
 

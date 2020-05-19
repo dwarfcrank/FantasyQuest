@@ -9,60 +9,50 @@ using namespace DirectX;
 class Camera
 {
 public:
-    static Camera ortho(float width = 40.0f, float height = 40.0f, float nearZ = 100.0f, float farZ = -10.0f);
-    static Camera perspective(float fovY = XM_PI / 2.5f, float aspect = 16.0f / 9.0f, float nearZ = 100.0f, float farZ = 0.01f);
+    Camera() = default;
 
-    math::Matrix<math::World, math::View> getViewMatrix() const
-    {
-        return m_viewMatrix;
-    }
+    static Camera ortho(XMFLOAT2 viewportSize, float width = 40.0f, float height = 40.0f,
+        float nearZ = -10.0f, float farZ = 100.0f);
 
-    math::Matrix<math::View, math::World> getInverseViewMatrix() const
-    {
-        return m_invViewMatrix;
-    }
+    static Camera perspective(XMFLOAT2 viewportSize, float fovY = XM_PI / 2.5f,
+        float nearZ = 0.01f, float farZ = 100.0f);
 
-    const math::Matrix<math::View, math::Projection>& getProjectionMatrix() const
-    {
-        return m_projectionMatrix;
-    }
+    XMFLOAT2 getViewportSize() const { return m_viewportSize; }
+    math::WorldVector getPosition() const { return m_position; }
+    XMVECTOR getAngles() const { return m_angles; }
 
-    void move(math::Vector<math::View> direction);
-    void move(math::Vector<math::World> direction);
+    void move(math::ViewVector);
+    void move(math::WorldVector);
+    void setPosition(math::WorldVector);
 
-    void setPosition(math::Vector<math::World> position);
+    void rotate(float pitch, float yaw, float roll = 0.0f);
+    void setRotation(float pitch, float yaw, float roll = 0.0f);
 
-    void move(float xOff, float yOff, float zOff);
-    void setPosition(float x, float y, float z);
-
-    void rotate(float pitch, float yaw);
-    void setRotation(float pitch, float yaw);
-
-    void setDirection(const XMFLOAT3& dir);
-    void invertDirection();
-    void setDirection(float x, float y, float z);
-    void makeOrtho();
-
-    math::Vector<math::World> getPosition() const
-    {
-        return m_position;
-    }
-
-    math::Vector<math::World> viewToWorld(math::Vector<math::View> viewVec) const;
-
+    // Recomputes all the matrices
     void update();
 
+    math::WorldVector viewToWorld(math::ViewVector) const;
+
+    const math::Matrix<math::View, math::Projection>& getProjectionMatrix() const { return m_projectionMatrix; }
+    const math::Matrix<math::World, math::View>& getViewMatrix() const { return m_viewMatrix; };
+    const math::Matrix<math::View, math::World>& getInverseViewMatrix() const { return m_invViewMatrix; }
+
+    math::WorldVector pixelToWorldDirection(int x, int y) const;
+
 private:
-    bool m_useDirection = false;
-    float m_pitch = 0.0f;
-    float m_yaw = 0.0f;
-    
-    math::Vector<math::World> m_position{ 0.0f };
+    Camera(XMFLOAT2 viewportSize, float nearZ, float farZ);
 
-    XMVECTOR m_direction = XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+    XMFLOAT2 m_viewportSize;
 
-    math::Matrix<math::View, math::Projection> m_projectionMatrix;
-    math::Matrix<math::World, math::View> m_viewMatrix;
-    math::Matrix<math::View, math::World> m_invViewMatrix;
+    float m_nearZ;
+    float m_farZ;
+
+    math::WorldVector m_position{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+    XMVECTOR m_angles = XMVectorZero();
+
+    math::Matrix<math::View, math::Projection> m_projectionMatrix{ XMMatrixIdentity() };
+    math::Matrix<math::World, math::View> m_viewMatrix{ XMMatrixIdentity() };
+    math::Matrix<math::View, math::World> m_invViewMatrix{ XMMatrixIdentity() };
 };
 

@@ -245,7 +245,7 @@ int main(int argc, char* argv[])
                 radius += 0.1f;
                 });
 
-            Camera shadowCam = Camera::ortho();
+            Camera shadowCam = Camera::ortho({ 1024.0f, 1024.0f });
 
             XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
 
@@ -317,14 +317,11 @@ int main(int argc, char* argv[])
 
                     const auto& cam = g->getCamera();
 
-                    auto pos = cam.getPosition();
-                    auto dir = cam.viewToWorld({ mouse.x * 2.0f - 1.0f, -mouse.y * 2.0f + 1.0f, 1.0f, 1.0f }) - pos;
-
-                    ad.m_viewOrigin = pos;
+                    ad.m_viewOrigin = cam.getPosition();
                     ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
 
-                    ad.m_cursorRayOrigin = pos;
-                    ad.m_cursorRayDirection = dir.normalized();
+                    ad.m_cursorRayOrigin = cam.getPosition();
+                    ad.m_cursorRayDirection = cam.pixelToWorldDirection(int(mouse.x * 1920.0f), int(mouse.y * 1080.0f));
                 }
 
                 Im3d::NewFrame();
