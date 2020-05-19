@@ -83,7 +83,7 @@ Vector<World> Camera::viewToWorld(Vector<View> viewVec) const
         1.0f, 1.0f
     );
 
-    viewVec.vec = XMVector3Normalize(XMVectorDivide(viewVec.vec, v));
+    viewVec.vec = XMVectorDivide(viewVec.vec, v);
     return viewVec * m_invViewMatrix;
 }
 

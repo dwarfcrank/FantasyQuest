@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Math.h"
+
 #include <vector>
 #include <memory>
 #include <bullet/btBulletDynamicsCommon.h>
@@ -7,6 +9,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <string>
+#include <absl/container/inlined_vector.h>
 
 namespace components
 {
@@ -42,6 +45,20 @@ private:
     int m_debugMode = 0;
 };
 
+struct RaycastHit
+{
+    math::WorldVector position;
+    math::WorldVector normal;
+    entt::entity entity = entt::null;
+
+    explicit operator bool() const
+    {
+        return entity != entt::null;
+    }
+};
+
+using RaycastHitList = absl::InlinedVector<RaycastHit, 1>;
+
 class PhysicsWorld
 {
 public:
@@ -60,6 +77,8 @@ public:
 
     void setDebugDrawMode(int mode);
     void render();
+
+    RaycastHit raycast(math::WorldVector from, math::WorldVector to);
 
 private:
     struct Scene& m_scene;

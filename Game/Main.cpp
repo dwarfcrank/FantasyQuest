@@ -223,6 +223,8 @@ int main(int argc, char* argv[])
                             if (event.button.button == SDL_BUTTON_LEFT) {
                                 ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
                             }
+
+                            inputs.handleEvent(event.button);
                         }
                         break;
 

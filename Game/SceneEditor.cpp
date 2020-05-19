@@ -25,6 +25,21 @@ static std::string_view getPrefix(std::string_view name)
     return name;
 }
 
+// TODO: make this part of Camera itself
+static WorldVector screenToWorldDirection(const Camera& camera, int x, int y, const XMFLOAT2& dimensions)
+{
+    XMFLOAT2 screenPos(
+        (float(x) / dimensions.x) * 2.0f - 1.0f,
+        -(float(y) / dimensions.y) * 2.0f + 1.0f
+    );
+
+    auto pos = camera.getPosition();
+    auto dir = camera.viewToWorld({ screenPos.x, screenPos.y, 1.0f, 1.0f }) - pos;
+    dir.vec = XMVector3Normalize(dir.vec);
+
+    return dir;
+}
+
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :
     GameBase(inputs), m_scene(scene), m_models(models)
 {
@@ -50,6 +65,19 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
     m_inputs.key(SDLK_3).up([] { Im3d::GetContext().m_gizmoMode = Im3d::GizmoMode_Scale; });
 
     m_inputs.key(SDLK_c).up([&] { m_currentEntity = createEntity(); });
+
+    m_inputs.onMouseButtons().up([&](u32 button, int x, int y) {
+        if (button != SDL_BUTTON_LEFT) {
+            return;
+        }
+
+        auto from = m_camera.getPosition();
+        auto to = from + (100.0f * screenToWorldDirection(m_camera, x, y, { 1920.0f, 1080.0f }));
+
+        if (auto hit = m_scene.physicsWorld.raycast(from, to)) {
+            m_currentEntity = hit.entity;
+        }
+    });
 
     m_inputs.onMouseMove([this](const SDL_MouseMotionEvent& event) {
         if ((event.state & SDL_BUTTON_RMASK) || (moveCamera)) {

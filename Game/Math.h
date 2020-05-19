@@ -50,6 +50,10 @@ struct Vector
     DirectX::XMVECTOR vec;
 };
 
+using ModelVector = Vector<Model>;
+using WorldVector = Vector<World>;
+using ViewVector = Vector<View>;
+
 template<Space From, Space To = From>
 struct Matrix
 {

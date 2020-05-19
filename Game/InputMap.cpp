@@ -28,6 +28,19 @@ bool InputMap::handleEvent(const SDL_MouseMotionEvent& event) const
     return false;
 }
 
+bool InputMap::handleEvent(const SDL_MouseButtonEvent& event) const
+{
+    if (event.type == SDL_MOUSEBUTTONDOWN) {
+        m_mouseButtonHandler.handleDown(event.button, event.x, event.y);
+    } else if (event.type == SDL_MOUSEBUTTONUP) {
+        m_mouseButtonHandler.handleUp(event.button, event.x, event.y);
+    } else {
+        return false;
+    }
+
+    return true;
+}
+
 KeyHandler& InputMap::key(SDL_Keycode key)
 {
     return m_keys[key];
@@ -41,4 +54,9 @@ void InputMap::unbind(SDL_Keycode key)
 void InputMap::onMouseMove(MouseMotionHandler handler)
 {
     m_mouseMotionHandler = handler;
+}
+
+MouseButtonHandler& InputMap::onMouseButtons()
+{
+    return m_mouseButtonHandler;
 }

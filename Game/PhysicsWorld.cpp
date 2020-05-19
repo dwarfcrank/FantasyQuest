@@ -5,8 +5,26 @@
 #include "im3d.h"
 #include "Scene.h"
 #include "Mesh.h"
+#include "Math.h"
 
+#include <absl/container/inlined_vector.h>
 #include <bullet/btBulletDynamicsCommon.h>
+
+using namespace math;
+
+static void setEntity(btCollisionObject* obj, entt::entity e)
+{
+    obj->setUserIndex(int(e));
+}
+
+static entt::entity getEntity(const btCollisionObject* obj)
+{
+    if (auto idx = obj->getUserIndex(); idx != -1) {
+        return entt::entity{ idx };
+    }
+
+    return entt::null;
+}
 
 PhysicsWorld::PhysicsWorld(Scene& scene) :
     m_scene(scene)
@@ -57,7 +75,7 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
     btRigidBody::btRigidBodyConstructionInfo info(pc.mass, motionState.get(), pc.collisionShape, localInertia);
     auto body = std::make_unique<btRigidBody>(info);
 
-    body->setUserPointer((void*)(uintptr_t)entity);
+    setEntity(body.get(), reg.entity(entity));
 
     m_dynamicsWorld->addRigidBody(body.get());
     pc.collisionObject = std::move(body);
@@ -176,6 +194,30 @@ void PhysicsWorld::render()
     Im3d::PushMatrix(Im3d::Mat4(1.0f));
     m_dynamicsWorld->debugDrawWorld();
     Im3d::PopMatrix();
+}
+
+RaycastHit PhysicsWorld::raycast(math::WorldVector from0, math::WorldVector to0)
+{
+    btVector3 from, to;
+    from.set128(from0.vec);
+    to.set128(to0.vec);
+
+    btCollisionWorld::ClosestRayResultCallback result(from, to);
+    m_dynamicsWorld->rayTest(from, to, result);
+
+    if (result.hasHit()) {
+        RaycastHit hit;
+
+        btVector3 h(0.1f, 0.1f, 0.1f);
+
+        hit.entity = getEntity(result.m_collisionObject);
+        hit.position.vec = XMVectorSetW(result.m_hitPointWorld.get128(), 1.0f);
+        hit.normal.vec = XMVectorSetW(result.m_hitNormalWorld.get128(), 0.0f);
+
+        return hit;
+    }
+
+    return RaycastHit{};
 }
 
 void PhysicsDebugDraw::drawLine(const btVector3& from, const btVector3& to, const btVector3& color)
