@@ -35,9 +35,8 @@ static WorldVector screenToWorldDirection(const Camera& camera, int x, int y, co
 
     auto pos = camera.getPosition();
     auto dir = camera.viewToWorld({ screenPos.x, screenPos.y, 1.0f, 1.0f }) - pos;
-    dir.vec = XMVector3Normalize(dir.vec);
 
-    return dir;
+    return dir.normalized();
 }
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :

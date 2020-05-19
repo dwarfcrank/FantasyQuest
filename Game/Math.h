@@ -47,6 +47,12 @@ struct Vector
         return *this;
     }
 
+    // TODO: how to determine which components to normalize?
+    Vector<S> normalized() const
+    {
+        return Vector<S>(DirectX::XMVector3Normalize(vec));
+    }
+
     DirectX::XMVECTOR vec;
 };
 
