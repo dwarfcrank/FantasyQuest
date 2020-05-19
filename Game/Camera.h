@@ -15,7 +15,7 @@ public:
         float nearZ = -10.0f, float farZ = 100.0f);
 
     static Camera perspective(XMFLOAT2 viewportSize, float fov = XM_PI / 2.0f,
-        float nearZ = 0.01f, float farZ = 100.0f);
+        float nearZ = 0.01f, float farZ = 1000.0f);
 
     XMFLOAT2 getViewportSize() const { return m_viewportSize; }
     math::WorldVector getPosition() const { return m_position; }
@@ -39,6 +39,8 @@ public:
 
     math::WorldVector pixelToWorldDirection(int x, int y) const;
 
+    float getFOV() const { return m_fov; }
+
 private:
     Camera(XMFLOAT2 viewportSize, float nearZ, float farZ);
 
@@ -46,6 +48,7 @@ private:
 
     float m_nearZ;
     float m_farZ;
+    float m_fov;
 
     math::WorldVector m_position{ 0.0f, 0.0f, 0.0f, 1.0f };
 

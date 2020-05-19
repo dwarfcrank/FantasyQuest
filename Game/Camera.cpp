@@ -22,6 +22,7 @@ Camera Camera::perspective(XMFLOAT2 viewportSize, float fov, float nearZ, float 
     Camera cam(viewportSize, nearZ, farZ);
 
     float fovY = 2.0f * std::atan(std::tan(fov / 2.0f) * (viewportSize.y / viewportSize.x));
+    cam.m_fov = fov;
 
     // NOTE: near/far are intentionally swapped here because of the reverse-Z depth buffer
     cam.m_projectionMatrix.mat = XMMatrixPerspectiveFovLH(fovY, viewportSize.x / viewportSize.y, farZ, nearZ);

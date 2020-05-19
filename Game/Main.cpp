@@ -308,14 +308,16 @@ int main(int argc, char* argv[])
                 ImGui::NewFrame();
 
                 {
+                    const auto& cam = g->getCamera();
                     auto& ad = Im3d::GetAppData();
+
                     ad.m_deltaTime = dt;
                     ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
                     ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
                     ad.m_projOrtho = false;
-                    ad.m_projScaleY = 2.0f;
-
-                    const auto& cam = g->getCamera();
+                    ad.m_projScaleY = tanf(cam.getFOV() / 2.0f) * 2.0f;
+                    ad.m_snapTranslation = 1.0f;
+                    ad.m_snapRotation = XMConvertToRadians(10.0f);
 
                     ad.m_viewOrigin = cam.getPosition();
                     ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
