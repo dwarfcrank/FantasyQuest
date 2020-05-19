@@ -317,13 +317,15 @@ int main(int argc, char* argv[])
 
                     const auto& cam = g->getCamera();
 
-                    ad.m_viewOrigin = cam.getPosition();
-                    ad.m_cursorRayOrigin = ad.m_viewOrigin;
+                    auto pos = cam.getPosition();
+                    auto dir = cam.viewToWorld({ mouse.x * 2.0f - 1.0f, -mouse.y * 2.0f + 1.0f, 1.0f, 1.0f }) - pos;
+                    dir.vec = XMVector3Normalize(dir.vec);
 
+                    ad.m_viewOrigin = pos;
                     ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
-                    ad.m_cursorRayDirection = cam.viewToWorld({
-                        mouse.x * 2.0f - 1.0f, -mouse.y * 2.0f + 1.0f, 1.0f, 0.0f
-                    });
+
+                    ad.m_cursorRayOrigin = pos;
+                    ad.m_cursorRayDirection = dir;
                 }
 
                 Im3d::NewFrame();
