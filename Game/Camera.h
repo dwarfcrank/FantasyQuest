@@ -14,7 +14,7 @@ public:
     static Camera ortho(XMFLOAT2 viewportSize, float width = 40.0f, float height = 40.0f,
         float nearZ = -10.0f, float farZ = 100.0f);
 
-    static Camera perspective(XMFLOAT2 viewportSize, float fovY = XM_PI / 2.5f,
+    static Camera perspective(XMFLOAT2 viewportSize, float fov = XM_PI / 2.0f,
         float nearZ = 0.01f, float farZ = 100.0f);
 
     XMFLOAT2 getViewportSize() const { return m_viewportSize; }

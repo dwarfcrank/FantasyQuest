@@ -17,9 +17,12 @@ Camera Camera::ortho(XMFLOAT2 viewportSize, float width, float height, float nea
     return cam;
 }
 
-Camera Camera::perspective(XMFLOAT2 viewportSize, float fovY, float nearZ, float farZ)
+Camera Camera::perspective(XMFLOAT2 viewportSize, float fov, float nearZ, float farZ)
 {
     Camera cam(viewportSize, nearZ, farZ);
+
+    float fovY = 2.0f * std::atan(std::tan(fov / 2.0f) * (viewportSize.y / viewportSize.x));
+
     // NOTE: near/far are intentionally swapped here because of the reverse-Z depth buffer
     cam.m_projectionMatrix.mat = XMMatrixPerspectiveFovLH(fovY, viewportSize.x / viewportSize.y, farZ, nearZ);
     return cam;
