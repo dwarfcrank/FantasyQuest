@@ -83,6 +83,7 @@ public:
     btCollisionShape* createCollisionMesh(const std::string& name, const class Mesh& mesh);
     btCollisionShape* getCollisionMesh(const std::string& name);
 
+    void editorUpdate();
     void update(float dt);
 
     void setDebugDrawMode(int mode);

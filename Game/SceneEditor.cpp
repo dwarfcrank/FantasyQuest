@@ -140,6 +140,8 @@ bool SceneEditor::update(float dt)
     
     if (m_physicsEnabled) {
         m_scene.physicsWorld.update(dt);
+    } else {
+        m_scene.physicsWorld.editorUpdate();
     }
 
     return true;

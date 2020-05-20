@@ -193,6 +193,12 @@ btCollisionShape* PhysicsWorld::getCollisionMesh(const std::string& name)
     return nullptr;
 }
 
+void PhysicsWorld::editorUpdate()
+{
+    m_dynamicsWorld->updateAabbs();
+    m_dynamicsWorld->computeOverlappingPairs();
+}
+
 void PhysicsWorld::update(float dt)
 {
     m_dynamicsWorld->stepSimulation(dt, 10);
