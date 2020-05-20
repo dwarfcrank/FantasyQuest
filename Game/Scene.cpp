@@ -88,11 +88,19 @@ Scene::Scene() :
 {
     reg
         .on_construct<components::Physics>()
-        .connect<&PhysicsWorld::onCreate>(physicsWorld);
+        .connect<&PhysicsWorld::onCreatePhysicsComponent>(physicsWorld);
 
     reg
         .on_destroy<components::Physics>()
-        .connect<&PhysicsWorld::onDestroy>(physicsWorld);
+        .connect<&PhysicsWorld::onDestroyPhysicsComponent>(physicsWorld);
+
+    reg
+        .on_construct<components::Collision>()
+        .connect<&PhysicsWorld::onCreateCollisionComponent>(physicsWorld);
+
+    reg
+        .on_destroy<components::Collision>()
+        .connect<&PhysicsWorld::onDestroyCollisionComponent>(physicsWorld);
 }
 
 void Scene::load(const std::filesystem::path& path)

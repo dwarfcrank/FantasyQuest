@@ -26,6 +26,12 @@ namespace components
         std::unique_ptr<btMotionState> motionState;
         btCollisionShape* collisionShape = nullptr;
     };
+
+    struct Collision
+    {
+        std::unique_ptr<btCollisionObject> collisionObject;
+        btCollisionShape* collisionShape = nullptr;
+    };
 }
 
 // TODO: use Im3d for a lot of these
@@ -65,8 +71,12 @@ public:
     PhysicsWorld(struct Scene& scene);
     ~PhysicsWorld();
 
-    void onCreate(entt::registry&, entt::entity);
-    void onDestroy(entt::registry&, entt::entity);
+    void onCreatePhysicsComponent(entt::registry&, entt::entity);
+    void onDestroyPhysicsComponent(entt::registry&, entt::entity);
+
+    void onCreateCollisionComponent(entt::registry&, entt::entity);
+    void onDestroyCollisionComponent(entt::registry&, entt::entity);
+
     void addBox(float hw, float hh, float hd, float mass, float x, float y, float z);
     void addSphere(float radius, float mass, float x, float y, float z);
 

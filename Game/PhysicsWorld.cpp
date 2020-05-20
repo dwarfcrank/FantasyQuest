@@ -50,7 +50,7 @@ PhysicsWorld::~PhysicsWorld()
     }
 }
 
-void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
+void PhysicsWorld::onCreatePhysicsComponent(entt::registry& reg, entt::entity entity)
 {
     // TODO: most of this should be handled in the Physics component constructor
     // and this should just add the component to the simulation
@@ -82,10 +82,42 @@ void PhysicsWorld::onCreate(entt::registry& reg, entt::entity entity)
     pc.motionState = std::move(motionState);
 }
 
-void PhysicsWorld::onDestroy(entt::registry& reg, entt::entity entity)
+void PhysicsWorld::onDestroyPhysicsComponent(entt::registry& reg, entt::entity entity)
 {
     auto& pc = reg.get<components::Physics>(entity);
     m_dynamicsWorld->removeCollisionObject(pc.collisionObject.get());
+}
+
+void PhysicsWorld::onCreateCollisionComponent(entt::registry& reg, entt::entity entity)
+{
+    // TODO: most of this should be handled in the Physics component constructor
+    // and this should just add the component to the simulation
+    auto [tc, cc] = reg.get<components::Transform, components::Collision>(entity);
+
+    cc.collisionShape = getCollisionMesh("basic_box");
+
+    btQuaternion rot;
+    rot.set128(tc.rotationQuat);
+
+    btTransform transform;
+    transform.setIdentity();
+    transform.setOrigin(btVector3(tc.position.x, tc.position.y, tc.position.z));
+    transform.setRotation(rot);
+
+    auto obj = std::make_unique<btCollisionObject>();
+    //obj->setWorldTransform(transform);
+    obj->setWorldTransform(btTransform(rot, btVector3(tc.position.x, tc.position.y, tc.position.z)));
+    obj->setCollisionShape(cc.collisionShape);
+
+    setEntity(obj.get(), reg.entity(entity));
+    m_dynamicsWorld->addCollisionObject(obj.get());
+    cc.collisionObject = std::move(obj);
+}
+
+void PhysicsWorld::onDestroyCollisionComponent(entt::registry& reg, entt::entity entity)
+{
+    auto& cc = reg.get<components::Collision>(entity);
+    m_dynamicsWorld->removeCollisionObject(cc.collisionObject.get());
 }
 
 void PhysicsWorld::addBox(float hw, float hh, float hd, float mass, float x, float y, float z)
