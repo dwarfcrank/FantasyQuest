@@ -40,7 +40,7 @@ static WorldVector screenToWorldDirection(const Camera& camera, int x, int y, co
 }
 
 SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<ModelAsset>& models) :
-    GameBase(inputs), m_scene(scene), m_models(models)
+    GameBase(inputs), m_scene(scene), m_models(models), m_nextId(int(scene.reg.size()))
 {
     auto doBind = [this](SDL_Keycode k, float& target, float value) {
         m_inputs.key(k)
@@ -208,7 +208,12 @@ void SceneEditor::modelList()
             auto prefix = getPrefix(it->name);
             auto [begin, end] = std::equal_range(it, m_models.cend(), prefix, ModelPrefixComparison{});
 
-            std::for_each(it, begin, modelListEntry);
+            if (begin != it) {
+                modelListEntry(*it);
+                ++it;
+                continue;
+            }
+
             auto dist = std::distance(begin, end);
 
             if (dist == 1) {
