@@ -25,8 +25,9 @@
 #include <DirectXMath.h>
 #include <chrono>
 #include <entt/entt.hpp>
-#include <unordered_set>
 #include <random>
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 
 #include <bullet/btBulletDynamicsCommon.h>
 
@@ -68,7 +69,7 @@ void convertAssets(const std::filesystem::path& in, const std::filesystem::path&
 {
     std::filesystem::directory_iterator end;
     std::filesystem::create_directories(out);
-    std::unordered_set<std::string> meshNames;
+    absl::flat_hash_set<std::string> meshNames;
 
     for (auto it = std::filesystem::directory_iterator(in); it != end; ++it) {
         if (!it->is_regular_file()) {
@@ -161,7 +162,7 @@ int main(int argc, char* argv[])
             auto models = loadModels(r.get());
 
             if (std::filesystem::exists(scenePath)) {
-                std::unordered_map<std::string, const ModelAsset*> m;
+                absl::flat_hash_map<std::string, const ModelAsset*> m;
                 for (const auto& model : models) {
                     m[model.name] = &model;
                 }
@@ -249,7 +250,7 @@ int main(int argc, char* argv[])
 
             XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
 
-            std::unordered_map<Renderable*, RenderBatch> batches;
+            absl::flat_hash_map<Renderable*, RenderBatch> batches;
 
             for (const auto& model : models) {
                 batches[model.renderable].renderable = model.renderable;

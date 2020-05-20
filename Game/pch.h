@@ -18,7 +18,6 @@
 #include <fstream>
 #include <functional>
 #include <memory>
-#include <nlohmann/json.hpp>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_mouse.h>
@@ -26,9 +25,11 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
 #include <wrl.h>
 #include <entt/entt.hpp>
+
+#include <absl/container/flat_hash_map.h>
+#include <absl/container/flat_hash_set.h>
 
 #include "imgui.h"

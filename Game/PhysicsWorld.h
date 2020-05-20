@@ -7,9 +7,10 @@
 #include <bullet/btBulletDynamicsCommon.h>
 #include <entt/entt.hpp>
 #include <string_view>
-#include <unordered_map>
 #include <string>
+
 #include <absl/container/inlined_vector.h>
+#include <absl/container/flat_hash_map.h>
 
 namespace components
 {
@@ -80,8 +81,8 @@ public:
     void addBox(float hw, float hh, float hd, float mass, float x, float y, float z);
     void addSphere(float radius, float mass, float x, float y, float z);
 
-    btCollisionShape* createCollisionMesh(const std::string& name, const class Mesh& mesh);
-    btCollisionShape* getCollisionMesh(const std::string& name);
+    btCollisionShape* createCollisionMesh(std::string_view name, const class Mesh& mesh);
+    btCollisionShape* getCollisionMesh(std::string_view name);
 
     void editorUpdate();
     void update(float dt);
@@ -100,7 +101,7 @@ private:
     std::unique_ptr<btSequentialImpulseConstraintSolver> m_solver;
     std::unique_ptr<btDiscreteDynamicsWorld> m_dynamicsWorld;
 
-    std::unordered_map<std::string, btCollisionShape*> m_collisionMeshes;
+    absl::flat_hash_map<std::string, btCollisionShape*> m_collisionMeshes;
 
     std::vector<std::unique_ptr<btCollisionShape>> m_collisionShapes;
     std::vector<std::unique_ptr<btCollisionObject>> m_collisionObjects;

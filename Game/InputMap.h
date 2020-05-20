@@ -4,7 +4,7 @@
 
 #include <SDL2/SDL_keyboard.h>
 #include <SDL2/SDL_mouse.h>
-#include <unordered_map>
+#include <absl/container/flat_hash_map.h>
 #include <functional>
 
 using MouseMotionHandler = std::function<void(const SDL_MouseMotionEvent&)>;
@@ -99,7 +99,7 @@ public:
     MouseButtonHandler& onMouseButtons();
 
 private:
-    std::unordered_map<SDL_Keycode, KeyHandler> m_keys;
+    absl::flat_hash_map<SDL_Keycode, KeyHandler> m_keys;
     MouseMotionHandler m_mouseMotionHandler;
     MouseButtonHandler m_mouseButtonHandler;
 };

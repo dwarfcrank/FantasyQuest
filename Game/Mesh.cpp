@@ -8,7 +8,6 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <algorithm>
-#include <unordered_map>
 
 using namespace math;
 

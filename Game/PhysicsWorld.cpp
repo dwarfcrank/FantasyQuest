@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "Math.h"
 
+#include <absl/container/flat_hash_map.h>
 #include <absl/container/inlined_vector.h>
 #include <bullet/btBulletDynamicsCommon.h>
 
@@ -160,7 +161,7 @@ void PhysicsWorld::addSphere(float radius, float mass, float x, float y, float z
     m_motionStates.emplace_back(std::move(motionState));
 }
 
-btCollisionShape* PhysicsWorld::createCollisionMesh(const std::string& name, const Mesh& mesh)
+btCollisionShape* PhysicsWorld::createCollisionMesh(std::string_view name, const Mesh& mesh)
 {
     assert(!m_collisionMeshes.contains(name));
 
@@ -184,7 +185,7 @@ btCollisionShape* PhysicsWorld::createCollisionMesh(const std::string& name, con
     return m_collisionShapes.emplace_back(std::move(shape)).get();
 }
 
-btCollisionShape* PhysicsWorld::getCollisionMesh(const std::string& name)
+btCollisionShape* PhysicsWorld::getCollisionMesh(std::string_view name)
 {
     if (auto it = m_collisionMeshes.find(name); it != m_collisionMeshes.end()) {
         return it->second;
