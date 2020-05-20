@@ -115,11 +115,26 @@ bool SceneEditor::update(float dt)
 
         Im3d::PushLayerId("currentEntity");
         if (Im3d::Gizmo("gizmo", transform) && !m_physicsEnabled) {
+            auto pos = transform.getTranslation();
+            auto rotationQuat = XMQuaternionRotationMatrix(transform);
+
             m_scene.reg.patch<components::Transform>(m_currentEntity, [&](components::Transform& tc) {
-                tc.position = transform.getTranslation();
-                tc.rotationQuat = XMQuaternionRotationMatrix(transform);
+                tc.position = pos;
+                tc.rotationQuat = rotationQuat;
                 tc.scale = transform.getScale();
             });
+
+            btQuaternion rot;
+            rot.set128(rotationQuat);
+
+            btTransform pt(rot, btVector3(pos.x, pos.y, pos.z));
+
+            // TODO: use patch here
+            if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity)) {
+                pc->collisionObject->setWorldTransform(pt);
+            } else if (auto cc = m_scene.reg.try_get<components::Collision>(m_currentEntity)) {
+                cc->collisionObject->setWorldTransform(pt);
+            }
         }
         Im3d::PopLayerId();
 
