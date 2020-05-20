@@ -74,6 +74,14 @@ private:
 
     void entityList();
     void entityPropertiesWindow();
+
+    void renderableComponentEditor();
+    void physicsComponentEditor();
+    void collisionComponentEditor();
+    void pointLightComponentEditor();
+
+    class btCollisionShape* getCollisionMesh(const std::string&);
+
     void sceneWindow();
 
     entt::entity createEntity();

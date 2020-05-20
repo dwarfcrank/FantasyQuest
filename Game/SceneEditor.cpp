@@ -302,221 +302,239 @@ void SceneEditor::entityPropertiesWindow()
             changed |= ImGui::InputFloat3("Scale", &t.scale.x);
 
             if (changed) {
-                // hmmm
+                auto rotationQuat = XMQuaternionRotationRollPitchYaw(t.rotation.x, t.rotation.y, t.rotation.z);
+
                 m_scene.reg.patch<components::Transform>(m_currentEntity, [&](components::Transform& tc) {
-                        tc.rotationQuat = XMQuaternionRotationRollPitchYaw(t.rotation.x, t.rotation.y, t.rotation.z);
-                    });
-            }
-        }
-
-        ImGui::Separator();
-
-        {
-            auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
-            bool render = (rc != nullptr);
-
-            if (ImGui::Checkbox("Render", &render)) {
-                if (!render) {
-                    m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
-                    rc = nullptr;
-                } else if (render && !rc) {
-                    const auto& model = m_models.front();
-                    auto& rc = m_scene.reg.emplace<components::Renderable>(m_currentEntity,
-                        model.name, model.renderable, model.bounds);
-                }
-            }
-
-            if (rc) {
-                int selected = 0;
-
-                for (size_t i = 0; i < m_models.size(); i++) {
-                    if (rc->name == m_models[i].name) {
-                        selected = int(i);
-                        break;
-                    }
-                }
-
-                int newSelection = selected;
-
-                auto getter = [](void* data, int idx, const char** out) {
-                    const auto& items = *reinterpret_cast<const decltype(m_models)*>(data);
-
-                    *out = items[idx].name.c_str();
-
-                    return true;
-                };
-
-                ImGui::Combo("Mesh", &newSelection, getter, &m_models, int(m_models.size()));
-
-                if (ImGui::Button("Pick from model list")) {
-                    newSelection = int(m_currentModelIdx);
-                }
-
-                if (newSelection != selected) {
-                    m_scene.reg.patch<components::Renderable>(m_currentEntity,
-                        [&](components::Renderable& r) {
-                            const auto& model = m_models[newSelection];
-                            r.name = model.name;
-                            r.renderable = model.renderable;
-                            r.bounds = model.bounds;
-                        });
-                }
-            }
-        }
-
-        ImGui::Separator();
-
-        {
-            auto plc = m_scene.reg.try_get<components::PointLight>(m_currentEntity);
-            bool hasLight = (plc != nullptr);
-
-            if (ImGui::Checkbox("Point light", &hasLight)) {
-                if (!hasLight) {
-                    m_scene.reg.remove_if_exists<components::PointLight>(m_currentEntity);
-                    plc = nullptr;
-                } else if (hasLight && !plc) {
-                    m_scene.reg.emplace<components::PointLight>(m_currentEntity);
-                }
-            }
-
-            if (plc) {
-                bool changed = false;
-
-                changed |= ImGui::ColorEdit3("Color", &plc->color.x);
-                changed |= ImGui::SliderFloat("Linear", &plc->linearAttenuation, 0.0f, 5.0f, "%.5f");
-                changed |= ImGui::SliderFloat("Quadratic", &plc->quadraticAttenuation, 0.0f, 5.0f, "%.5f");
-                changed |= ImGui::SliderFloat("Intensity", &plc->intensity, 0.0f, 100.0f, "%.5f");
-
-                if (changed) {
-                }
-            }
-        }
-
-        ImGui::Separator();
-
-        auto createCollisionMesh = [&](const std::string& filename, int userIdx) {
-            auto mesh = Mesh::load(filename);
-            auto collisionShape = m_scene.physicsWorld.createCollisionMesh(mesh.getName(), mesh);
-            collisionShape->setUserIndex(userIdx);
-            return collisionShape;
-        };
-
-        auto getCollisionMesh = [&](const std::string& name) -> btCollisionShape* {
-            if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(name)) {
-                return collisionMesh;
-            }
-
-            auto it = std::find_if(m_models.cbegin(), m_models.cend(), [&](const ModelAsset& m) {
-                    return m.name == name;
+                    tc.rotationQuat = rotationQuat;
                 });
 
-            if (it != m_models.cend()) {
-                int idx = int(std::distance(m_models.cbegin(), it));
-                return createCollisionMesh(it->filename, idx);
-            }
+                btQuaternion rot;
+                rot.set128(rotationQuat);
 
-            return nullptr;
-        };
+                btTransform pt(rot, btVector3(t.position.x, t.position.y, t.position.z));
 
-        {
-            bool hasPhysics = m_scene.reg.has<components::Physics>(m_currentEntity);
-            bool created = false;
-
-            if (ImGui::Checkbox("Physics", &hasPhysics)) {
-                if (!hasPhysics) {
-                    m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
-                } else {
-                    m_scene.reg.emplace<components::Physics>(m_currentEntity);
-                    created = true;
-                }
-            }
-
-            // ughhhhh
-            if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity); hasPhysics && pc) {
-                if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
-                    pc->collisionShape = getCollisionMesh(rc->name);
-                    pc->collisionObject->setCollisionShape(pc->collisionShape);
-                }
-
-                bool changed = false;
-
-                // TODO: move this to the physics component or something
-                if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
-                    if (ImGui::InputFloat("Mass", &pc->mass)) {
-                        btVector3 inertia(0.0f, 0.0f, 0.0f);
-                        if (pc->mass != 0.0f) {
-                            pc->collisionShape->calculateLocalInertia(pc->mass, inertia);
-                        }
-
-                        rb->setMassProps(pc->mass, inertia);
-                    }
-                }
-
-                int idx = pc->collisionShape->getUserIndex();
-                auto previewText = "(null)";
-                if (idx >= 0 && idx < int(m_models.size())) {
-                    previewText = m_models[idx].name.c_str();
-                }
-
-                if (ImGui::BeginCombo("Collision mesh", previewText)) {
-                    for (int i = 0; const auto& model : m_models) {
-                        if (ImGui::Selectable(model.name.c_str(), i == idx)) {
-                            pc->collisionShape = getCollisionMesh(model.name);
-                            pc->collisionObject->setCollisionShape(pc->collisionShape);
-                        }
-
-                        i++;
-                    }
-
-                    ImGui::EndCombo();
+                // TODO: physics and collision components should have a common interface
+                if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity)) {
+                    pc->collisionObject->setWorldTransform(pt);
+                } else if (auto cc = m_scene.reg.try_get<components::Collision>(m_currentEntity)) {
+                    cc->collisionObject->setWorldTransform(pt);
                 }
             }
         }
 
-        {
-            bool hasCollision = m_scene.reg.has<components::Collision>(m_currentEntity);
-            bool created = false;
-
-            if (ImGui::Checkbox("Collision", &hasCollision)) {
-                if (!hasCollision) {
-                    m_scene.reg.remove_if_exists<components::Collision>(m_currentEntity);
-                } else {
-                    m_scene.reg.emplace<components::Collision>(m_currentEntity);
-                    created = true;
-                }
-            }
-
-            if (auto cc = m_scene.reg.try_get<components::Collision>(m_currentEntity); hasCollision && cc) {
-                if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
-                    cc->collisionShape = getCollisionMesh(rc->name);
-                    cc->collisionObject->setCollisionShape(cc->collisionShape);
-                }
-
-                bool changed = false;
-
-                int idx = cc->collisionShape->getUserIndex();
-                auto previewText = "(null)";
-                if (idx >= 0 && idx < int(m_models.size())) {
-                    previewText = m_models[idx].name.c_str();
-                }
-
-                if (ImGui::BeginCombo("Collision mesh", previewText)) {
-                    for (int i = 0; const auto& model : m_models) {
-                        if (ImGui::Selectable(model.name.c_str(), i == idx)) {
-                            cc->collisionShape = getCollisionMesh(model.name);
-                            cc->collisionObject->setCollisionShape(cc->collisionShape);
-                        }
-
-                        i++;
-                    }
-
-                    ImGui::EndCombo();
-                }
-            }
-        }
+        ImGui::Separator();
+        renderableComponentEditor();
+        ImGui::Separator();
+        pointLightComponentEditor();
+        ImGui::Separator();
+        physicsComponentEditor();
+        ImGui::Separator();
+        collisionComponentEditor();
     }
 
     ImGui::End();
+}
+
+void SceneEditor::renderableComponentEditor()
+{
+    auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
+    bool render = (rc != nullptr);
+
+    if (ImGui::Checkbox("Render", &render)) {
+        if (!render) {
+            m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
+            rc = nullptr;
+        } else if (render && !rc) {
+            const auto& model = m_models.front();
+            auto& rc = m_scene.reg.emplace<components::Renderable>(m_currentEntity,
+                model.name, model.renderable, model.bounds);
+        }
+    }
+
+    if (rc) {
+        int selected = 0;
+
+        for (size_t i = 0; i < m_models.size(); i++) {
+            if (rc->name == m_models[i].name) {
+                selected = int(i);
+                break;
+            }
+        }
+
+        int newSelection = selected;
+
+        auto getter = [](void* data, int idx, const char** out) {
+            const auto& items = *reinterpret_cast<const decltype(m_models)*>(data);
+
+            *out = items[idx].name.c_str();
+
+            return true;
+        };
+
+        ImGui::Combo("Mesh", &newSelection, getter, &m_models, int(m_models.size()));
+
+        if (ImGui::Button("Pick from model list")) {
+            newSelection = int(m_currentModelIdx);
+        }
+
+        if (newSelection != selected) {
+            m_scene.reg.patch<components::Renderable>(m_currentEntity,
+                [&](components::Renderable& r) {
+                    const auto& model = m_models[newSelection];
+                    r.name = model.name;
+                    r.renderable = model.renderable;
+                    r.bounds = model.bounds;
+                });
+        }
+    }
+}
+
+void SceneEditor::physicsComponentEditor()
+{
+    bool hasPhysics = m_scene.reg.has<components::Physics>(m_currentEntity);
+    bool created = false;
+
+    if (ImGui::Checkbox("Physics", &hasPhysics)) {
+        if (!hasPhysics) {
+            m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
+        } else {
+            m_scene.reg.emplace<components::Physics>(m_currentEntity);
+            created = true;
+        }
+    }
+
+    if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity); hasPhysics && pc) {
+        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
+            pc->collisionShape = getCollisionMesh(rc->name);
+            pc->collisionObject->setCollisionShape(pc->collisionShape);
+        }
+
+        bool changed = false;
+
+        // TODO: move this to the physics component or something
+        if (auto rb = btRigidBody::upcast(pc->collisionObject.get())) {
+            if (ImGui::InputFloat("Mass", &pc->mass)) {
+                btVector3 inertia(0.0f, 0.0f, 0.0f);
+                if (pc->mass != 0.0f) {
+                    pc->collisionShape->calculateLocalInertia(pc->mass, inertia);
+                }
+
+                rb->setMassProps(pc->mass, inertia);
+            }
+        }
+
+        int idx = pc->collisionShape->getUserIndex();
+        auto previewText = "(null)";
+        if (idx >= 0 && idx < int(m_models.size())) {
+            previewText = m_models[idx].name.c_str();
+        }
+
+        if (ImGui::BeginCombo("Collision mesh", previewText)) {
+            for (int i = 0; const auto& model : m_models) {
+                if (ImGui::Selectable(model.name.c_str(), i == idx)) {
+                    pc->collisionShape = getCollisionMesh(model.name);
+                    pc->collisionObject->setCollisionShape(pc->collisionShape);
+                }
+
+                i++;
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+}
+
+void SceneEditor::collisionComponentEditor()
+{
+    bool hasCollision = m_scene.reg.has<components::Collision>(m_currentEntity);
+    bool created = false;
+
+    if (ImGui::Checkbox("Collision", &hasCollision)) {
+        if (!hasCollision) {
+            m_scene.reg.remove_if_exists<components::Collision>(m_currentEntity);
+        } else {
+            m_scene.reg.emplace<components::Collision>(m_currentEntity);
+            created = true;
+        }
+    }
+
+    if (auto cc = m_scene.reg.try_get<components::Collision>(m_currentEntity); hasCollision && cc) {
+        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
+            cc->collisionShape = getCollisionMesh(rc->name);
+            cc->collisionObject->setCollisionShape(cc->collisionShape);
+        }
+
+        bool changed = false;
+
+        int idx = cc->collisionShape->getUserIndex();
+        auto previewText = "(null)";
+        if (idx >= 0 && idx < int(m_models.size())) {
+            previewText = m_models[idx].name.c_str();
+        }
+
+        if (ImGui::BeginCombo("Collision mesh", previewText)) {
+            for (int i = 0; const auto& model : m_models) {
+                if (ImGui::Selectable(model.name.c_str(), i == idx)) {
+                    cc->collisionShape = getCollisionMesh(model.name);
+                    cc->collisionObject->setCollisionShape(cc->collisionShape);
+                }
+
+                i++;
+            }
+
+            ImGui::EndCombo();
+        }
+    }
+}
+
+void SceneEditor::pointLightComponentEditor()
+{
+    auto plc = m_scene.reg.try_get<components::PointLight>(m_currentEntity);
+    bool hasLight = (plc != nullptr);
+
+    if (ImGui::Checkbox("Point light", &hasLight)) {
+        if (!hasLight) {
+            m_scene.reg.remove_if_exists<components::PointLight>(m_currentEntity);
+            plc = nullptr;
+        } else if (hasLight && !plc) {
+            m_scene.reg.emplace<components::PointLight>(m_currentEntity);
+        }
+    }
+
+    if (plc) {
+        bool changed = false;
+
+        changed |= ImGui::ColorEdit3("Color", &plc->color.x);
+        changed |= ImGui::SliderFloat("Linear", &plc->linearAttenuation, 0.0f, 5.0f, "%.5f");
+        changed |= ImGui::SliderFloat("Quadratic", &plc->quadraticAttenuation, 0.0f, 5.0f, "%.5f");
+        changed |= ImGui::SliderFloat("Intensity", &plc->intensity, 0.0f, 100.0f, "%.5f");
+
+        if (changed) {
+        }
+    }
+}
+
+btCollisionShape* SceneEditor::getCollisionMesh(const std::string& name)
+{
+    if (auto collisionMesh = m_scene.physicsWorld.getCollisionMesh(name)) {
+        return collisionMesh;
+    }
+
+    auto it = std::find_if(m_models.cbegin(), m_models.cend(), [&](const ModelAsset& m) {
+        return m.name == name;
+    });
+
+    if (it != m_models.cend()) {
+        int idx = int(std::distance(m_models.cbegin(), it));
+        auto mesh = Mesh::load(it->filename);
+
+        auto collisionShape = m_scene.physicsWorld.createCollisionMesh(mesh.getName(), mesh);
+        collisionShape->setUserIndex(idx);
+
+        return collisionShape;
+    }
+
+    return nullptr;
 }
 
 void SceneEditor::sceneWindow()
