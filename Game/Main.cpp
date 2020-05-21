@@ -12,10 +12,10 @@
 #include "GameTime.h"
 #include "SceneEditor.h"
 #include "ArrayView.h"
-#include "im3d.h"
 
 #include "PhysicsWorld.h"
 
+#include <im3d.h>
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>

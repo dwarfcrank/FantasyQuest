@@ -27,7 +27,7 @@
 // Enable internal culling for gizmos. The application must set a culling frustum via AppData.
 #define IM3D_CULL_GIZMOS 0
 
-#include "Math.h"
+#include "../Game/Math.h"
 #include <DirectXMath.h>
 
 // Conversion to/from application math types.

@@ -16,12 +16,6 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{37f12c94-0fc0-4fef-9ab4-5dbef43158b1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files\im3d">
-      <UniqueIdentifier>{b657f558-56fc-4708-bacb-916b7266e296}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\im3d">
-      <UniqueIdentifier>{8a645684-f513-477b-a6b5-e42071d0fdce}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -93,15 +87,6 @@
     <ClInclude Include="Shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="im3d.h">
-      <Filter>Header Files\im3d</Filter>
-    </ClInclude>
-    <ClInclude Include="im3d_config.h">
-      <Filter>Header Files\im3d</Filter>
-    </ClInclude>
-    <ClInclude Include="im3d_math.h">
-      <Filter>Header Files\im3d</Filter>
-    </ClInclude>
     <ClInclude Include="PhysicsWorld.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -145,9 +130,6 @@
     </ClCompile>
     <ClCompile Include="Shader.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="im3d.cpp">
-      <Filter>Source Files\im3d</Filter>
     </ClCompile>
     <ClCompile Include="PhysicsWorld.cpp">
       <Filter>Source Files</Filter>

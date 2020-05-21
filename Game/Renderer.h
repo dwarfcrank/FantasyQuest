@@ -5,9 +5,9 @@
 #include "ArrayView.h"
 #include "ShaderCommon.h"
 
-#include "im3d.h"
 #include "Math.h"
 
+#include <im3d.h>
 #include <SDL2/SDL.h>
 #include <fmt/format.h>
 #include <type_traits>

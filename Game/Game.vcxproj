@@ -48,14 +48,14 @@
     <LinkIncremental>true</LinkIncremental>
     <OutDir>$(SolutionDir)bin\</OutDir>
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
-    <IncludePath>$(SolutionDir)imgui;$(SolutionDir)../entt/src;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)im3d;$(SolutionDir)imgui;$(SolutionDir)../entt/src;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <LibraryPath>$(OutDir);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <OutDir>$(SolutionDir)bin\</OutDir>
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
-    <IncludePath>$(SolutionDir)imgui;$(SolutionDir)../entt/src;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)im3d;$(SolutionDir)imgui;$(SolutionDir)../entt/src;$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
     <LibraryPath>$(OutDir);$(VC_LibraryPath_x64);$(WindowsSDK_LibraryPath_x64)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -74,7 +74,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>imgui$(Configuration).lib;SDL2maind.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>im3d$(Configuration).lib;imgui$(Configuration).lib;SDL2maind.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
     </Link>
@@ -103,7 +103,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>imgui$(Configuration).lib;SDL2main.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>im3d$(Configuration).lib;imgui$(Configuration).lib;SDL2main.lib;Version.lib;Imm32.lib;winmm.lib;setupapi.lib;d3d11.lib;d3dcompiler.lib;dxguid.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <FxCompile>
       <ShaderModel>5.0</ShaderModel>
@@ -116,9 +116,6 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GameTime.h" />
     <ClInclude Include="Hresult.h" />
-    <ClInclude Include="im3d.h" />
-    <ClInclude Include="im3d_config.h" />
-    <ClInclude Include="im3d_math.h" />
     <ClInclude Include="Common.h" />
     <ClInclude Include="File.h" />
     <ClInclude Include="framework.h" />
@@ -142,10 +139,6 @@
   <ItemGroup>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="GameTime.cpp" />
-    <ClCompile Include="im3d.cpp">
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
-      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
-    </ClCompile>
     <ClCompile Include="File.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="InputMap.cpp" />
@@ -223,6 +216,9 @@
     <None Include="Common.hlsli" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\im3d\im3d.vcxproj">
+      <Project>{7530fc8b-9b53-490b-9c31-be12c3305052}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\imgui\imgui.vcxproj">
       <Project>{982b6a6d-c124-40ad-bad9-6692efaa5ec2}</Project>
     </ProjectReference>
