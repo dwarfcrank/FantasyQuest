@@ -242,9 +242,6 @@
     <FxCompile Include="GaussianBlur.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="BrightPassDownscale2.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="LuminanceHistogram.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
