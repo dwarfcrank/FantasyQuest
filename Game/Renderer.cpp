@@ -8,7 +8,6 @@
 #include "ArrayView.h"
 #include "RendererHelpers.h"
 #include "Buffer.h"
-#include "imgui_impl_dx11.h"
 #include "RenderTarget.h"
 #include "Shader.h"
 
@@ -26,6 +25,7 @@
 #include <array>
 #include <dxgi.h>
 #include <string_view>
+#include <imgui_impl_dx11.h>
 
 // ugh I hate wchar
 #include <stringapiset.h>

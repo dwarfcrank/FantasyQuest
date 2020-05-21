@@ -5,9 +5,6 @@
 #include "InputMap.h"
 #include "Renderer.h"
 #include "Transform.h"
-#include "imgui.h"
-#include "imgui_impl_dx11.h"
-#include "imgui_impl_sdl.h"
 #include "Mesh.h"
 #include "File.h"
 #include "Scene.h"
@@ -30,6 +27,10 @@
 #include <absl/container/flat_hash_set.h>
 
 #include <bullet/btBulletDynamicsCommon.h>
+
+#include <imgui.h>
+#include <imgui_impl_dx11.h>
+#include <imgui_impl_sdl.h>
 
 using namespace math;
 
