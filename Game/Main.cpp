@@ -102,7 +102,6 @@ void convertAssets(const std::filesystem::path& in, const std::filesystem::path&
     }
 }
 
-
 std::vector<std::string_view> getArgs(int argc, char* argv[])
 {
     std::vector<std::string_view> args;
@@ -112,6 +111,288 @@ std::vector<std::string_view> getArgs(int argc, char* argv[])
     }
 
     return args;
+}
+
+class MainLoop
+{
+public:
+    MainLoop(SDL_Window* window, const std::filesystem::path& scenePath = {});
+    ~MainLoop();
+
+    void handleEvents();
+    void update();
+    bool isRunning() const { return m_running; }
+
+private:
+    void updateLights();
+    void updateBatches();
+
+    std::vector<PointLight> m_lights;
+
+    std::unique_ptr<IRenderer> m_renderer;
+    InputMap m_inputs;
+    bool m_running = true;
+    std::vector<ModelAsset> m_models;
+    SDL_Window* m_window = nullptr;
+
+    Scene m_scene;
+
+    std::unique_ptr<Game> game;
+    std::unique_ptr<SceneEditor> editor;
+
+    std::array<GameBase*, 2> m_games;
+    size_t m_gameIdx = 1;
+
+    GameTime m_gameTime;
+    bool m_showDemo = false;
+
+    XMFLOAT2 m_mouse{ 0.0f, 0.0f };
+
+    Camera m_shadowCam = Camera::ortho({ 1024.0f, 1024.0f });
+    XMFLOAT3 m_shadowDirection{ 0.0f, 0.0f, 0.0f };
+    std::unordered_map<Renderable*, RenderBatch> m_renderBatches;
+
+    float t = 0.0f;
+};
+
+MainLoop::MainLoop(SDL_Window* window, const std::filesystem::path& scenePath) :
+    m_window(window)
+{
+    m_renderer = createRenderer(window);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    auto& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigWindowsMoveFromTitleBarOnly = true;
+    ImGui::StyleColorsDark();
+    ImGui_ImplSDL2_InitForD3D(window);
+
+    m_renderer->initImgui();
+
+    m_models = loadModels(m_renderer.get());
+
+    if (std::filesystem::exists(scenePath)) {
+        std::unordered_map<std::string, const ModelAsset*> m;
+        for (const auto& model : m_models) {
+            m[model.name] = &model;
+        }
+
+        m_scene.load(scenePath);
+
+        m_scene.reg.view<components::Renderable>()
+            .each([&](components::Renderable& rc) {
+                const auto& model = m[rc.name];
+                rc.renderable = model->renderable;
+                rc.bounds = model->bounds;
+            });
+    }
+
+    game = std::make_unique<Game>(m_scene, m_inputs);
+    editor = std::make_unique<SceneEditor>(m_scene, m_inputs, m_models);
+    m_games[0] = game.get();
+    m_games[1] = editor.get();
+
+    m_inputs.key(SDLK_ESCAPE).up([&] { m_running = false; });
+    m_inputs.key(SDLK_F1).up([&] { m_gameIdx++; m_gameIdx %= m_games.size(); });
+    m_inputs.key(SDLK_HOME).up([&] { m_showDemo = !m_showDemo; });
+
+    m_scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, +1.0f, 0.0f);
+
+    for (const auto& model : m_models) {
+        m_renderBatches[model.renderable].renderable = model.renderable;
+    }
+}
+
+MainLoop::~MainLoop()
+{
+    ImGui_ImplDX11_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
+    ImGui::DestroyContext();
+}
+
+void MainLoop::handleEvents()
+{
+    auto& io = ImGui::GetIO();
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event)) {
+        ImGui_ImplSDL2_ProcessEvent(&event);
+
+        switch (event.type) {
+        case SDL_QUIT:
+            m_running = false;
+            break;
+
+        case SDL_KEYUP:
+        case SDL_KEYDOWN:
+            if (!io.WantCaptureKeyboard) {
+                m_inputs.handleEvent(event.key);
+            }
+            break;
+
+        case SDL_MOUSEMOTION:
+            if (!io.WantCaptureMouse) {
+                m_inputs.handleEvent(event.motion);
+                m_mouse.x = float(event.motion.x) / 1920.0f;
+                m_mouse.y = float(event.motion.y) / 1080.0f;
+            }
+            break;
+
+        case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEBUTTONDOWN:
+            if (!io.WantCaptureMouse) {
+                auto& ad = Im3d::GetAppData();
+
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
+                }
+
+                m_inputs.handleEvent(event.button);
+            }
+            break;
+
+        default:
+            break;
+        }
+    }
+}
+
+void MainLoop::update()
+{
+    PostProcessParams params;
+
+    auto g = m_games[m_gameIdx];
+    float dt = m_gameTime.update();
+    t += dt;
+
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplSDL2_NewFrame(m_window);
+    ImGui::NewFrame();
+
+    {
+        const auto& cam = g->getCamera();
+        auto& ad = Im3d::GetAppData();
+
+        ad.m_deltaTime = dt;
+        ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
+        ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
+        ad.m_projOrtho = false;
+        ad.m_projScaleY = tanf(cam.getFOV() / 2.0f) * 2.0f;
+        ad.m_snapTranslation = 1.0f;
+        ad.m_snapRotation = XMConvertToRadians(10.0f);
+
+        ad.m_viewOrigin = cam.getPosition();
+        ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
+
+        ad.m_cursorRayOrigin = cam.getPosition();
+        ad.m_cursorRayDirection = cam.pixelToWorldDirection(int(m_mouse.x * 1920.0f), int(m_mouse.y * 1080.0f));
+    }
+
+    Im3d::NewFrame();
+
+    g->update(dt);
+    m_scene.physicsWorld.render();
+
+    if (m_showDemo) {
+        ImGui::ShowDemoWindow(&m_showDemo);
+    }
+
+    if constexpr (false) {
+        ImGui::Begin("Post processing");
+
+        ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
+        ImGui::Checkbox("Gamma correction", &params.gammaCorrection);
+
+        ImGui::End();
+    }
+
+    {
+        m_shadowCam.setRotation(m_scene.directionalLight.x, m_scene.directionalLight.y);
+
+        auto rotation = XMQuaternionRotationRollPitchYaw(m_scene.directionalLight.x, m_scene.directionalLight.y, 0.0f);
+        auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
+        XMFLOAT3 d;
+        XMStoreFloat3(&d, direction);
+        m_renderer->setDirectionalLight(d, m_scene.directionalLightColor, m_scene.directionalLightIntensity);
+
+        updateLights();
+
+        m_renderer->setPointLights(m_lights);
+    }
+
+    ImGui::Render();
+    Im3d::EndFrame();
+
+    updateBatches();
+
+    m_renderer->beginShadowPass(m_shadowCam);
+    {
+        for (const auto& [_, batch] : m_renderBatches) {
+            if (!batch.instances.empty()) {
+                m_renderer->drawShadow(batch);
+            }
+        }
+    }
+    m_renderer->endShadowPass();
+
+    m_renderer->beginFrame(g->getCamera());
+    {
+        m_renderer->clear(0.0f, 0.0f, 0.0f);
+
+        for (const auto& [_, batch] : m_renderBatches) {
+            if (!batch.instances.empty()) {
+                m_renderer->draw(batch);
+            }
+        }
+
+        g->render(m_renderer.get());
+
+        params.deltaTime = dt;
+        m_renderer->postProcess(params);
+
+        m_renderer->drawIm3d(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
+
+        m_renderer->drawImgui();
+    }
+    m_renderer->endFrame();
+}
+
+void MainLoop::updateLights()
+{
+    m_lights.clear();
+    m_scene.reg.view<components::Transform, components::PointLight>()
+        .each([&](const components::Transform& tc, const components::PointLight& plc) {
+            PointLight l;
+
+            l.Color.x = plc.color.x;
+            l.Color.y = plc.color.y;
+            l.Color.z = plc.color.z;
+            l.Color.w = plc.quadraticAttenuation;
+
+            l.Position.x = tc.position.x;
+            l.Position.y = tc.position.y;
+            l.Position.z = tc.position.z;
+            l.Position.w = plc.linearAttenuation;
+
+            l.Intensity = plc.intensity;
+            m_lights.push_back(l);
+        });
+}
+
+void MainLoop::updateBatches()
+{
+    for (auto& [_, batch] : m_renderBatches) {
+        batch.instances.clear();
+    }
+
+    m_scene.reg.view<components::Transform, components::Renderable>()
+        .each([&](const components::Transform& t, const components::Renderable& rc) {
+            auto wm = t.getMatrix();
+            auto& instance = m_renderBatches[rc.renderable].instances.emplace_back();
+            instance.World = XMMatrixTranspose(wm);
+            instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
+        });
 }
 
 int main(int argc, char* argv[])
@@ -139,273 +420,20 @@ int main(int argc, char* argv[])
     }
 
     bool running = true;
-
     std::filesystem::path scenePath;
 
     while (running) {
         try {
-            auto r = createRenderer(window);
+            MainLoop mainLoop(window, scenePath);
 
-            Scene scene;
-
-            IMGUI_CHECKVERSION();
-            ImGui::CreateContext();
-            auto& io = ImGui::GetIO();
-            io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-            io.ConfigWindowsMoveFromTitleBarOnly = true;
-            ImGui::StyleColorsDark();
-            ImGui_ImplSDL2_InitForD3D(window);
-            r->initImgui();
-
-            InputMap inputs;
-
-            inputs.key(SDLK_ESCAPE).up([&] { running = false; });
-
-            auto models = loadModels(r.get());
-
-            if (std::filesystem::exists(scenePath)) {
-                std::unordered_map<std::string, const ModelAsset*> m;
-                for (const auto& model : models) {
-                    m[model.name] = &model;
-                }
-
-                scene.load(scenePath);
-
-                scene.reg.view<components::Renderable>()
-                    .each([&](components::Renderable& rc) {
-                    const auto& model = m[rc.name];
-                    rc.renderable = model->renderable;
-                    rc.bounds = model->bounds;
-                        });
-            }
-
-            Game game(scene, inputs);
-            SceneEditor editor(scene, inputs, models);
-
-            std::array<GameBase*, 2> games{ &game, &editor };
-            size_t gameIdx = 1;
-            inputs.key(SDLK_F1).up([&] { gameIdx++; gameIdx %= games.size(); });
-
-            GameTime gt;
-
-            bool showDemo = false;
-            inputs.key(SDLK_HOME).up([&] { showDemo = !showDemo; });
-
-            XMFLOAT2 mouse(0.0f, 0.0f);
-
-            auto handleEvents = [&io, &inputs, &running, &mouse] {
-                SDL_Event event;
-                while (SDL_PollEvent(&event)) {
-                    ImGui_ImplSDL2_ProcessEvent(&event);
-
-                    switch (event.type) {
-                    case SDL_QUIT:
-                        running = false;
-                        break;
-
-                    case SDL_KEYUP:
-                    case SDL_KEYDOWN:
-                        if (!io.WantCaptureKeyboard) {
-                            inputs.handleEvent(event.key);
-                        }
-                        break;
-
-                    case SDL_MOUSEMOTION:
-                        if (!io.WantCaptureMouse) {
-                            inputs.handleEvent(event.motion);
-                            mouse.x = float(event.motion.x) / 1920.0f;
-                            mouse.y = float(event.motion.y) / 1080.0f;
-                        }
-                        break;
-
-                    case SDL_MOUSEBUTTONUP:
-                    case SDL_MOUSEBUTTONDOWN:
-                        if (!io.WantCaptureMouse) {
-                            auto& ad = Im3d::GetAppData();
-
-                            if (event.button.button == SDL_BUTTON_LEFT) {
-                                ad.m_keyDown[Im3d::Action_Select] = event.button.state == SDL_PRESSED;
-                            }
-
-                            inputs.handleEvent(event.button);
-                        }
-                        break;
-
-                    default:
-                        break;
-                    }
-                }
-            };
-
-            scene.physicsWorld.addBox(25.0f, 1.0f, 25.0f, 0.0f, 0.0f, +1.0f, 0.0f);
-
-            std::mt19937 gen{ std::random_device{}() };
-            std::uniform_real_distribution<float> dist{ -10.0f, 10.0f };
-
-            float radius = 1.0f;
-            inputs.key(SDLK_SPACE).up([&]() mutable {
-                scene.physicsWorld.addSphere(radius, radius * 2.5f, dist(gen), 15.0f, dist(gen));
-                radius += 0.1f;
-                });
-
-            Camera shadowCam = Camera::ortho({ 1024.0f, 1024.0f });
-
-            XMFLOAT3 shadowDir{ 0.0f, 0.0f, 0.0f };
-
-            std::unordered_map<Renderable*, RenderBatch> batches;
-
-            for (const auto& model : models) {
-                batches[model.renderable].renderable = model.renderable;
-            }
-
-            auto updateBatches = [&] {
-                for (auto& [_, batch] : batches) {
-                    batch.instances.clear();
-                }
-
-                scene.reg.view<components::Transform, components::Renderable>()
-                    .each([&](const components::Transform& t, const components::Renderable& rc) {
-                    auto wm = t.getMatrix();
-                    auto& instance = batches[rc.renderable].instances.emplace_back();
-                    instance.World = XMMatrixTranspose(wm);
-                    instance.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
-                        });
-            };
-
-            std::vector<PointLight> lights;
-
-            auto updateLights = [&] {
-                lights.clear();
-                scene.reg.view<components::Transform, components::PointLight>()
-                    .each([&](const components::Transform& tc, const components::PointLight& plc) {
-                    PointLight l;
-
-                    l.Color.x = plc.color.x;
-                    l.Color.y = plc.color.y;
-                    l.Color.z = plc.color.z;
-                    l.Color.w = plc.quadraticAttenuation;
-
-                    l.Position.x = tc.position.x;
-                    l.Position.y = tc.position.y;
-                    l.Position.z = tc.position.z;
-                    l.Position.w = plc.linearAttenuation;
-
-                    l.Intensity = plc.intensity;
-                    lights.push_back(l);
-                        });
-            };
-
-            PostProcessParams params;
-
-            float t = 0.0f;
-
-            while (running) {
-                auto g = games[gameIdx];
-                float dt = gt.update();
-                t += dt;
-
-                handleEvents();
-
-                ImGui_ImplDX11_NewFrame();
-                ImGui_ImplSDL2_NewFrame(window);
-                ImGui::NewFrame();
-
-                {
-                    const auto& cam = g->getCamera();
-                    auto& ad = Im3d::GetAppData();
-
-                    ad.m_deltaTime = dt;
-                    ad.m_viewportSize = Im3d::Vec2(1920.0f, 1080.0f);
-                    ad.m_worldUp = Im3d::Vec3(0.0f, 1.0f, 0.0f);
-                    ad.m_projOrtho = false;
-                    ad.m_projScaleY = tanf(cam.getFOV() / 2.0f) * 2.0f;
-                    ad.m_snapTranslation = 1.0f;
-                    ad.m_snapRotation = XMConvertToRadians(10.0f);
-
-                    ad.m_viewOrigin = cam.getPosition();
-                    ad.m_viewDirection = cam.viewToWorld(Vector<View>(0.0f, 0.0f, 1.0f));
-
-                    ad.m_cursorRayOrigin = cam.getPosition();
-                    ad.m_cursorRayDirection = cam.pixelToWorldDirection(int(mouse.x * 1920.0f), int(mouse.y * 1080.0f));
-                }
-
-                Im3d::NewFrame();
-
-                g->update(dt);
-                scene.physicsWorld.render();
-
-                if (showDemo) {
-                    ImGui::ShowDemoWindow(&showDemo);
-                }
-
-                if constexpr (false) {
-                    ImGui::Begin("Post processing");
-
-                    ImGui::SliderFloat("Exposure", &params.exposure, 0.0f, 10.0f);
-                    ImGui::Checkbox("Gamma correction", &params.gammaCorrection);
-
-                    ImGui::End();
-                }
-
-                {
-                    shadowCam.setRotation(scene.directionalLight.x, scene.directionalLight.y);
-
-                    auto rotation = XMQuaternionRotationRollPitchYaw(scene.directionalLight.x, scene.directionalLight.y, 0.0f);
-                    auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);
-                    XMFLOAT3 d;
-                    XMStoreFloat3(&d, direction);
-                    r->setDirectionalLight(d, scene.directionalLightColor, scene.directionalLightIntensity);
-
-                    updateLights();
-
-                    r->setPointLights(lights);
-                }
-
-                ImGui::Render();
-                Im3d::EndFrame();
-
-                updateBatches();
-
-                r->beginShadowPass(shadowCam);
-                {
-                    for (const auto& [_, batch] : batches) {
-                        if (!batch.instances.empty()) {
-                            r->drawShadow(batch);
-                        }
-                    }
-                }
-                r->endShadowPass();
-
-                r->beginFrame(g->getCamera());
-                {
-                    r->clear(0.0f, 0.0f, 0.0f);
-
-                    for (const auto& [_, batch] : batches) {
-                        if (!batch.instances.empty()) {
-                            r->draw(batch);
-                        }
-                    }
-
-                    g->render(r.get());
-
-                    params.deltaTime = dt;
-                    r->postProcess(params);
-
-                    r->drawIm3d(g->getCamera(), ArrayView(Im3d::GetDrawLists(), Im3d::GetDrawListCount()));
-
-                    r->drawImgui();
-                }
-                r->endFrame();
-            }
+            do {
+                mainLoop.handleEvents();
+                mainLoop.update();
+                running = mainLoop.isRunning();
+            } while (mainLoop.isRunning());
         } catch (const LoadSceneException& lse) {
             scenePath = lse.path;
         }
-
-        //scene.save("scene.json");
-
-        ImGui_ImplDX11_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
     }
 
     SDL_DestroyWindow(window);
