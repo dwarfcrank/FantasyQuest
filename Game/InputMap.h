@@ -50,7 +50,7 @@ private:
 class MouseButtonHandler
 {
 public:
-    using Callback = std::function<void(u32, int, int)>;
+    using Callback = std::function<void(int, int)>;
 
     MouseButtonHandler() = default;
 
@@ -66,23 +66,37 @@ public:
         return *this;
     }
 
-    void handleUp(u32 buttons, int x, int y) const
+    MouseButtonHandler& doubleClick(Callback cb)
+    {
+        m_doubleClick = std::move(cb);
+        return *this;
+    }
+
+    void handleUp(int x, int y) const
     {
         if (m_up) {
-            m_up(buttons, x, y);
+            m_up(x, y);
         }
     }
 
-    void handleDown(u32 buttons, int x, int y) const
+    void handleDown(int x, int y) const
     {
         if (m_down) {
-            m_down(buttons, x, y);
+            m_down(x, y);
+        }
+    }
+
+    void handleDoubleClick(int x, int y) const
+    {
+        if (m_doubleClick) {
+            m_doubleClick(x, y);
         }
     }
 
 private:
     Callback m_up;
     Callback m_down;
+    Callback m_doubleClick;
 };
 
 class InputMap
@@ -98,8 +112,11 @@ public:
     void onMouseMove(MouseMotionHandler);
     MouseButtonHandler& onMouseButtons();
 
+    MouseButtonHandler& mouseButton(u8 button);
+
 private:
     std::unordered_map<SDL_Keycode, KeyHandler> m_keys;
+    std::unordered_map<u8, MouseButtonHandler> m_mouseButtons;
     MouseMotionHandler m_mouseMotionHandler;
     MouseButtonHandler m_mouseButtonHandler;
 };

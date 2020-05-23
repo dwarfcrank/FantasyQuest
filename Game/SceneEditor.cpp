@@ -65,11 +65,7 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
 
     m_inputs.key(SDLK_c).up([&] { m_currentEntity = createEntity(); });
 
-    m_inputs.onMouseButtons().up([&](u32 button, int x, int y) {
-        if (button != SDL_BUTTON_LEFT) {
-            return;
-        }
-
+    m_inputs.mouseButton(SDL_BUTTON_LEFT).doubleClick([&](int x, int y) {
         auto from = m_camera.getPosition();
         auto to = from + (100.0f * m_camera.pixelToWorldDirection(x, y));
 

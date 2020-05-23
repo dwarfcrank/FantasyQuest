@@ -14,6 +14,8 @@ bool InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
         it->second.handleDown();
     } else if (keyEvent.type == SDL_KEYUP) {
         it->second.handleUp();
+    } else {
+        return false;
     }
 
     return true;
@@ -31,10 +33,20 @@ bool InputMap::handleEvent(const SDL_MouseMotionEvent& event) const
 
 bool InputMap::handleEvent(const SDL_MouseButtonEvent& event) const
 {
+    auto it = m_mouseButtons.find(event.button);
+
+    if (it == m_mouseButtons.cend()) {
+        return false;
+    }
+
     if (event.type == SDL_MOUSEBUTTONDOWN) {
-        m_mouseButtonHandler.handleDown(event.button, event.x, event.y);
+        it->second.handleDown(event.x, event.y);
     } else if (event.type == SDL_MOUSEBUTTONUP) {
-        m_mouseButtonHandler.handleUp(event.button, event.x, event.y);
+        if (event.clicks == 2) {
+            it->second.handleDoubleClick(event.x, event.y);
+        } else {
+            it->second.handleUp(event.x, event.y);
+        }
     } else {
         return false;
     }
@@ -60,4 +72,9 @@ void InputMap::onMouseMove(MouseMotionHandler handler)
 MouseButtonHandler& InputMap::onMouseButtons()
 {
     return m_mouseButtonHandler;
+}
+
+MouseButtonHandler& InputMap::mouseButton(u8 button)
+{
+    return m_mouseButtons[button];
 }
