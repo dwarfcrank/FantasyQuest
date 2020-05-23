@@ -14,6 +14,9 @@
 #include "ArrayView.h"
 
 #include "PhysicsWorld.h"
+#include "Components/Transform.h"
+#include "Components/Renderable.h"
+#include "Components/PointLight.h"
 
 #include <im3d.h>
 #include <SDL2/SDL.h>

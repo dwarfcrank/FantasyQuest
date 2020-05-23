@@ -4,6 +4,11 @@
 #include "Transform.h"
 #include "File.h"
 
+#include "Components/BasicProperties.h"
+#include "Components/Transform.h"
+#include "Components/Renderable.h"
+#include "Components/PointLight.h"
+
 #include <filesystem>
 #include <fstream>
 #include <cereal/archives/binary.hpp>
@@ -40,35 +45,6 @@ void load(Archive& archive, DirectX::XMVECTOR& v)
     XMFLOAT4 fv;
     archive(fv);
     v = XMLoadFloat4(&fv);
-}
-
-}
-
-namespace components
-{
-
-template<typename Archive>
-void serialize(Archive& archive, Misc& m)
-{
-    archive(m.name);
-}
-
-template<typename Archive>
-void serialize(Archive& archive, Renderable& r)
-{
-    archive(r.name);
-}
-
-template<typename Archive>
-void serialize(Archive& archive, Transform& t)
-{
-    archive(t.position, t.rotationQuat, t.scale);
-}
-
-template<typename Archive>
-void serialize(Archive& archive, PointLight& p)
-{
-    archive(p.color, p.intensity, p.linearAttenuation, p.quadraticAttenuation);
 }
 
 }

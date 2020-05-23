@@ -114,6 +114,10 @@
     <ClInclude Include="ArrayView.h" />
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="Components\BasicProperties.h" />
+    <ClInclude Include="Components\PointLight.h" />
+    <ClInclude Include="Components\Renderable.h" />
+    <ClInclude Include="Components\Transform.h" />
     <ClInclude Include="GameTime.h" />
     <ClInclude Include="Hresult.h" />
     <ClInclude Include="Common.h" />

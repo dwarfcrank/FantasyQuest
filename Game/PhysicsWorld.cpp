@@ -6,6 +6,8 @@
 #include "Mesh.h"
 #include "Math.h"
 
+#include "Components/Transform.h"
+
 #include <im3d.h>
 #include <unordered_map>
 #include <bullet/btBulletDynamicsCommon.h>

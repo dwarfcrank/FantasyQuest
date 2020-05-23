@@ -16,6 +16,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{37f12c94-0fc0-4fef-9ab4-5dbef43158b1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\Components">
+      <UniqueIdentifier>{eae12b84-f301-4f7b-84f6-e900e8ae4f9d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">
@@ -89,6 +92,18 @@
     </ClInclude>
     <ClInclude Include="PhysicsWorld.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\BasicProperties.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\Transform.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\Renderable.h">
+      <Filter>Header Files\Components</Filter>
+    </ClInclude>
+    <ClInclude Include="Components\PointLight.h">
+      <Filter>Header Files\Components</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

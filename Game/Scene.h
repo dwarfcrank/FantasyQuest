@@ -2,72 +2,10 @@
 
 #include <DirectXMath.h>
 #include <string>
-#include <vector>
 #include <filesystem>
 #include <entt/entt.hpp>
 
-#include "Transform.h"
-#include "Renderer.h"
 #include "PhysicsWorld.h"
-
-class Renderable;
-
-namespace components
-{
-    struct Misc
-    {
-        Misc() = default;
-
-        Misc(std::string name) :
-            name{ std::move(name) } {}
-
-        std::string name;
-    };
-
-    struct Renderable
-    {
-        Renderable(std::string name, ::Renderable* renderable, const Bounds& bounds) :
-            name{ std::move(name) }, renderable{ renderable }, bounds{ bounds } {}
-
-        Renderable() = default;
-
-        std::string name;
-        ::Renderable* renderable = nullptr;
-        Bounds bounds{ math::Vector<math::Model>(), math::Vector<math::Model>() };
-    };
-
-    struct PointLight
-    {
-        XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
-        float intensity = 1.0f;
-        float linearAttenuation = 0.5f;
-        float quadraticAttenuation = 0.5f;
-    };
-
-    struct Transform
-    {
-        DirectX::XMFLOAT3 position{ 0.0f, 0.0f, 0.0f };
-        // TODO: need to get rid of this...
-		DirectX::XMFLOAT3 rotation{ 0.0f, 0.0f, 0.0f };
-		DirectX::XMFLOAT3 scale{ 1.0f, 1.0f, 1.0f };
-
-        DirectX::XMVECTOR rotationQuat = DirectX::XMQuaternionIdentity();
-
-		XMMATRIX getMatrix() const
-		{
-			auto t = XMMatrixTranslationFromVector(XMLoadFloat3(&position));
-            auto r = XMMatrixRotationQuaternion(rotationQuat);
-			auto s = XMMatrixScalingFromVector(XMLoadFloat3(&scale));
-
-			return s * r * t;
-		}
-
-		math::Matrix<math::Model, math::World> getMatrix2() const
-		{
-			return math::Matrix<math::Model, math::World>{ getMatrix() };
-		}
-    };
-}
 
 struct Scene
 {
@@ -76,8 +14,8 @@ struct Scene
     void load(const std::filesystem::path& path);
     void save(const std::filesystem::path& path);
 
-    XMFLOAT3 directionalLight{ 1.0f, 1.0f, -1.0f };
-    XMFLOAT3 directionalLightColor{ 1.0f, 1.0f, 1.0f };
+    DirectX::XMFLOAT3 directionalLight{ 1.0f, 1.0f, -1.0f };
+    DirectX::XMFLOAT3 directionalLightColor{ 1.0f, 1.0f, 1.0f };
     float directionalLightIntensity = 1.0f;
     float depthBias = 0.005f;
 

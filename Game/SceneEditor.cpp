@@ -7,6 +7,11 @@
 #include "PhysicsWorld.h"
 #include "Mesh.h"
 
+#include "Components/BasicProperties.h"
+#include "Components/Transform.h"
+#include "Components/Renderable.h"
+#include "Components/PointLight.h"
+
 #include <im3d.h>
 #include <im3d_math.h>
 #include <imgui.h>
