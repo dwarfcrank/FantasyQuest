@@ -53,7 +53,7 @@ ComPtr<ID3D11VertexShader> compileVertexShader(const ComPtr<ID3D11Device>& devic
 }
 
 ComPtr<ID3D11VertexShader> compileVertexShader(const ComPtr<ID3D11Device>& device,
-    const std::filesystem::path& filename, const char* entryPoint, absl::FunctionRef<void(ID3DBlob*)> callback)
+    const std::filesystem::path& filename, const char* entryPoint, std::function<void(ID3DBlob*)> callback)
 {
     ComPtr<ID3D11VertexShader> shader;
     auto bytecode = compileShader(filename, "vs_5_0", entryPoint);

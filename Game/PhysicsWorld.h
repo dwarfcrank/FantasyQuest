@@ -9,8 +9,7 @@
 #include <string_view>
 #include <string>
 
-#include <absl/container/inlined_vector.h>
-#include <absl/container/flat_hash_map.h>
+#include <unordered_map>
 
 namespace components
 {
@@ -64,8 +63,6 @@ struct RaycastHit
     }
 };
 
-using RaycastHitList = absl::InlinedVector<RaycastHit, 1>;
-
 class PhysicsWorld
 {
 public:
@@ -81,8 +78,8 @@ public:
     void addBox(float hw, float hh, float hd, float mass, float x, float y, float z);
     void addSphere(float radius, float mass, float x, float y, float z);
 
-    btCollisionShape* createCollisionMesh(std::string_view name, const class Mesh& mesh);
-    btCollisionShape* getCollisionMesh(std::string_view name);
+    btCollisionShape* createCollisionMesh(const std::string& name, const class Mesh& mesh);
+    btCollisionShape* getCollisionMesh(const std::string& name);
 
     void editorUpdate();
     void update(float dt);
@@ -101,7 +98,7 @@ private:
     std::unique_ptr<btSequentialImpulseConstraintSolver> m_solver;
     std::unique_ptr<btDiscreteDynamicsWorld> m_dynamicsWorld;
 
-    absl::flat_hash_map<std::string, btCollisionShape*> m_collisionMeshes;
+    std::unordered_map<std::string, btCollisionShape*> m_collisionMeshes;
 
     std::vector<std::unique_ptr<btCollisionShape>> m_collisionShapes;
     std::vector<std::unique_ptr<btCollisionObject>> m_collisionObjects;

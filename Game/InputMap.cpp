@@ -1,4 +1,5 @@
 #include "pch.h"
+
 #include "InputMap.h"
 
 bool InputMap::handleEvent(const SDL_KeyboardEvent& keyEvent) const
