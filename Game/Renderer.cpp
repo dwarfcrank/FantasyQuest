@@ -60,24 +60,18 @@ public:
 
     virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
-    virtual void draw(Renderable*, const Camera&, const struct Transform&) override;
-    virtual void draw(const RenderBatch& batch, const Camera&) override;
     virtual void drawIm3d(const Camera&, ArrayView<Im3d::DrawList>) override;
     virtual void clear(float r, float g, float b) override;
 
-    virtual void beginFrame() override;
-    virtual void endFrame() override;
-
     virtual void postProcess(const PostProcessParams&) override;
 
-    virtual void beginShadowPass() override;
-    virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) override;
-    virtual void endShadowPass() override;
-
-    virtual void draw(const RenderBatch& batch) override;
-    virtual void drawShadow(const RenderBatch& batch) override;
     virtual void beginFrame(const Camera&) override;
+    virtual void draw(const RenderBatch& batch) override;
+    virtual void endFrame() override;
+
     virtual void beginShadowPass(const Camera&) override;
+    virtual void drawShadow(const RenderBatch& batch) override;
+    virtual void endShadowPass() override;
 
     virtual void initImgui() override;
     virtual void drawImgui() override;
@@ -436,87 +430,6 @@ void Renderer::setPointLights(ArrayView<PointLight> lights)
     m_psConstants.update(m_context);
 }
 
-void Renderer::draw(Renderable* renderable, const Camera& camera, const Transform& transform)
-{
-    EVENT_SCOPE("Object {}", renderable->m_name);
-
-    {
-        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
-        m_cameraConstantBuffer.update(m_context);
-    }
-
-    {
-        auto wm = transform.getMatrix();
-        renderable->m_constantBuffer.data.World = XMMatrixTranspose(wm);
-        renderable->m_constantBuffer.data.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
-        renderable->m_constantBuffer.update(m_context);
-    }
-
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(), renderable->m_constantBuffer.getBuffer(),
-        m_shadowCameraConstantBuffer.getBuffer() };
-    std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
-    std::array psSamplers{ m_shadowSampler.Get() };
-
-    std::array vertexBuffers{ renderable->m_vertexBuffer.getBuffer() };
-    std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
-    std::array offsets{ UINT(0) };
-
-    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_inputLayout.Get());
-
-    m_context->VSSetShader(m_vs.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->PSSetShader(m_ps.Get(), nullptr, 0);
-    m_context->PSSetConstantBuffers(0, static_cast<UINT>(psConstantBuffers.size()), psConstantBuffers.data());
-    m_context->PSSetShaderResources(0, static_cast<UINT>(psResources.size()), psResources.data());
-    m_context->PSSetSamplers(0, static_cast<UINT>(psSamplers.size()), psSamplers.data());
-
-    m_context->DrawIndexed(renderable->m_indexBuffer.getSize(), 0, 0);
-}
-
-void Renderer::draw(const RenderBatch& batch, const Camera& camera)
-{
-    EVENT_SCOPE("Batch {} x{}", batch.renderable->m_name, batch.instances.size());
-
-    m_batchInstanceBuffer.update(m_context, batch.instances);
-
-    {
-        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
-        m_cameraConstantBuffer.update(m_context);
-    }
-
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(),
-        m_shadowCameraConstantBuffer.getBuffer() };
-    std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
-    std::array psSamplers{ m_shadowSampler.Get() };
-
-    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
-    std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
-    std::array offsets{ UINT(0), UINT(0) };
-
-    m_context->IASetVertexBuffers(0, UINT(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(batch.renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_batchInputLayout.Get());
-
-    m_context->VSSetShader(m_batchVS.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->PSSetShader(m_ps.Get(), nullptr, 0);
-    m_context->PSSetConstantBuffers(0, UINT(psConstantBuffers.size()), psConstantBuffers.data());
-    m_context->PSSetShaderResources(0, UINT(psResources.size()), psResources.data());
-    m_context->PSSetSamplers(0, UINT(psSamplers.size()), psSamplers.data());
-
-    m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
-}
-
 void Renderer::drawIm3d(const Camera& camera, ArrayView<Im3d::DrawList> drawLists)
 {
     EVENT_SCOPE_FUNC();
@@ -594,17 +507,6 @@ void Renderer::clear(float r, float g, float b)
     float color[4] = { r, g, b, 1.0f };
     m_context->ClearRenderTargetView(m_mainRT.m_framebufferRTV.Get(), color);
     m_context->ClearDepthStencilView(m_mainRT.m_dsv.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
-}
-
-void Renderer::beginFrame()
-{
-    m_annotation->BeginEvent(L"Main pass");
-
-    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_width), static_cast<float>(m_height));
-    m_context->RSSetViewports(1, &vp);
-
-    auto rtv = m_mainRT.m_framebufferRTV.Get();
-    m_context->OMSetRenderTargets(1, &rtv, m_mainRT.m_dsv.Get());
 }
 
 void Renderer::endFrame()
@@ -757,25 +659,6 @@ void Renderer::postProcess(const PostProcessParams& params)
     m_context->OMSetRenderTargets(1, &rtv, nullptr);
 }
 
-void Renderer::beginShadowPass()
-{
-    m_annotation->BeginEvent(L"Shadow pass");
-
-    // Make sure the shadow stuff isn't bound
-    std::array<ID3D11ShaderResourceView*, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT> srvs;
-    std::memset(srvs.data(), 0, sizeof(srvs));
-    m_context->PSSetShaderResources(0, D3D11_COMMONSHADER_INPUT_RESOURCE_SLOT_COUNT, srvs.data());
-
-    CD3D11_VIEWPORT vp(0.0f, 0.0f, static_cast<float>(m_shadowWidth), static_cast<float>(m_shadowHeight));
-    m_context->RSSetViewports(1, &vp);
-
-    m_context->ClearDepthStencilView(m_shadowRT.m_dsv.Get(), D3D11_CLEAR_DEPTH, 0.0f, 0);
-    m_context->OMSetRenderTargets(0, nullptr, m_shadowRT.m_dsv.Get());
-
-    m_context->PSSetShader(nullptr, nullptr, 0);
-    m_context->RSSetState(m_shadowRasterizerState.Get());
-}
-
 void Renderer::beginShadowPass(const Camera& camera)
 {
     m_annotation->BeginEvent(L"Shadow pass");
@@ -820,44 +703,6 @@ void Renderer::drawShadow(const RenderBatch& batch)
     m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
 
     m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
-}
-
-void Renderer::drawShadow(Renderable* renderable, const Camera& camera, const Transform& transform)
-{
-    EVENT_SCOPE_FUNC();
-
-    {
-        m_cameraConstantBuffer.data.View = camera.getViewMatrix().transposed();
-        m_cameraConstantBuffer.data.Projection = camera.getProjectionMatrix().transposed();
-        m_cameraConstantBuffer.update(m_context);
-
-        m_shadowCameraConstantBuffer.data = m_cameraConstantBuffer.data;
-        m_shadowCameraConstantBuffer.update(m_context);
-    }
-
-    {
-        auto wm = transform.getMatrix();
-
-        renderable->m_constantBuffer.data.World = XMMatrixTranspose(wm);
-        renderable->m_constantBuffer.data.WorldInvTranspose = XMMatrixInverse(nullptr, wm);
-        renderable->m_constantBuffer.update(m_context);
-    }
-
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(), renderable->m_constantBuffer.getBuffer() };
-
-    std::array vertexBuffers{ renderable->m_vertexBuffer.getBuffer() };
-    std::array strides{ static_cast<UINT>(sizeof(Vertex)) };
-    std::array offsets{ UINT(0) };
-
-    m_context->IASetVertexBuffers(0, static_cast<UINT>(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_inputLayout.Get());
-
-    m_context->VSSetShader(m_shadowVS.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, static_cast<UINT>(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->DrawIndexed(renderable->m_indexBuffer.getSize(), 0, 0);
 }
 
 void Renderer::endShadowPass()

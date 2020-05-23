@@ -312,6 +312,7 @@ void MainLoop::update()
 
     {
         m_shadowCam.setRotation(m_scene.directionalLight.x, m_scene.directionalLight.y);
+        m_shadowCam.update();
 
         auto rotation = XMQuaternionRotationRollPitchYaw(m_scene.directionalLight.x, m_scene.directionalLight.y, 0.0f);
         auto direction = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rotation);

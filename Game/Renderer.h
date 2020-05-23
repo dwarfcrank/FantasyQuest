@@ -55,23 +55,15 @@ public:
 
     virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity) = 0;
     virtual void setPointLights(ArrayView<PointLight> lights) = 0;
-    virtual void draw(Renderable*, const Camera&, const struct Transform&) = 0;
-    virtual void draw(const RenderBatch& batch, const Camera&) = 0;
     virtual void drawIm3d(const Camera&, ArrayView<Im3d::DrawList>) = 0;
     virtual void clear(float r, float g, float b) = 0;
 
-    virtual void draw(const RenderBatch& batch) = 0;
-    virtual void drawShadow(const RenderBatch& batch) = 0;
-
-    virtual void beginFrame() = 0;
-
     virtual void beginFrame(const Camera&) = 0;
+    virtual void draw(const RenderBatch& batch) = 0;
     virtual void endFrame() = 0;
 
-    virtual void beginShadowPass() = 0;
-    virtual void drawShadow(Renderable*, const Camera&, const struct Transform&) = 0;
-
     virtual void beginShadowPass(const Camera&) = 0;
+    virtual void drawShadow(const RenderBatch& batch) = 0;
     virtual void endShadowPass() = 0;
 
     virtual void postProcess(const PostProcessParams&) = 0;

@@ -11,7 +11,7 @@ class Camera
 public:
     Camera() = default;
 
-    static Camera ortho(XMFLOAT2 viewportSize, float width = 40.0f, float height = 40.0f,
+    static Camera ortho(XMFLOAT2 viewportSize, float width = 80.0f, float height = 80.0f,
         float nearZ = -10.0f, float farZ = 100.0f);
 
     static Camera perspective(XMFLOAT2 viewportSize, float fov = XM_PI / 2.0f,
