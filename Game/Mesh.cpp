@@ -97,15 +97,19 @@ Mesh Mesh::import(const std::filesystem::path& path)
         baseIdx = static_cast<u16>(result.m_indices.size());
     }
 
-    aiVector3D center = aabbMin + ((aabbMax - aabbMin) * 0.5f);
+    // TODO: the kenney assets are built to work in a grid, so undoing the local
+    // offsets makes the pieces hard to align - need to figure this out
+    if constexpr (false) {
+        aiVector3D center = aabbMin + ((aabbMax - aabbMin) * 0.5f);
 
-    aabbMin -= center;
-    aabbMax -= center;
+        aabbMin -= center;
+        aabbMax -= center;
 
-    for (auto& vertex : result.m_vertices) {
-        vertex.Position.x -= center.x;
-        vertex.Position.y -= center.y;
-        vertex.Position.z -= center.z;
+        for (auto& vertex : result.m_vertices) {
+            vertex.Position.x -= center.x;
+            vertex.Position.y -= center.y;
+            vertex.Position.z -= center.z;
+        }
     }
 
     result.m_bounds.min = Vector<Model>(aabbMin.x, aabbMin.y, aabbMin.z, 1.0f);
