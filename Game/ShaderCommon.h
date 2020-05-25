@@ -89,9 +89,10 @@ CB_STRUCT PostProcessConstants
 
 struct Vertex
 {
-	float3 Position SEMANTIC(POSITION);
-	float3 Normal SEMANTIC(NORMAL);
-	float4 Color SEMANTIC(COLOR);
+    float3 Position SEMANTIC(POSITION);
+    float3 Normal SEMANTIC(NORMAL);
+    float4 Color SEMANTIC(COLOR);
+    float2 Texcoord SEMANTIC(TEXCOORD);
 };
 
 struct PointLight

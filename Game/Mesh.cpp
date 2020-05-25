@@ -81,10 +81,19 @@ Mesh Mesh::import(const std::filesystem::path& path)
             const auto& n = mesh->mNormals[i];
             const auto& color = materialColors[mesh->mMaterialIndex];
 
+            XMFLOAT2 texcoord(0.0f, 0.0f);
+
+            if (mesh->HasTextureCoords(0)) {
+                const auto& t = mesh->mTextureCoords[0][i];
+                texcoord.x = t.x;
+                texcoord.y = t.y;
+            }
+
             result.m_vertices.push_back(Vertex{
-                .Position{v.x, v.y, v.z},
-                .Normal{n.x, n.y, n.z},
-                .Color{color.r, color.g, color.b, 1.0f}
+                .Position{ v.x, v.y, v.z },
+                .Normal{ n.x, n.y, n.z },
+                .Color{ color.r, color.g, color.b, 1.0f },
+                .Texcoord{ texcoord },
             });
         }
 
