@@ -36,11 +36,14 @@ static const float2 PoissonDisk[4] = {
     float2(0.34495938f, 0.29387760f)
 };
 
+static const float3 g_ambient = float3(0.05f, 0.05f, 0.05f);
+
 float4 main(VS_Output v) : SV_TARGET
 {
     float3 n = normalize(v.Normal);
 
-    float3 total = ComputeDirectionalLight(pc.LightDir, n);
+    float3 total = g_ambient * v.Color.rgb;
+    total += ComputeDirectionalLight(pc.LightDir, n);
 
     for (uint i = 0; i < pc.NumPointLights; i++) {
         total += ComputePointLight(PointLights[i], v.PositionWS.xyz, n);
