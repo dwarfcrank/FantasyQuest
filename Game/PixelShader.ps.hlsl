@@ -8,7 +8,10 @@ cbuffer PS_Constants : register(b1)
 StructuredBuffer<PointLight> PointLights : register(t0);
 
 Texture2D ShadowMap : register(t1);
+Texture2D Diffuse : register(t2);
+
 SamplerComparisonState ShadowMapSampler : register(s0);
+SamplerState LinearSampler : register(s1);
 
 float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 {
@@ -42,7 +45,8 @@ float4 main(VS_Output v) : SV_TARGET
 {
     float3 n = normalize(v.Normal);
 
-    float3 total = g_ambient * v.Color.rgb;
+    //float3 total = g_ambient * v.Color.rgb;
+    float3 total = g_ambient;
     total += ComputeDirectionalLight(pc.LightDir, n);
 
     for (uint i = 0; i < pc.NumPointLights; i++) {
@@ -67,5 +71,6 @@ float4 main(VS_Output v) : SV_TARGET
 
     total *= m;
 
-    return v.Color * float4(total, 1.0f);
+    //return v.Color * float4(total, 1.0f);
+    return Diffuse.Sample(LinearSampler, v.Texcoord) * float4(total, 1.0f);
 }

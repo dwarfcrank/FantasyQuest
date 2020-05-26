@@ -12,6 +12,7 @@ struct VS_Output
 	float4 ShadowPos : SHADOWPOS;
 	float3 Normal : NORMAL;
 	float4 Color : COLOR0;
+	float2 Texcoord : TEXCOORD;
 };
 
 struct ShadowVS_Output

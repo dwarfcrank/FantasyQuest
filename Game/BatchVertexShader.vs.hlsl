@@ -24,5 +24,7 @@ VS_Output main(Vertex v, matrix World : WORLD, matrix WorldInvTranspose : WORLD_
 
 	o.Normal = mul(v.Normal, (float3x3)WorldInvTranspose);
 
+	o.Texcoord = v.Texcoord;
+
 	return o;
 }

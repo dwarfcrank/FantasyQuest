@@ -10,6 +10,7 @@
 #include "Buffer.h"
 #include "RenderTarget.h"
 #include "Shader.h"
+#include "stb_image.h"
 
 #include <im3d.h>
 
@@ -144,6 +145,9 @@ private:
         ComPtr<ID3D11ComputeShader> gaussianCS;
         ConstantBuffer<GaussianConstants> constants;
     } m_blur;
+
+    ComPtr<ID3D11Texture2D> m_testTexture;
+    ComPtr<ID3D11ShaderResourceView> m_testTextureSRV;
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
 
@@ -353,32 +357,56 @@ Renderer::Renderer(SDL_Window* window)
         }
     }
 
-    float minLogLuminance = -10.0f;
-    float maxLogLuminance = 2.0f;
-
-    m_luminanceHistogramCB.data.inputSize.x = m_mainRT.m_width;
-    m_luminanceHistogramCB.data.inputSize.y = m_mainRT.m_height;
-    m_luminanceHistogramCB.data.minLogLuminance = minLogLuminance;
-    m_luminanceHistogramCB.data.logLuminanceRange = maxLogLuminance - minLogLuminance;
-    m_luminanceHistogramCB.data.invLogLuminanceRange = 1.0f / (maxLogLuminance - minLogLuminance);
-    m_luminanceHistogramCB.init(m_device);
-    m_luminanceHistogramCB.setName("luminance histogram CB");
-
     {
-        std::vector<UINT> tmp(256, 0);
-        m_luminanceHistogram.init(m_device, tmp);
-        m_luminanceHistogram.setName("luminance histogram");
+        float minLogLuminance = -10.0f;
+        float maxLogLuminance = 2.0f;
+
+        m_luminanceHistogramCB.data.inputSize.x = m_mainRT.m_width;
+        m_luminanceHistogramCB.data.inputSize.y = m_mainRT.m_height;
+        m_luminanceHistogramCB.data.minLogLuminance = minLogLuminance;
+        m_luminanceHistogramCB.data.logLuminanceRange = maxLogLuminance - minLogLuminance;
+        m_luminanceHistogramCB.data.invLogLuminanceRange = 1.0f / (maxLogLuminance - minLogLuminance);
+        m_luminanceHistogramCB.init(m_device);
+        m_luminanceHistogramCB.setName("luminance histogram CB");
+
+        {
+            std::vector<UINT> tmp(256, 0);
+            m_luminanceHistogram.init(m_device, tmp);
+            m_luminanceHistogram.setName("luminance histogram");
+        }
+
+        m_luminanceHistogramSRV = createShaderResourceView(m_device, m_luminanceHistogram.getBuffer(),
+            m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_UINT, 0, m_luminanceHistogram.getCapacity());
+
+        m_luminanceHistogramUAV = createUnorderedAccessView(m_device, m_luminanceHistogram.getBuffer(),
+            m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_TYPELESS, 0, m_luminanceHistogram.getCapacity(),
+            D3D11_BUFFER_UAV_FLAG_RAW);
+
+        m_averageLuminance.init(m_device, 1, 1, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R32_FLOAT);
+        m_averageLuminance.setName("average luminance");
     }
 
-    m_luminanceHistogramSRV = createShaderResourceView(m_device, m_luminanceHistogram.getBuffer(),
-        m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_UINT, 0, m_luminanceHistogram.getCapacity());
+    {
+        int w = 0, h = 0, c = 0;
+        if (auto pixels = stbi_load("content/rock_04_diff_1k.png", &w, &h, &c, 4)) {
+            D3D11_SUBRESOURCE_DATA sd = {};
+            sd.pSysMem = pixels;
+            sd.SysMemPitch = w * 4;
 
-    m_luminanceHistogramUAV = createUnorderedAccessView(m_device, m_luminanceHistogram.getBuffer(),
-        m_luminanceHistogram.getBuffer(), DXGI_FORMAT_R32_TYPELESS, 0, m_luminanceHistogram.getCapacity(),
-        D3D11_BUFFER_UAV_FLAG_RAW);
+            //auto format = DXGI_FORMAT_R8G8B8A8_UNORM;
+            auto format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
-    m_averageLuminance.init(m_device, 1, 1, RT_Color | RT_ColorUAVOnly, DXGI_FORMAT_R32_FLOAT);
-    m_averageLuminance.setName("average luminance");
+            CD3D11_TEXTURE2D_DESC td(format, UINT(w), UINT(h), 1, 1, D3D11_BIND_SHADER_RESOURCE);
+            Hresult hr = m_device->CreateTexture2D(
+                &td,
+                &sd, &m_testTexture
+            );
+
+            hr = m_device->CreateShaderResourceView(m_testTexture.Get(), nullptr, &m_testTextureSRV);
+
+            stbi_image_free(pixels);
+        }
+    }
 }
 
 Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices)
@@ -722,8 +750,8 @@ void Renderer::draw(const RenderBatch& batch)
     std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(),
         m_shadowCameraConstantBuffer.getBuffer() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
-    std::array psSamplers{ m_shadowSampler.Get() };
+    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get(), m_testTextureSRV.Get() };
+    std::array psSamplers{ m_shadowSampler.Get(), m_framebufferSampler.Get() };
 
     std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
     std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };

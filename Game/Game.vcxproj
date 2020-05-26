@@ -137,6 +137,7 @@
     <ClInclude Include="SceneEditor.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="ShaderCommon.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Transform.h" />
   </ItemGroup>
@@ -160,6 +161,7 @@
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneEditor.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="stb_image.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Game.rc" />
