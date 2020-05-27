@@ -11,6 +11,7 @@
 #include "RenderTarget.h"
 #include "Shader.h"
 #include "stb_image.h"
+#include "Mesh.h"
 
 #include <im3d.h>
 
@@ -39,6 +40,7 @@ public:
     VertexBuffer<Vertex> m_vertexBuffer;
     IndexBuffer<u16> m_indexBuffer;
     ConstantBuffer<RenderableConstants> m_constantBuffer;
+    std::vector<Mesh::SubMesh> m_submeshes;
     std::string m_name;
 };
 
@@ -52,12 +54,19 @@ CB_STRUCT LuminanceHistogramConstants
     float tau = 1.1f;
 };
 
+struct Texture
+{
+    ComPtr<ID3D11Texture2D> texture;
+    ComPtr<ID3D11ShaderResourceView> srv;
+};
+
 class Renderer : public IRenderer
 {
 public:
     Renderer(SDL_Window* window);
 
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) override;
+    virtual Renderable* createRenderable(const class Mesh&) override;
 
     virtual void setDirectionalLight(const XMFLOAT3& pos, const XMFLOAT3& color, float intensity) override;
     virtual void setPointLights(ArrayView<PointLight> lights) override;
@@ -79,6 +88,7 @@ public:
 
 private:
     void loadShaders();
+
     ID3D11ShaderResourceView* computeBloom();
 
     ComPtr<ID3D11Device1> m_device;
@@ -146,8 +156,9 @@ private:
         ConstantBuffer<GaussianConstants> constants;
     } m_blur;
 
-    ComPtr<ID3D11Texture2D> m_testTexture;
-    ComPtr<ID3D11ShaderResourceView> m_testTextureSRV;
+    //std::vector<Texture> m_textures;
+    std::unordered_map<std::string, Texture> m_textures;
+
     ComPtr<ID3D11SamplerState> m_testTextureSampler;
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
@@ -393,33 +404,39 @@ Renderer::Renderer(SDL_Window* window)
             0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
         SET_OBJECT_NAME(m_testTextureSampler);
 
-        int w = 0, h = 0, c = 0;
-        if (auto pixels = stbi_load("content/rock_04_diff_1k.png", &w, &h, &c, 4)) {
-            D3D11_SUBRESOURCE_DATA sd = {};
-            sd.pSysMem = pixels;
-            sd.SysMemPitch = w * 4;
+        auto loadTexture = [&](const char* path) {
+            int w = 0, h = 0, c = 0;
+            Texture t;
 
-            //auto format = DXGI_FORMAT_R8G8B8A8_UNORM;
-            auto format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+            if (auto pixels = stbi_load(path, &w, &h, &c, 4)) {
+                D3D11_SUBRESOURCE_DATA sd = {};
+                sd.pSysMem = pixels;
+                sd.SysMemPitch = w * 4;
 
-            CD3D11_TEXTURE2D_DESC td(format, UINT(w), UINT(h), 1, 1, D3D11_BIND_SHADER_RESOURCE);
-            Hresult hr = m_device->CreateTexture2D(
-                &td,
-                &sd, &m_testTexture
-            );
+                auto format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
-            hr = m_device->CreateShaderResourceView(m_testTexture.Get(), nullptr, &m_testTextureSRV);
+                CD3D11_TEXTURE2D_DESC td(format, UINT(w), UINT(h), 1, 1, D3D11_BIND_SHADER_RESOURCE);
 
-            stbi_image_free(pixels);
-        }
+                try {
+                    Hresult hr = m_device->CreateTexture2D(&td, &sd, &t.texture);
+                    hr = m_device->CreateShaderResourceView(t.texture.Get(), nullptr, &t.srv);
+                } catch (const std::runtime_error&) {
+                    stbi_image_free(pixels);
+                    throw;
+                }
+            }
+
+            return t;
+        };
+
+        m_textures["grass"] = loadTexture("content/aerial_grass_rock_diff_1k.png");
+        m_textures["dirt"] = loadTexture("content/rock_04_diff_1k.png");
     }
 }
 
 Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices)
 {
     auto renderable = std::make_unique<Renderable>();
-
-    const void* p = renderable.get();
     
     renderable->m_vertexBuffer.init(m_device, vertices);
     renderable->m_indexBuffer.init(m_device, indices);
@@ -429,6 +446,23 @@ Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> 
     renderable->m_indexBuffer.setName(fmt::format("{}_ib", name));
     renderable->m_constantBuffer.setName(fmt::format("{}_cb", name));
     renderable->m_name = name;
+
+    return m_renderables.emplace_back(std::move(renderable)).get();
+}
+
+Renderable* Renderer::createRenderable(const Mesh& mesh)
+{
+    auto renderable = std::make_unique<Renderable>();
+    
+    renderable->m_vertexBuffer.init(m_device, mesh.getVertices());
+    renderable->m_indexBuffer.init(m_device, mesh.getIndices());
+    renderable->m_constantBuffer.init(m_device);
+
+    renderable->m_vertexBuffer.setName(fmt::format("{}_vb", mesh.getName()));
+    renderable->m_indexBuffer.setName(fmt::format("{}_ib", mesh.getName()));
+    renderable->m_constantBuffer.setName(fmt::format("{}_cb", mesh.getName()));
+    renderable->m_name = mesh.getName();
+    renderable->m_submeshes = mesh.getSubMeshes();
 
     return m_renderables.emplace_back(std::move(renderable)).get();
 }
@@ -756,8 +790,8 @@ void Renderer::draw(const RenderBatch& batch)
     std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(),
         m_shadowCameraConstantBuffer.getBuffer() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get(), m_testTextureSRV.Get() };
     std::array psSamplers{ m_shadowSampler.Get(), m_testTextureSampler.Get() };
+    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
 
     std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
     std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
@@ -776,7 +810,18 @@ void Renderer::draw(const RenderBatch& batch)
     m_context->PSSetShaderResources(0, UINT(psResources.size()), psResources.data());
     m_context->PSSetSamplers(0, UINT(psSamplers.size()), psSamplers.data());
 
-    m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
+    for (const auto& submesh : batch.renderable->m_submeshes) {
+        //m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
+        //auto texture = m_textures[submesh.material].srv.Get();
+        ID3D11ShaderResourceView* texture = nullptr;
+
+        if (auto it = m_textures.find(submesh.material); it != m_textures.end()) {
+            texture = it->second.srv.Get();
+        }
+
+        m_context->PSSetShaderResources(UINT(psResources.size()), 1, &texture);
+        m_context->DrawIndexedInstanced(submesh.numIndices, UINT(batch.instances.size()), submesh.baseIndex, submesh.baseVertex, 0);
+    }
 }
 
 void Renderer::beginFrame(const Camera& camera)

@@ -63,7 +63,8 @@ std::vector<ModelAsset> loadModels(IRenderer* r)
         if (p.extension() == ".mesh") {
             Mesh mesh;
             mesh.load(p);
-            auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
+            //auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
+            auto renderable = r->createRenderable(mesh);
             models.emplace_back(mesh.getName(), renderable, mesh.getBounds(), p.generic_string());
         }
     }

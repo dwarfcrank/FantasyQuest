@@ -69,6 +69,7 @@ public:
     virtual void postProcess(const PostProcessParams&) = 0;
 
     virtual Renderable* createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices) = 0;
+    virtual Renderable* createRenderable(const class Mesh&) = 0;
 
     virtual void initImgui() = 0;
     virtual void drawImgui() = 0;

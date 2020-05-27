@@ -84,10 +84,22 @@ Mesh Mesh::import(const std::filesystem::path& path)
     auto aabbMin = scene->mMeshes[0]->mAABB.mMin;
     auto aabbMax = scene->mMeshes[0]->mAABB.mMax;
 
+    result.m_subMeshes.resize(scene->mNumMeshes);
+
     // TODO: probably shouldn't just merge different meshes into one...
     u16 baseIdx = 0;
 
-    for (ArrayView meshes(scene->mMeshes, scene->mNumMeshes); const auto* mesh : meshes) {
+    for (u32 meshIdx = 0; meshIdx < scene->mNumMeshes; meshIdx++) {
+        const auto* mesh = scene->mMeshes[meshIdx];
+        auto& submesh = result.m_subMeshes[meshIdx];
+
+        submesh.baseIndex = baseIdx;
+        submesh.baseVertex = static_cast<u32>(result.m_vertices.size());
+        {
+            const auto& name = scene->mMaterials[mesh->mMaterialIndex]->GetName();
+            submesh.material.assign(name.data, name.length);
+        }
+
         aabbMin = min3(aabbMin, mesh->mAABB.mMin);
         aabbMax = max3(aabbMax, mesh->mAABB.mMax);
 
@@ -114,11 +126,15 @@ Mesh Mesh::import(const std::filesystem::path& path)
 
         for (ArrayView faces(mesh->mFaces, mesh->mNumFaces); const auto& f : faces) {
             for (ArrayView indices(f.mIndices, f.mNumIndices); auto i : indices) {
-                result.m_indices.push_back(baseIdx + static_cast<u16>(i));
+                //result.m_indices.push_back(baseIdx + static_cast<u16>(i));
+                result.m_indices.push_back(static_cast<u16>(i));
+                submesh.numIndices++;
             }
         }
 
         baseIdx = static_cast<u16>(result.m_indices.size());
+        //baseIdx = 0;
+        //submesh.baseIndex = static_cast<u32>(result.m_indices.size());
     }
 
     // TODO: the kenney assets are built to work in a grid, so undoing the local
@@ -143,6 +159,10 @@ Mesh Mesh::import(const std::filesystem::path& path)
         result.m_name = scene->mMeshes[0]->mName.C_Str();
     } else {
         result.m_name = path.filename().generic_string();
+    }
+
+    if (result.m_name.starts_with("Mesh ")) {
+        result.m_name = result.m_name.substr(5);
     }
 
     g_importer.FreeScene();

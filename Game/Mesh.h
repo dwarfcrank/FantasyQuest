@@ -9,22 +9,23 @@
 #include <string>
 #include <cereal/access.hpp>
 
-struct MeshFileHeader
-{
-    u32 magic;
-    u32 headerSize;
-    u32 nameLength;
-    u32 numVertices;
-    u32 numIndices;
-    float minBounds[3];
-    float maxBounds[3];
-
-    static constexpr u32 MAGIC = 0x214d5146; // little endian "FQM!"
-};
-
 class Mesh
 {
 public:
+    struct SubMesh
+    {
+        u32 baseVertex = 0;
+        u32 baseIndex = 0;
+        u32 numIndices = 0;
+        std::string material = "default";
+
+        template<typename Archive>
+        void serialize(Archive& archive)
+        {
+            archive(baseVertex, baseIndex, numIndices, material);
+        }
+    };
+
     Mesh() = default;
 
     const std::vector<Vertex>& getVertices() const
@@ -52,6 +53,11 @@ public:
         return m_bounds;
     }
 
+    const std::vector<SubMesh>& getSubMeshes() const
+    {
+        return m_subMeshes;
+    }
+
     static Mesh import(const std::filesystem::path& path);
 
     void load(const std::filesystem::path& path);
@@ -63,12 +69,13 @@ private:
     template<typename Archive>
     void serialize(Archive& archive)
     {
-        archive(m_name, m_indices, m_vertices, m_bounds.max.vec, m_bounds.min.vec);
+        archive(m_name, m_indices, m_vertices, m_bounds.max.vec, m_bounds.min.vec, m_subMeshes);
     }
 
     Bounds m_bounds;
     std::vector<Vertex> m_vertices;
     std::vector<u16> m_indices;
+    std::vector<SubMesh> m_subMeshes;
     std::string m_name;
 };
 
