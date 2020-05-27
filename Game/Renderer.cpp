@@ -415,11 +415,16 @@ Renderer::Renderer(SDL_Window* window)
 
                 auto format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 
-                CD3D11_TEXTURE2D_DESC td(format, UINT(w), UINT(h), 1, 1, D3D11_BIND_SHADER_RESOURCE);
+                CD3D11_TEXTURE2D_DESC td(format, UINT(w), UINT(h), 1, 0, D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE);
+                td.MiscFlags |= D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
                 try {
-                    Hresult hr = m_device->CreateTexture2D(&td, &sd, &t.texture);
-                    hr = m_device->CreateShaderResourceView(t.texture.Get(), nullptr, &t.srv);
+                    //Hresult hr = m_device->CreateTexture2D(&td, &sd, &t.texture);
+                    Hresult hr = m_device->CreateTexture2D(&td, nullptr, &t.texture);
+                    hr = m_device->CreateShaderResourceView(t.texture.Get(),
+                        &CD3D11_SHADER_RESOURCE_VIEW_DESC(t.texture.Get(), D3D11_SRV_DIMENSION_TEXTURE2D), &t.srv);
+                    m_context->UpdateSubresource(t.texture.Get(), 0, nullptr, pixels, w * 4, 0);
+                    m_context->GenerateMips(t.srv.Get());
                 } catch (const std::runtime_error&) {
                     stbi_image_free(pixels);
                     throw;
@@ -431,6 +436,7 @@ Renderer::Renderer(SDL_Window* window)
 
         m_textures["grass"] = loadTexture("content/aerial_grass_rock_diff_1k.png");
         m_textures["dirt"] = loadTexture("content/rock_04_diff_1k.png");
+        m_textures["dirtDark"] = m_textures["dirt"];
     }
 }
 
