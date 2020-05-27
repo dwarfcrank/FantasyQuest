@@ -549,7 +549,8 @@ btCollisionShape* SceneEditor::getCollisionMesh(const std::string& name)
 
     if (it != m_models.cend()) {
         int idx = int(std::distance(m_models.cbegin(), it));
-        auto mesh = Mesh::load(it->filename);
+        Mesh mesh;
+        mesh.load(it->filename);
 
         auto collisionShape = m_scene.physicsWorld.createCollisionMesh(mesh.getName(), mesh);
         collisionShape->setUserIndex(idx);

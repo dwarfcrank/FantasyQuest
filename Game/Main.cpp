@@ -61,7 +61,8 @@ std::vector<ModelAsset> loadModels(IRenderer* r)
         const auto p = it->path();
 
         if (p.extension() == ".mesh") {
-            auto mesh = Mesh::load(p);
+            Mesh mesh;
+            mesh.load(p);
             auto renderable = r->createRenderable(mesh.getName(), mesh.getVertices(), mesh.getIndices());
             models.emplace_back(mesh.getName(), renderable, mesh.getBounds(), p.generic_string());
         }
@@ -100,7 +101,7 @@ void convertAssets(const std::filesystem::path& in, const std::filesystem::path&
             auto pOut = p.filename();
             pOut.replace_extension(".mesh");
 
-            Mesh::save(out/pOut, mesh);
+            mesh.save(out / pOut);
         }
     }
 }

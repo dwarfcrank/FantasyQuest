@@ -3,11 +3,20 @@
 
 #include "Math.h"
 #include "File.h"
+#include "Serialization.h"
+#include "ShaderCommon.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <algorithm>
+#include <fstream>
+
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
 
 using namespace math;
 
@@ -33,6 +42,12 @@ static T1 max3(const T1& a, const T2& b)
     r.z = std::max(a.z, b.z);
 
     return r;
+}
+
+template<typename Archive>
+void serialize(Archive& archive, Vertex& v)
+{
+    archive(v.Position, v.Normal, v.Color, v.Texcoord);
 }
 
 Mesh Mesh::import(const std::filesystem::path& path)
@@ -135,60 +150,16 @@ Mesh Mesh::import(const std::filesystem::path& path)
     return result;
 }
 
-Mesh Mesh::load(const std::filesystem::path& path)
+void Mesh::load(const std::filesystem::path& path)
 {
-    auto data = loadFile(path);
-
-    std::size_t offset = 0;
-    MeshFileHeader header;
-
-    std::memcpy(&header, &data[offset], sizeof(header));
-
-    assert(header.magic == MeshFileHeader::MAGIC);
-    assert(header.headerSize == sizeof(MeshFileHeader));
-
-    offset += sizeof(header);
-
-    Mesh result;
-
-    result.m_bounds.min = Vector<Model>(header.minBounds[0], header.minBounds[1], header.minBounds[2], 1.0f);
-    result.m_bounds.max = Vector<Model>(header.maxBounds[0], header.maxBounds[1], header.maxBounds[2], 1.0f);
-
-    result.m_name.assign(&data[offset], &data[offset + header.nameLength]);
-    offset += header.nameLength;
-
-    result.m_vertices.resize(header.numVertices);
-    std::memcpy(result.m_vertices.data(), &data[offset], header.numVertices * sizeof(Vertex));
-    offset += header.numVertices * sizeof(Vertex);
-
-    result.m_indices.resize(header.numIndices);
-    std::memcpy(result.m_indices.data(), &data[offset], header.numIndices * sizeof(u16));
-    offset += header.numIndices * sizeof(u16);
-
-    return result;
+    std::ifstream input(path, std::ios::binary);
+    cereal::BinaryInputArchive archive(input);
+    archive(*this);
 }
 
-void Mesh::save(const std::filesystem::path& path, const Mesh& mesh)
+void Mesh::save(const std::filesystem::path& path)
 {
-    XMFLOAT3 minB, maxB;
-
-    XMStoreFloat3(&minB, mesh.m_bounds.min.vec);
-    XMStoreFloat3(&maxB, mesh.m_bounds.max.vec);
-
-    MeshFileHeader header{
-        .magic = MeshFileHeader::MAGIC,
-        .headerSize = u32(sizeof(MeshFileHeader)),
-        .nameLength = u32(mesh.m_name.length()),
-        .numVertices = u32(mesh.m_vertices.size()),
-        .numIndices = u32(mesh.m_indices.size()),
-        .minBounds{ minB.x, minB.y, minB.z },
-        .maxBounds{ maxB.x, maxB.y, maxB.z },
-    };
-
-    std::ofstream o{ path, std::ios::binary };
-    o.write(reinterpret_cast<const char*>(&header), sizeof(header));
-    o.write(mesh.m_name.data(), header.nameLength);
-    o.write(reinterpret_cast<const char*>(mesh.m_vertices.data()), header.numVertices * sizeof(Vertex));
-    o.write(reinterpret_cast<const char*>(mesh.m_indices.data()), header.numIndices * sizeof(u16));
+    std::ofstream output(path, std::ios::binary);
+    cereal::BinaryOutputArchive archive(output);
+    archive(*this);
 }
-

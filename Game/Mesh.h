@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <vector>
 #include <string>
+#include <cereal/access.hpp>
 
 struct MeshFileHeader
 {
@@ -53,10 +54,18 @@ public:
 
     static Mesh import(const std::filesystem::path& path);
 
-    static Mesh load(const std::filesystem::path& path);
-    static void save(const std::filesystem::path& path, const Mesh& mesh);
+    void load(const std::filesystem::path& path);
+    void save(const std::filesystem::path& path);
 
 private:
+    friend class cereal::access;
+
+    template<typename Archive>
+    void serialize(Archive& archive)
+    {
+        archive(m_name, m_indices, m_vertices, m_bounds.max.vec, m_bounds.min.vec);
+    }
+
     Bounds m_bounds;
     std::vector<Vertex> m_vertices;
     std::vector<u16> m_indices;
