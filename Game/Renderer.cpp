@@ -148,6 +148,7 @@ private:
 
     ComPtr<ID3D11Texture2D> m_testTexture;
     ComPtr<ID3D11ShaderResourceView> m_testTextureSRV;
+    ComPtr<ID3D11SamplerState> m_testTextureSampler;
 
     ComPtr<ID3D11SamplerState> m_framebufferSampler;
 
@@ -387,6 +388,11 @@ Renderer::Renderer(SDL_Window* window)
     }
 
     {
+        m_testTextureSampler = createSamplerState(m_device, D3D11_FILTER_MIN_MAG_LINEAR_MIP_POINT,
+            D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP, D3D11_TEXTURE_ADDRESS_WRAP,
+            0.0f, 0, D3D11_COMPARISON_NEVER, nullptr, 0.0f, D3D11_FLOAT32_MAX);
+        SET_OBJECT_NAME(m_testTextureSampler);
+
         int w = 0, h = 0, c = 0;
         if (auto pixels = stbi_load("content/rock_04_diff_1k.png", &w, &h, &c, 4)) {
             D3D11_SUBRESOURCE_DATA sd = {};
@@ -751,7 +757,7 @@ void Renderer::draw(const RenderBatch& batch)
         m_shadowCameraConstantBuffer.getBuffer() };
     std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
     std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get(), m_testTextureSRV.Get() };
-    std::array psSamplers{ m_shadowSampler.Get(), m_framebufferSampler.Get() };
+    std::array psSamplers{ m_shadowSampler.Get(), m_testTextureSampler.Get() };
 
     std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
     std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
