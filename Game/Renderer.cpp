@@ -13,6 +13,8 @@
 #include "stb_image.h"
 #include "Mesh.h"
 
+#include "Rendering/RenderContext.h"
+
 #include <im3d.h>
 
 #include <SDL2/SDL.h>
@@ -88,6 +90,8 @@ public:
 
 private:
     void loadShaders();
+
+    std::unique_ptr<RenderContext> m_renderContext;
 
     ID3D11ShaderResourceView* computeBloom();
 
@@ -438,6 +442,10 @@ Renderer::Renderer(SDL_Window* window)
         m_textures["dirt"] = loadTexture("content/rock_04_diff_1k.png");
         m_textures["dirtDark"] = m_textures["dirt"];
     }
+
+    {
+        m_renderContext = std::make_unique<RenderContext>(m_context, XMUINT2(m_width, m_height), m_backbufferRTV);
+    }
 }
 
 Renderable* Renderer::createRenderable(std::string_view name, ArrayView<Vertex> vertices, ArrayView<u16> indices)
@@ -762,21 +770,23 @@ void Renderer::drawShadow(const RenderBatch& batch)
 
     m_batchInstanceBuffer.update(m_context, batch.instances);
 
-    std::array vsConstantBuffers{ m_shadowCameraConstantBuffer.getBuffer() };
+    PassParams p{
+        .vertexBuffers{
+            .buffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer(), },
+            .strides{ u32(sizeof(Vertex)), u32(sizeof(RenderableConstants)), },
+            .offsets{ 0, 0, },
+        },
+        .indexBuffer = batch.renderable->m_indexBuffer.getBuffer(),
+        .numIndices = batch.renderable->m_indexBuffer.getSize(),
+        .numInstances = u32(batch.instances.size()),
+        .vs{
+            .shader = m_shadowBatchVS.Get(),
+            .inputLayout = m_batchInputLayout.Get(),
+            .constants{ m_shadowCameraConstantBuffer.getBuffer(), },
+        },
+    };
 
-    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
-    std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
-    std::array offsets{ UINT(0), UINT(0) };
-
-    m_context->IASetVertexBuffers(0, UINT(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(batch.renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_batchInputLayout.Get());
-
-    m_context->VSSetShader(m_shadowBatchVS.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
+    m_renderContext->draw(p);
 }
 
 void Renderer::endShadowPass()
@@ -793,40 +803,40 @@ void Renderer::draw(const RenderBatch& batch)
 
     m_batchInstanceBuffer.update(m_context, batch.instances);
 
-    std::array vsConstantBuffers{ m_cameraConstantBuffer.getBuffer(),
-        m_shadowCameraConstantBuffer.getBuffer() };
-    std::array psConstantBuffers{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer() };
-    std::array psSamplers{ m_shadowSampler.Get(), m_testTextureSampler.Get() };
-    std::array psResources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get() };
+    PassParams p{
+        .vertexBuffers{
+            .buffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer(), },
+            .strides{ u32(sizeof(Vertex)), u32(sizeof(RenderableConstants)), },
+            .offsets{ 0, 0, },
+        },
+        .indexBuffer = batch.renderable->m_indexBuffer.getBuffer(),
+        .numInstances = u32(batch.instances.size()),
+        .vs{
+            .shader = m_batchVS.Get(),
+            .inputLayout = m_batchInputLayout.Get(),
+            .constants{ m_cameraConstantBuffer.getBuffer(), m_shadowCameraConstantBuffer.getBuffer(), },
+        },
+        .ps{
+            .shader = m_ps.Get(),
+            .constants{ m_cameraConstantBuffer.getBuffer(), m_psConstants.getBuffer(), },
+            .resources{ m_pointLightBufferSRV.Get(), m_shadowRT.m_depthSRV.Get(), nullptr, },
+            .samplers{ m_shadowSampler.Get(), m_testTextureSampler.Get(), },
+        },
 
-    std::array vertexBuffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer() };
-    std::array strides{ UINT(sizeof(Vertex)), UINT(sizeof(RenderableConstants)) };
-    std::array offsets{ UINT(0), UINT(0) };
-
-    m_context->IASetVertexBuffers(0, UINT(vertexBuffers.size()), vertexBuffers.data(), strides.data(), offsets.data());
-    m_context->IASetIndexBuffer(batch.renderable->m_indexBuffer.getBuffer(), DXGI_FORMAT_R16_UINT, 0);
-    m_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    m_context->IASetInputLayout(m_batchInputLayout.Get());
-
-    m_context->VSSetShader(m_batchVS.Get(), nullptr, 0);
-    m_context->VSSetConstantBuffers(0, UINT(vsConstantBuffers.size()), vsConstantBuffers.data());
-
-    m_context->PSSetShader(m_ps.Get(), nullptr, 0);
-    m_context->PSSetConstantBuffers(0, UINT(psConstantBuffers.size()), psConstantBuffers.data());
-    m_context->PSSetShaderResources(0, UINT(psResources.size()), psResources.data());
-    m_context->PSSetSamplers(0, UINT(psSamplers.size()), psSamplers.data());
+    };
 
     for (const auto& submesh : batch.renderable->m_submeshes) {
-        //m_context->DrawIndexedInstanced(batch.renderable->m_indexBuffer.getSize(), UINT(batch.instances.size()), 0, 0, 0);
-        //auto texture = m_textures[submesh.material].srv.Get();
         ID3D11ShaderResourceView* texture = nullptr;
 
         if (auto it = m_textures.find(submesh.material); it != m_textures.end()) {
             texture = it->second.srv.Get();
         }
 
-        m_context->PSSetShaderResources(UINT(psResources.size()), 1, &texture);
-        m_context->DrawIndexedInstanced(submesh.numIndices, UINT(batch.instances.size()), submesh.baseIndex, submesh.baseVertex, 0);
+        p.ps.resources[2] = texture;
+        p.numIndices = submesh.numIndices;
+        p.baseIndex = submesh.baseIndex;
+        p.baseVertex = submesh.baseVertex;
+        m_renderContext->draw(p);
     }
 }
 
