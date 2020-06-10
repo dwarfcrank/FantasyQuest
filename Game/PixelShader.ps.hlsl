@@ -71,6 +71,6 @@ float4 main(VS_Output v) : SV_TARGET
 
     total *= m;
 
-    //return v.Color * float4(total, 1.0f);
-    return Diffuse.Sample(LinearSampler, v.Texcoord * 0.025f) * float4(total, 1.0f);
+    return v.Color * float4(total, 1.0f);
+    //return Diffuse.Sample(LinearSampler, v.Texcoord * 0.025f) * float4(total, 1.0f);
 }
