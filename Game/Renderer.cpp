@@ -673,22 +673,22 @@ void Renderer::postProcess(const PostProcessParams& params)
             m_luminanceHistogramCB.update(m_context);
         }
 
-        std::array resources{ m_mainRT.m_framebufferSRV.Get(), };
-        std::array constants{ m_luminanceHistogramCB.getBuffer(), };
-        std::array uavs{ m_luminanceHistogramUAV.Get(), m_averageLuminance.m_framebufferUAV.Get(), };
-
-        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
-        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
-        m_context->CSSetConstantBuffers(0, UINT(constants.size()), constants.data());
-        m_context->CSSetShader(m_luminanceHistogramCS.Get(), nullptr, 0);
-
         auto x = UINT(std::ceil(float(m_mainRT.m_width) / 16.0f));
         auto y = UINT(std::ceil(float(m_mainRT.m_height) / 16.0f));
 
-        m_context->Dispatch(x, y, 1);
+        m_renderContext->compute(ComputeParams{
+            .shader = m_luminanceHistogramCS.Get(),
 
-        m_context->CSSetShader(m_luminanceAverageCS.Get(), nullptr, 0);
-        m_context->Dispatch(1, 1, 1);
+            .constants{ m_luminanceHistogramCB.getBuffer(), },
+            .resources{ m_mainRT.m_framebufferSRV.Get(), },
+            .uavs{ m_luminanceHistogramUAV.Get(), m_averageLuminance.m_framebufferUAV.Get(), },
+            .threads{ x, y, 1, },
+        });
+
+        m_renderContext->compute(ComputeParams{
+            .shader = m_luminanceAverageCS.Get(),
+            .threads{ 1, 1, 1, },
+        });
     }
 
     ID3D11ShaderResourceView* bloomSRV = computeBloom();
@@ -701,40 +701,34 @@ void Renderer::postProcess(const PostProcessParams& params)
     }
 
     {
-        auto sampler = m_framebufferSampler.Get();
-        m_context->CSSetSamplers(0, 1, &sampler);
-
-        m_context->CSSetShader(m_fscs.Get(), nullptr, 0);
-
-        std::array resources{
-            m_mainRT.m_framebufferSRV.Get(),
-            bloomSRV,
-            m_averageLuminance.m_framebufferSRV.Get(),
-        };
-
-        std::array constants{
-            m_postProcessConstants.getBuffer(),
-        };
-
-        std::array uavs{ m_backbufferUAV.Get() };
-
         m_postProcessConstants.data.Exposure = params.exposure;
         m_postProcessConstants.data.GammaCorrection = params.gammaCorrection ? 1 : 0;
         m_postProcessConstants.update(m_context);
 
-        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
-        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
-        m_context->CSSetConstantBuffers(0, UINT(constants.size()), constants.data());
-
         auto x = UINT(std::ceil(float(m_width) / float(TILE_SIZE)));
         auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
-        m_context->Dispatch(x, y, 1);
 
-        std::memset(resources.data(), 0, sizeof(resources));
-        std::memset(uavs.data(), 0, sizeof(uavs));
+        ComputeParams p{
+            .shader = m_fscs.Get(),
+            .constants{ m_postProcessConstants.getBuffer() },
+            .resources{
+                m_mainRT.m_framebufferSRV.Get(),
+                bloomSRV,
+                m_averageLuminance.m_framebufferSRV.Get(),
+            },
+            .samplers{ m_framebufferSampler.Get(), },
+            .uavs{ m_backbufferUAV.Get(), },
+            .threads{ x, y, 1, },
+        };
 
-        m_context->CSSetShaderResources(0, UINT(resources.size()), resources.data());
-        m_context->CSSetUnorderedAccessViews(0, UINT(uavs.size()), uavs.data(), nullptr);
+        m_renderContext->compute(p);
+
+        // TODO: figure out how to do this better
+        std::memset(p.resources.data(), 0, p.resources.size() * sizeof(p.resources[0]));
+        std::memset(p.uavs.data(), 0, p.uavs.size() * sizeof(p.uavs[0]));
+
+        m_context->CSSetShaderResources(0, UINT(p.resources.size()), p.resources.data());
+        m_context->CSSetUnorderedAccessViews(0, UINT(p.uavs.size()), p.uavs.data(), nullptr);
     }
 
     auto rtv = m_backbufferRTV.Get();
@@ -770,7 +764,7 @@ void Renderer::drawShadow(const RenderBatch& batch)
 
     m_batchInstanceBuffer.update(m_context, batch.instances);
 
-    PassParams p{
+    DrawParams p{
         .vertexBuffers{
             .buffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer(), },
             .strides{ u32(sizeof(Vertex)), u32(sizeof(RenderableConstants)), },
@@ -803,7 +797,7 @@ void Renderer::draw(const RenderBatch& batch)
 
     m_batchInstanceBuffer.update(m_context, batch.instances);
 
-    PassParams p{
+    DrawParams p{
         .vertexBuffers{
             .buffers{ batch.renderable->m_vertexBuffer.getBuffer(), m_batchInstanceBuffer.getBuffer(), },
             .strides{ u32(sizeof(Vertex)), u32(sizeof(RenderableConstants)), },

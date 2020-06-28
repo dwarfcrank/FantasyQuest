@@ -39,7 +39,7 @@ struct VertexBufferSet
     std::vector<u32> offsets;
 };
 
-struct PassParams
+struct DrawParams
 {
     VertexBufferSet vertexBuffers;
     ID3D11Buffer* indexBuffer = nullptr;
@@ -56,6 +56,18 @@ struct PassParams
     ShaderParams<ID3D11PixelShader> ps;
 };
 
+struct ComputeParams
+{
+    ID3D11ComputeShader* shader = nullptr;
+
+    std::vector<ID3D11Buffer*> constants;
+    std::vector<ID3D11ShaderResourceView*> resources;
+    std::vector<ID3D11SamplerState*> samplers;
+    std::vector<ID3D11UnorderedAccessView*> uavs;
+
+    DirectX::XMUINT3 threads{ 1, 1, 1, };
+};
+
 class RenderContext
 {
 public:
@@ -69,7 +81,8 @@ public:
     void clearRenderTarget(class RenderTarget*, const DirectX::XMFLOAT4& clearColor = { 0.0f, 0.0f, 0.0f, 1.0f, }, float depth = 0.0f);
     void bindRenderTarget(class RenderTarget*);
 
-    void draw(const PassParams&);
+    void draw(const DrawParams&);
+    void compute(const ComputeParams&);
 
 private:
     ComPtr<ID3D11DeviceContext1> m_context;

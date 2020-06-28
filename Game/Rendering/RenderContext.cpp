@@ -35,7 +35,7 @@ void RenderContext::bindBackbuffer()
     m_context->RSSetViewports(1, &vp);
 }
 
-void RenderContext::draw(const PassParams& p)
+void RenderContext::draw(const DrawParams& p)
 {
     assert(p.vs.shader);
     assert(p.indexBuffer);
@@ -99,4 +99,30 @@ void RenderContext::draw(const PassParams& p)
 
     m_context->IASetIndexBuffer(p.indexBuffer, DXGI_FORMAT_R16_UINT, 0);
     m_context->DrawIndexedInstanced(p.numIndices, p.numInstances, p.baseIndex, p.baseVertex, 0);
+}
+
+void RenderContext::compute(const ComputeParams& p)
+{
+    assert(p.shader);
+    assert(p.threads.x > 0 && p.threads.y > 0 && p.threads.z > 0);
+
+    m_context->CSSetShader(p.shader, nullptr, 0);
+
+    if (!p.constants.empty()) {
+        m_context->CSSetConstantBuffers(0, u32(p.constants.size()), p.constants.data());
+    }
+
+    if (!p.resources.empty()) {
+        m_context->CSSetShaderResources(0, u32(p.resources.size()), p.resources.data());
+    }
+
+    if (!p.samplers.empty()) {
+        m_context->CSSetSamplers(0, u32(p.samplers.size()), p.samplers.data());
+    }
+
+    if (!p.uavs.empty()) {
+        m_context->CSSetUnorderedAccessViews(0, u32(p.uavs.size()), p.uavs.data(), nullptr);
+    }
+
+    m_context->Dispatch(p.threads.x, p.threads.y, p.threads.z);
 }
