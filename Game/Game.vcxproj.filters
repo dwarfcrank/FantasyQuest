@@ -194,9 +194,6 @@
     <FxCompile Include="PixelShader.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="FullScreenPass.cs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="BatchVertexShader.vs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -210,6 +207,9 @@
       <Filter>Shaders</Filter>
     </FxCompile>
     <FxCompile Include="Im3d.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="ToneMapPass.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>

@@ -116,7 +116,7 @@ private:
     ComPtr<ID3D11VertexShader> m_batchVS;
     VertexBuffer<RenderableConstants> m_batchInstanceBuffer;
 
-    ComPtr<ID3D11ComputeShader> m_fscs;
+    ComPtr<ID3D11ComputeShader> m_toneMapCS;
     ComPtr<ID3D11UnorderedAccessView> m_backbufferUAV;
 
     ComPtr<ID3D11InputLayout> m_im3dLayout;
@@ -707,7 +707,7 @@ void Renderer::postProcess(const PostProcessParams& params)
         auto y = UINT(std::ceil(float(m_height) / float(TILE_SIZE)));
 
         ComputeParams p{
-            .shader = m_fscs.Get(),
+            .shader = m_toneMapCS.Get(),
             .constants{ m_postProcessConstants.getBuffer() },
             .resources{
                 m_mainRT.m_framebufferSRV.Get(),
@@ -914,7 +914,7 @@ void Renderer::loadShaders()
     m_im3dTriangleVS = compileVertexShader(m_device, shaderDir / "Im3d.hlsl", "vsTriangles");
 
     m_blur.gaussianCS = compileComputeShader(m_device, shaderDir / "GaussianBlur.cs.hlsl", "main");
-    m_fscs = compileComputeShader(m_device, shaderDir / "FullScreenPass.cs.hlsl", "main");
+    m_toneMapCS = compileComputeShader(m_device, shaderDir / "ToneMapPass.cs.hlsl", "main");
 
     m_luminanceHistogramCS = compileComputeShader(m_device, shaderDir / "LuminanceHistogram.hlsl", "computeHistogram");
     m_luminanceAverageCS = compileComputeShader(m_device, shaderDir / "LuminanceHistogram.hlsl", "computeAverage");
