@@ -1034,7 +1034,7 @@ bool Im3d::GizmoScale(Id _id, float _scale_[3])
 	{
 		const Vec3 viewDir = appData.m_projOrtho
 			? appData.m_viewDirection
-			: Normalize(appData.m_viewOrigin - *outVec3)
+			: Normalize(appData.m_viewOrigin - origin)
 			;
 		for (int i = 0; i < 3; ++i)
 		{
@@ -1398,13 +1398,13 @@ void Vector<T>::swap(Vector<T>& _a_, Vector<T>& _b_)
 	_b_.m_size     = size;
 }
 
-template struct Vector<bool>;
-template struct Vector<char>;
-template struct Vector<float>;
-template struct Vector<Id>;
-template struct Vector<Mat4>;
-template struct Vector<Color>;
-template struct Vector<DrawList>;
+template struct Im3d::Vector<bool>;
+template struct Im3d::Vector<char>;
+template struct Im3d::Vector<float>;
+template struct Im3d::Vector<Id>;
+template struct Im3d::Vector<Mat4>;
+template struct Im3d::Vector<Color>;
+template struct Im3d::Vector<DrawList>;
 
 /*******************************************************************************
 
