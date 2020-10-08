@@ -55,31 +55,6 @@ CB_STRUCT GaussianConstants
     uint Upsampling;
 };
 
-CB_STRUCT BrightPassConstants
-{
-    float2 InputSize;
-    float2 OutputSize;
-    float Threshold;
-};
-
-CB_STRUCT KawaseConstants
-{
-    float2 InputSize;
-    float2 OutputSize;
-    float KernelSize;
-    uint Upsampling;
-};
-
-CB_STRUCT BlurConstants
-{
-    float2 ScreenSize;
-    float KernelSize;
-
-    // TODO: remove this, we need a separate shader for the first blur pass anyway
-    float TexcoordScale;
-    uint BlurPass; // 0 = horizontal, 1 = vertical
-};
-
 CB_STRUCT PostProcessConstants
 {
     float2 ScreenSize;

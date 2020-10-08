@@ -145,9 +145,7 @@ private:
 
     ComPtr<ID3D11RasterizerState> m_shadowRasterizerState;
     ComPtr<ID3D11SamplerState> m_shadowSampler;
-    ComPtr<ID3D11VertexShader> m_shadowVS;
     ComPtr<ID3D11VertexShader> m_shadowBatchVS;
-    ComPtr<ID3D11PixelShader> m_shadowPS;
 
     RenderTarget m_shadowRT;
     RenderTarget m_mainRT;
@@ -895,22 +893,8 @@ void Renderer::loadShaders()
         });
 
     m_shadowBatchVS = compileVertexShader(m_device, shaderDir / "BatchShadow.vs.hlsl", "main");
-    m_shadowVS = compileVertexShader(m_device, shaderDir / "Shadow.vs.hlsl", "main");
 
     m_ps = compilePixelShader(m_device, shaderDir / "PixelShader.ps.hlsl", "main");
-    m_vs = compileVertexShader(m_device, shaderDir / "VertexShader.vs.hlsl", "main",
-        [this](ID3DBlob* bytecode) {
-            std::array layout{
-                D3D11_INPUT_ELEMENT_DESC{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                D3D11_INPUT_ELEMENT_DESC{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                D3D11_INPUT_ELEMENT_DESC{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-                D3D11_INPUT_ELEMENT_DESC{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 40, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-            };
-
-            Hresult hr = m_device->CreateInputLayout(layout.data(), static_cast<UINT>(layout.size()),
-                bytecode->GetBufferPointer(), bytecode->GetBufferSize(), &m_inputLayout);
-            setObjectName(m_inputLayout, "DefaultInputLayout");
-        });
 
     m_im3dLineGS = compileGeometryShader(m_device, shaderDir / "Im3d.hlsl", "gsLines");
     m_im3dLinePS = compilePixelShader(m_device, shaderDir / "Im3d.hlsl", "psMain");

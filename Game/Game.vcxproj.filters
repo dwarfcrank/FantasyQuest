@@ -194,12 +194,6 @@
     <FxCompile Include="PixelShader.ps.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="Shadow.vs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="VertexShader.vs.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="FullScreenPass.cs.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
