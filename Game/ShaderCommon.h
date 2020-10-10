@@ -75,6 +75,7 @@ struct PointLight
     float4 Position; // .w = linear attenuation
     float4 Color; // .w = quadratic attenuation
     float Intensity;
+    float Radius;
 };
 
 CONSTANT uint TILE_SIZE = 32;

@@ -531,8 +531,13 @@ void SceneEditor::pointLightComponentEditor()
         changed |= ImGui::SliderFloat("Linear", &plc->linearAttenuation, 0.0f, 5.0f, "%.5f");
         changed |= ImGui::SliderFloat("Quadratic", &plc->quadraticAttenuation, 0.0f, 5.0f, "%.5f");
         changed |= ImGui::SliderFloat("Intensity", &plc->intensity, 0.0f, 100.0f, "%.5f");
+        //changed |= ImGui::SliderFloat("Radius", &plc->radius, 0.0f, 100.0f, "%.5f");
+        changed |= ImGui::DragFloat("Radius", &plc->radius);
 
         if (changed) {
+            if (std::fabs(plc->radius) <= FLT_EPSILON) {
+                plc->radius = 1.0f;
+            }
         }
     }
 }
@@ -714,8 +719,7 @@ void SceneEditor::drawEntityBounds(entt::entity e)
 
         Im3d::DrawAlignedBox(Im3d::Vec3(bMin.x, bMin.y, bMin.z), Im3d::Vec3(bMax.x, bMax.y, bMax.z));
     } else if (const auto plc = std::as_const(m_scene.reg).try_get<components::PointLight>(e)) {
-        // TODO: figure out how to calculate the radius
-        Im3d::DrawSphere(Im3d::Vec3(0.0f), std::min(plc->intensity, 5.0f));
+        Im3d::DrawSphere(Im3d::Vec3(0.0f), std::max(plc->radius, 1.0f));
     }
 
     Im3d::PopMatrix();

@@ -13,6 +13,8 @@ Texture2D Diffuse : register(t2);
 SamplerComparisonState ShadowMapSampler : register(s0);
 SamplerState LinearSampler : register(s1);
 
+static const float AttenuationCutoff = 0.05f;
+
 float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 {
     float3 l = light.Position.xyz - position;
@@ -20,7 +22,8 @@ float3 ComputePointLight(PointLight light, float3 position, float3 normal)
 
     l /= distance;
 
-    float attenuation = 1.0f / (light.Position.w * distance + light.Color.w * distance * distance);
+    float rangeAttenuation = saturate(1.0f - ((distance * distance) / (light.Radius * light.Radius)));
+    float attenuation = (rangeAttenuation * rangeAttenuation) / (light.Position.w * distance + light.Color.w * distance * distance);
 	float ndotl = max(0.0f, dot(normal, l));
 
     return light.Color.rgb * ndotl * attenuation * light.Intensity;

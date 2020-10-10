@@ -382,6 +382,8 @@ void MainLoop::updateLights()
             l.Position.w = plc.linearAttenuation;
 
             l.Intensity = plc.intensity;
+            l.Radius = plc.radius;
+
             m_lights.push_back(l);
         });
 }
