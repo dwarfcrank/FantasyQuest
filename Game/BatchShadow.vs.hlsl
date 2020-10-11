@@ -1,11 +1,15 @@
 #include "Common.hlsli"
+#include "VertexHelpers.hlsli"
 
-float4 main(Vertex v, matrix World : WORLD) : SV_POSITION
+ByteAddressBuffer vertexBuffer : register(t0);
+ByteAddressBuffer instanceBuffer : register(t1);
+
+float4 main(uint vIdx : SV_VertexID, uint iIdx : SV_InstanceID) : SV_POSITION
 {
-	float4 position = (float4)0;
+	matrix world = loadWorldMatrix(instanceBuffer, iIdx);
+	float4 position = float4(loadPosition(vertexBuffer, vIdx), 1.0f);
 
-	position = float4(v.Position, 1.0f);
-	position = mul(position, World);
+	position = mul(position, world);
 	position = mul(position, camera.View);
 	position = mul(position, camera.Projection);
 

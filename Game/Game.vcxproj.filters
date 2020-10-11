@@ -217,5 +217,8 @@
     <None Include="Common.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="VertexHelpers.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

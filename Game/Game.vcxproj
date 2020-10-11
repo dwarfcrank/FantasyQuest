@@ -225,6 +225,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Common.hlsli" />
+    <None Include="VertexHelpers.hlsli" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\im3d\im3d.vcxproj">

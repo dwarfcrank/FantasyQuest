@@ -34,7 +34,7 @@ private:
     ComPtr<ID3D11Buffer> buffer;
 };
 
-template<typename T, UINT BindFlags>
+template<typename T, UINT BindFlags, UINT MiscFlags = 0>
 class Buffer
 {
 public:
@@ -51,13 +51,14 @@ public:
         m_size = 0;
 
         CD3D11_BUFFER_DESC bd(sizeof(ElementType) * capacity, BindFlags);
+        bd.MiscFlags = MiscFlags;
 
-        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0 && !std::is_integral_v<ElementType>) {
+        if constexpr ((MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED) != 0) {
             bd.StructureByteStride = sizeof(ElementType);
-            bd.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
         }
 
-        if constexpr ((BindFlags & D3D11_BIND_UNORDERED_ACCESS) != 0) {
+        if constexpr ((BindFlags & (D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE)) != 0
+            && !(MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)) {
             bd.MiscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
         }
 
@@ -69,13 +70,10 @@ public:
         m_capacity = contents.size;
         m_size = contents.size;
 
-        UINT miscFlags = 0;
+        UINT miscFlags = MiscFlags;
 
-        if constexpr ((BindFlags & D3D11_BIND_SHADER_RESOURCE) != 0 && !std::is_integral_v<ElementType>) {
-            miscFlags |= D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
-        } 
-
-        if constexpr ((BindFlags & D3D11_BIND_UNORDERED_ACCESS) != 0) {
+        if constexpr ((BindFlags & (D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE)) != 0
+            && !(MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)) {
             miscFlags |= D3D11_RESOURCE_MISC_BUFFER_ALLOW_RAW_VIEWS;
         }
 
@@ -108,13 +106,13 @@ private:
 };
 
 template<typename T>
-using VertexBuffer = Buffer<T, D3D11_BIND_VERTEX_BUFFER>;
+using VertexBuffer = Buffer<T, D3D11_BIND_VERTEX_BUFFER | D3D11_BIND_SHADER_RESOURCE>;
 
 template<typename T>
 using IndexBuffer = Buffer<T, D3D11_BIND_INDEX_BUFFER>;
 
 template<typename T>
-using StructuredBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE>;
+using StructuredBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE, D3D11_RESOURCE_MISC_BUFFER_STRUCTURED>;
 
 template<typename T>
 using RWByteAddressBuffer = Buffer<T, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS>;
