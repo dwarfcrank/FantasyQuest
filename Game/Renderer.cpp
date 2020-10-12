@@ -283,7 +283,7 @@ Renderer::Renderer(SDL_Window* window)
             0.0f, 0, D3D11_COMPARISON_LESS, nullptr, 0.0f, D3D11_FLOAT32_MAX);
         SET_OBJECT_NAME(m_shadowSampler);
 
-        m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_FRONT, FALSE, 0, 0.0f, 0.0f, TRUE,
+        m_shadowRasterizerState = createRasterizerState(m_device, D3D11_FILL_SOLID, D3D11_CULL_BACK, FALSE, 0, 0.0f, 0.0f, TRUE,
             FALSE, FALSE, FALSE);
         SET_OBJECT_NAME(m_shadowRasterizerState);
     }
