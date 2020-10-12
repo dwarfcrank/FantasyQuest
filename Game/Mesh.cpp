@@ -86,7 +86,6 @@ Mesh Mesh::import(const std::filesystem::path& path)
 
     result.m_subMeshes.resize(scene->mNumMeshes);
 
-    // TODO: probably shouldn't just merge different meshes into one...
     u16 baseIdx = 0;
 
     for (u32 meshIdx = 0; meshIdx < scene->mNumMeshes; meshIdx++) {
@@ -126,15 +125,12 @@ Mesh Mesh::import(const std::filesystem::path& path)
 
         for (ArrayView faces(mesh->mFaces, mesh->mNumFaces); const auto& f : faces) {
             for (ArrayView indices(f.mIndices, f.mNumIndices); auto i : indices) {
-                //result.m_indices.push_back(baseIdx + static_cast<u16>(i));
-                result.m_indices.push_back(static_cast<u16>(i));
+                result.m_indices.push_back(baseIdx + static_cast<u16>(i));
                 submesh.numIndices++;
             }
         }
 
         baseIdx = static_cast<u16>(result.m_indices.size());
-        //baseIdx = 0;
-        //submesh.baseIndex = static_cast<u32>(result.m_indices.size());
     }
 
     // TODO: the kenney assets are built to work in a grid, so undoing the local

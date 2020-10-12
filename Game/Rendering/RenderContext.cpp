@@ -98,7 +98,7 @@ void RenderContext::draw(const DrawParams& p)
     }
 
     m_context->IASetIndexBuffer(p.indexBuffer, DXGI_FORMAT_R16_UINT, 0);
-    m_context->DrawIndexedInstanced(p.numIndices, p.numInstances, p.baseIndex, p.baseVertex, 0);
+    m_context->DrawIndexedInstanced(p.numIndices, p.numInstances, p.baseIndex, 0, 0);
 }
 
 void RenderContext::compute(const ComputeParams& p)
