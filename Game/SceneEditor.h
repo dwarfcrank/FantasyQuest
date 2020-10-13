@@ -8,6 +8,8 @@
 #include <vector>
 #include <tuple>
 #include <filesystem>
+#include <unordered_map>
+#include <functional>
 
 struct Scene;
 
@@ -48,6 +50,9 @@ public:
 private:
     Scene& m_scene;
 
+    using ComponentEditorFunc = void (SceneEditor::*)(entt::entity);
+    std::unordered_map<entt::id_type, ComponentEditorFunc> m_componentEditors;
+
     std::vector<ModelAsset> m_models;
 
     int m_currentModelIdx = -1;
@@ -73,10 +78,10 @@ private:
     void entityList();
     void entityPropertiesWindow();
 
-    void renderableComponentEditor();
-    void physicsComponentEditor();
-    void collisionComponentEditor();
-    void pointLightComponentEditor();
+    void renderableComponentEditor(entt::entity);
+    void physicsComponentEditor(entt::entity);
+    void collisionComponentEditor(entt::entity);
+    void pointLightComponentEditor(entt::entity);
 
     class btCollisionShape* getCollisionMesh(const std::string&);
 

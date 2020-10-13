@@ -17,6 +17,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <algorithm>
+#include <unordered_map>
 
 using namespace math;
 
@@ -95,6 +96,11 @@ SceneEditor::SceneEditor(Scene& scene, InputMap& inputs, const std::vector<Model
         });
 
     m_camera.setPosition({ 0.0f, 5.0f, -5.0f });
+
+    m_componentEditors[entt::type_info<components::Renderable>::id()] = &SceneEditor::renderableComponentEditor;
+    m_componentEditors[entt::type_info<components::PointLight>::id()] = &SceneEditor::pointLightComponentEditor;
+    m_componentEditors[entt::type_info<components::Collision>::id()] = &SceneEditor::collisionComponentEditor;
+    m_componentEditors[entt::type_info<components::Physics>::id()] = &SceneEditor::physicsComponentEditor;
 }
 
 static_assert(sizeof(XMFLOAT4X4A) == sizeof(Im3d::Mat4));
@@ -345,31 +351,29 @@ void SceneEditor::entityPropertiesWindow()
             }
         }
 
-        ImGui::Separator();
-        renderableComponentEditor();
-        ImGui::Separator();
-        pointLightComponentEditor();
-        ImGui::Separator();
-        physicsComponentEditor();
-        ImGui::Separator();
-        collisionComponentEditor();
+        m_scene.reg.visit(m_currentEntity, [&](const entt::id_type cid) {
+            if (auto it = m_componentEditors.find(cid); it != m_componentEditors.end()) {
+                ImGui::Separator();
+                (this->*(it->second))(m_currentEntity);
+            }
+        });
     }
 
     ImGui::End();
 }
 
-void SceneEditor::renderableComponentEditor()
+void SceneEditor::renderableComponentEditor(entt::entity e)
 {
-    auto rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity);
+    auto rc = m_scene.reg.try_get<components::Renderable>(e);
     bool render = (rc != nullptr);
 
     if (ImGui::Checkbox("Render", &render)) {
         if (!render) {
-            m_scene.reg.remove_if_exists<components::Renderable>(m_currentEntity);
+            m_scene.reg.remove_if_exists<components::Renderable>(e);
             rc = nullptr;
         } else if (render && !rc) {
             const auto& model = m_models.front();
-            auto& rc = m_scene.reg.emplace<components::Renderable>(m_currentEntity,
+            auto& rc = m_scene.reg.emplace<components::Renderable>(e,
                 model.name, model.renderable, model.bounds);
         }
     }
@@ -401,7 +405,7 @@ void SceneEditor::renderableComponentEditor()
         }
 
         if (newSelection != selected) {
-            m_scene.reg.patch<components::Renderable>(m_currentEntity,
+            m_scene.reg.patch<components::Renderable>(e,
                 [&](components::Renderable& r) {
                     const auto& model = m_models[newSelection];
                     r.name = model.name;
@@ -412,22 +416,22 @@ void SceneEditor::renderableComponentEditor()
     }
 }
 
-void SceneEditor::physicsComponentEditor()
+void SceneEditor::physicsComponentEditor(entt::entity e)
 {
-    bool hasPhysics = m_scene.reg.has<components::Physics>(m_currentEntity);
+    bool hasPhysics = m_scene.reg.has<components::Physics>(e);
     bool created = false;
 
     if (ImGui::Checkbox("Physics", &hasPhysics)) {
         if (!hasPhysics) {
-            m_scene.reg.remove_if_exists<components::Physics>(m_currentEntity);
+            m_scene.reg.remove_if_exists<components::Physics>(e);
         } else {
-            m_scene.reg.emplace<components::Physics>(m_currentEntity);
+            m_scene.reg.emplace<components::Physics>(e);
             created = true;
         }
     }
 
-    if (auto pc = m_scene.reg.try_get<components::Physics>(m_currentEntity); hasPhysics && pc) {
-        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
+    if (auto pc = m_scene.reg.try_get<components::Physics>(e); hasPhysics && pc) {
+        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(e); rc && created) {
             pc->collisionShape = getCollisionMesh(rc->name);
             pc->collisionObject->setCollisionShape(pc->collisionShape);
         }
@@ -467,22 +471,22 @@ void SceneEditor::physicsComponentEditor()
     }
 }
 
-void SceneEditor::collisionComponentEditor()
+void SceneEditor::collisionComponentEditor(entt::entity e)
 {
-    bool hasCollision = m_scene.reg.has<components::Collision>(m_currentEntity);
+    bool hasCollision = m_scene.reg.has<components::Collision>(e);
     bool created = false;
 
     if (ImGui::Checkbox("Collision", &hasCollision)) {
         if (!hasCollision) {
-            m_scene.reg.remove_if_exists<components::Collision>(m_currentEntity);
+            m_scene.reg.remove_if_exists<components::Collision>(e);
         } else {
-            m_scene.reg.emplace<components::Collision>(m_currentEntity);
+            m_scene.reg.emplace<components::Collision>(e);
             created = true;
         }
     }
 
-    if (auto cc = m_scene.reg.try_get<components::Collision>(m_currentEntity); hasCollision && cc) {
-        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(m_currentEntity); rc && created) {
+    if (auto cc = m_scene.reg.try_get<components::Collision>(e); hasCollision && cc) {
+        if (const auto* rc = m_scene.reg.try_get<components::Renderable>(e); rc && created) {
             cc->collisionShape = getCollisionMesh(rc->name);
             cc->collisionObject->setCollisionShape(cc->collisionShape);
         }
@@ -510,17 +514,17 @@ void SceneEditor::collisionComponentEditor()
     }
 }
 
-void SceneEditor::pointLightComponentEditor()
+void SceneEditor::pointLightComponentEditor(entt::entity e)
 {
-    auto plc = m_scene.reg.try_get<components::PointLight>(m_currentEntity);
+    auto plc = m_scene.reg.try_get<components::PointLight>(e);
     bool hasLight = (plc != nullptr);
 
     if (ImGui::Checkbox("Point light", &hasLight)) {
         if (!hasLight) {
-            m_scene.reg.remove_if_exists<components::PointLight>(m_currentEntity);
+            m_scene.reg.remove_if_exists<components::PointLight>(e);
             plc = nullptr;
         } else if (hasLight && !plc) {
-            m_scene.reg.emplace<components::PointLight>(m_currentEntity);
+            m_scene.reg.emplace<components::PointLight>(e);
         }
     }
 
